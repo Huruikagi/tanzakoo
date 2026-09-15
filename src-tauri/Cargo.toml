@@ -1,0 +1,33 @@
+[package]
+name = "tanzakoo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+default-run = "tanzakoo"
+
+[lib]
+name = "tanzakoo_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.38", features = ["bundled"] }
+tokio = { version = "1", features = [
+  "rt-multi-thread",
+  "process",
+  "io-util",
+  "io-std",
+  "sync",
+  "time",
+  "macros",
+] }
+agent-client-protocol = "=2.1.0"
+rmcp = { version = "=3.3.0", features = ["transport-io"] }
+thiserror = "2"
+tracing = "0.1"
+ts-rs = { version = "12", features = ["serde-compat"] }

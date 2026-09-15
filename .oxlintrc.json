@@ -1,0 +1,9 @@
+{
+  "jsPlugins": ["@shadcn/lint"],
+  "plugins": ["typescript", "react", "react-hooks", "jsx-a11y"],
+  "rules": {
+    "shadcn/no-restyle": ["error", { "allow": ["layout"] }]
+  },
+  "ignorePatterns": ["src/bindings/**", "src-tauri/target/**", "dist/**"],
+  "overrides": [{ "files": ["src/components/ui/**"], "rules": { "shadcn/no-restyle": "off" } }]
+}

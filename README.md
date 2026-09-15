@@ -1,0 +1,95 @@
+# Tanzakoo
+
+曖昧なプロダクトアイデアを、AIとの対話とカード操作で少しずつ具体化するローカルツール。
+
+**会話から論点が生まれる → 気になるカードを選ぶ → 内容を指して話す → 提案を確認して適用する。**
+
+初版のプロトタイプです。Tauri 2 / React / TypeScript / Rustを使い、CodexとClaudeへACPで接続します。
+
+## 起動
+
+WindowsではRustのMSVCツールチェーン、Visual StudioのC++ビルドツール、WebView2、miseが必要です。
+Nodeとpnpmは `mise.toml` のバージョンを使います。
+
+```powershell
+mise trust
+mise install
+mise exec -- pnpm install --frozen-lockfile
+mise exec -- pnpm tauri dev
+```
+
+エージェントを使う前に、普段のCodex / Claude Codeの環境でログインしておいてください。
+ACPアダプターはプロジェクトの依存に含まれます。アプリをmise経由で起動すると、同じNodeを利用します。
+起動できない場合は右上の接続設定で、Nodeの実行ファイルとアダプターの引数を確認できます。
+
+`mise exec -- pnpm dev` だけでも画面をプレビューできます。ブラウザプレビューでは保存とエージェント接続は利用できません。
+
+開発サーバーを使わずに起動する場合は、画面を内蔵した実行ファイルを作れます。
+
+```powershell
+mise exec -- pnpm tauri build --debug --no-bundle
+mise exec -- .\src-tauri\target\debug\tanzakoo.exe
+```
+
+この実行ファイルも、エージェント接続にはプロジェクト内のNode依存を使います。単体配布用ではありません。
+
+## 使い方
+
+1. 右側のチャットでエージェントを選び、作りたいものを話します。送信はボタンまたは **Ctrl + Enter**。
+2. エージェントが論点を「アイデアの山」に自動起票します。全部を片付ける必要はなく、放置しても消えません。
+3. 気になるカードを開き、本文を編集します。列の移動はドラッグか、詳細の列選択から行えます。
+4. 「会話に参照」でカード全体を添付できます。本文を範囲選択すると「選択範囲を参照」も使えます。編集中の内容は先に保存します。
+5. 変更提案はカード詳細で変更前と変更案を確認し、適用または却下します。承認前に元のカードは変わりません。
+6. 不要なカードは削除できます。ボード右上のアーカイブから復元できます。
+
+チャットの「＋」で新しい会話を開始します。会話途中でエージェントは切り替えず、会話履歴から再開できます。
+カードを切り替えても編集途中の下書きは保持します。ただし、未保存の下書きはアプリを終了すると消えます。
+
+## 保存とエージェントに渡す内容
+
+- 正本はSQLiteのボードです。Windowsの既定保存先は `%APPDATA%\dev.huruikagi.tanzakoo\tanzakoo.db`。
+- カード、提案、会話、接続設定をローカル保存します。保存先は起動時の `TANZAKOO_DATA_DIR` で変更できます。
+- ボードは一つです。候補の自動消去、自動並べ替え、クラウド同期はありません。
+- エージェントにはユーザーの発言、現在のボード、明示的な参照を渡します。会話を新規セッションで復元するときは最近の会話も渡します。利用先のアカウント・契約条件が適用されます。
+- TanzakooのMCPツールは「ボード取得」「候補作成」「変更提案」の三つだけです。この三つは自動許可します。既存カードへの変更適用はUIから行います。
+- その他のエージェント操作に許可要求が来た場合は、チャット内に内容を表示します。カードの変更適用とは別の確認です。
+- 提案後にカードが更新されていたら、その提案は適用できません。最新の内容を確認して再提案を依頼します。
+
+DBをコピーしてバックアップする場合はアプリとエージェントを終了してから行ってください。
+
+## 開発と検証
+
+```powershell
+mise exec -- pnpm check
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+```
+
+- Oxlint + Oxfmt。`@shadcn/lint` の `no-restyle` で共通部品の利用を確認します。レイアウト調整と動的スタイルは許容します。
+- Vitest / React Testing Libraryで参照・下書き・送信・提案適用を検証します。
+- Rustのテストで保存、承認時の競合検出、許可対象、キャンセル状態を検証します。`ts-rs` によるTypeScript型も生成します。
+- 実エージェントのスモークテストは `scripts/agent-smoke.ps1`。ログイン済みのアカウントを使い、テスト用の会話を送信します。CIでは実行しません。
+
+```powershell
+cargo build --manifest-path src-tauri/Cargo.toml
+mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent codex
+mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent claude
+```
+
+初版ではインストーラー配布を設定していません。ソースから起動してください。
+詳細な検証結果と残りの確認は [実装・検証メモ](notes/implementation-progress.md) を参照してください。
+
+## 構成
+
+| 場所                     | 役割                                          |
+| ------------------------ | --------------------------------------------- |
+| `src/components`         | ボード・カード詳細・チャット、shadcn/uiの部品 |
+| `src/lib`                | Tauri呼び出しと画面の状態                     |
+| `src/bindings`           | Rustから生成したデータ型                      |
+| `src-tauri/src/store.rs` | SQLiteと提案の適用条件                        |
+| `src-tauri/src/agent.rs` | ACPセッション、通知、権限、停止               |
+| `src-tauri/src/mcp.rs`   | エージェントに提供するボード操作              |
+| `notes`                  | プロダクト方針・技術選定・検証結果            |
+
+設計の出発点は [プロダクトメモ](notes/product-idea.md)、採用候補と理由は [技術スタック](notes/stack-proposal.md) にまとめています。
