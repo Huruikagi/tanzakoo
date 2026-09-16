@@ -6,7 +6,16 @@ import { useWorkspace } from "@/lib/workspace";
 import { api, emptySnapshot } from "@/lib/api";
 vi.mock("@/lib/api", () => ({
   native: true,
-  emptySnapshot: { cards: [], proposals: [], conversations: [], messages: [], agents: [] },
+  emptySnapshot: {
+    project: { id: "a", name: "A", memory: "", revision: 1 },
+    projects: [],
+    memoryProposals: [],
+    cards: [],
+    proposals: [],
+    conversations: [],
+    messages: [],
+    agents: [],
+  },
   api: { action: vi.fn(), snapshot: vi.fn(), send: vi.fn(), cancel: vi.fn() },
 }));
 beforeEach(() => {
@@ -43,5 +52,5 @@ it("keeps ordinary Enter for newlines and sends with Ctrl+Enter", async () => {
   );
   expect(api.send).not.toHaveBeenCalled();
   await user.keyboard("{Control>}{Enter}{/Control}");
-  expect(api.send).toHaveBeenCalledWith("c", "TODOアプリ\n朝に使いたい", []);
+  expect(api.send).toHaveBeenCalledWith("c", "TODOアプリ\n朝に使いたい", [], "a");
 });

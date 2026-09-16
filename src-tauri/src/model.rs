@@ -88,7 +88,40 @@ pub struct AgentConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
+pub struct Project {
+    pub id: String,
+    pub name: String,
+    pub memory: String,
+    pub revision: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ProjectSummary {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MemoryProposal {
+    pub id: String,
+    pub base_revision: u32,
+    pub before_memory: String,
+    pub memory: String,
+    pub reason: String,
+    pub state: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
 pub struct Snapshot {
+    pub project: Project,
+    pub projects: Vec<ProjectSummary>,
+    pub memory_proposals: Vec<MemoryProposal>,
     pub cards: Vec<Card>,
     pub proposals: Vec<Proposal>,
     pub conversations: Vec<Conversation>,
@@ -104,9 +137,30 @@ pub struct Snapshot {
 )]
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum BoardAction {
-    CreateCard { title: String, body: String },
-    UpdateCard { card: Card },
-    ResolveProposal { id: String, apply: bool },
-    NewConversation { agent: String },
-    ConfigureAgent { config: AgentConfig },
+    UpdateProject {
+        name: String,
+        memory: String,
+        revision: u32,
+    },
+    ResolveMemoryProposal {
+        id: String,
+        apply: bool,
+    },
+    CreateCard {
+        title: String,
+        body: String,
+    },
+    UpdateCard {
+        card: Card,
+    },
+    ResolveProposal {
+        id: String,
+        apply: bool,
+    },
+    NewConversation {
+        agent: String,
+    },
+    ConfigureAgent {
+        config: AgentConfig,
+    },
 }

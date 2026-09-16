@@ -2,7 +2,10 @@
 import type { AgentConfig } from "./AgentConfig";
 import type { Card } from "./Card";
 import type { Conversation } from "./Conversation";
+import type { MemoryProposal } from "./MemoryProposal";
 import type { Message } from "./Message";
+import type { Project } from "./Project";
+import type { ProjectSummary } from "./ProjectSummary";
 import type { Proposal } from "./Proposal";
 
-export type Snapshot = { cards: Array<Card>, proposals: Array<Proposal>, conversations: Array<Conversation>, messages: Array<Message>, agents: Array<AgentConfig>, };
+export type Snapshot = { project: Project, projects: Array<ProjectSummary>, memoryProposals: Array<MemoryProposal>, cards: Array<Card>, proposals: Array<Proposal>, conversations: Array<Conversation>, messages: Array<Message>, agents: Array<AgentConfig>, };

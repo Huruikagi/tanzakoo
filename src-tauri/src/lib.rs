@@ -1,19 +1,20 @@
 pub mod agent;
 pub mod mcp;
 pub mod model;
+pub mod projects;
 pub mod store;
 
 use model::*;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 
 pub struct AppState {
-    pub store: store::Store,
+    pub projects: Arc<Mutex<projects::Projects>>,
     pub runtime: Arc<agent::AgentRuntime>,
 }
 
-fn snapshot(store: &store::Store) -> Result<Snapshot, String> {
-    let mut s = store.snapshot().map_err(|e| e.to_string())?;
+fn snapshot(projects: &projects::Projects) -> Result<Snapshot, String> {
+    let mut s = projects.snapshot().map_err(|e| e.to_string())?;
     for id in ["codex", "claude"] {
         if !s.agents.iter().any(|a| a.id == id) {
             s.agents.push(agent::default_config(id));
@@ -24,17 +25,34 @@ fn snapshot(store: &store::Store) -> Result<Snapshot, String> {
 
 #[tauri::command]
 async fn get_snapshot(state: State<'_, AppState>) -> Result<Snapshot, String> {
-    let store = state.store.clone();
-    tokio::task::spawn_blocking(move || snapshot(&store))
-        .await
-        .map_err(|e| e.to_string())?
+    let projects = state.projects.clone();
+    tokio::task::spawn_blocking(move || {
+        let projects = projects.lock().map_err(|e| e.to_string())?;
+        snapshot(&projects)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-async fn board_action(action: BoardAction, state: State<'_, AppState>) -> Result<Snapshot, String> {
-    let store = state.store.clone();
+async fn board_action(
+    project_id: String,
+    action: BoardAction,
+    state: State<'_, AppState>,
+) -> Result<Snapshot, String> {
+    let projects = state.projects.clone();
     tokio::task::spawn_blocking(move || {
+        let projects = projects.lock().map_err(|e| e.to_string())?;
+        let store = projects
+            .require_active(&project_id)
+            .map_err(|e| e.to_string())?;
         let result: store::Result<()> = match action {
+            BoardAction::UpdateProject {
+                name,
+                memory,
+                revision,
+            } => store.update_project(name, memory, revision),
+            BoardAction::ResolveMemoryProposal { id, apply } => store.resolve_memory(&id, apply),
             BoardAction::CreateCard { title, body } => {
                 store.create_card(title, body, "user").map(|_| ())
             }
@@ -44,7 +62,42 @@ async fn board_action(action: BoardAction, state: State<'_, AppState>) -> Result
             BoardAction::ConfigureAgent { config } => store.set_agent(config),
         };
         result.map_err(|e| e.to_string())?;
-        snapshot(&store)
+        snapshot(&projects)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn switch_project(
+    project_id: String,
+    state: State<'_, AppState>,
+) -> Result<Snapshot, String> {
+    let projects = state.projects.clone();
+    let runtime = state.runtime.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut projects = projects.lock().map_err(|e| e.to_string())?;
+        runtime.ensure_idle()?;
+        projects.switch(&project_id).map_err(|e| e.to_string())?;
+        snapshot(&projects)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn create_project(
+    name: String,
+    memory: String,
+    state: State<'_, AppState>,
+) -> Result<Snapshot, String> {
+    let projects = state.projects.clone();
+    let runtime = state.runtime.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut projects = projects.lock().map_err(|e| e.to_string())?;
+        runtime.ensure_idle()?;
+        projects.create(name, memory).map_err(|e| e.to_string())?;
+        snapshot(&projects)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -52,6 +105,7 @@ async fn board_action(action: BoardAction, state: State<'_, AppState>) -> Result
 
 #[tauri::command]
 async fn send_prompt(
+    project_id: String,
     conversation_id: String,
     text: String,
     references: Vec<CardReference>,
@@ -61,11 +115,18 @@ async fn send_prompt(
     if text.trim().is_empty() || text.len() > 100_000 || references.len() > 20 {
         return Err("メッセージは1〜100000バイト、参照は20件以内にしてください。".into());
     }
-    let store = state.store.clone();
-    store
-        .conversation(&conversation_id)
-        .map_err(|e| e.to_string())?;
-    let cancel = state.runtime.begin()?;
+    // Select the store and reserve the runtime under the same lock used for switching.
+    let (store, cancel) = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let store = projects
+            .require_active(&project_id)
+            .map_err(|e| e.to_string())?;
+        store
+            .conversation(&conversation_id)
+            .map_err(|e| e.to_string())?;
+        let cancel = state.runtime.begin()?;
+        (store, cancel)
+    };
     let runtime = state.runtime.clone();
     if let Err(error) =
         store.append_message(&conversation_id, "user", text.clone(), references.clone())
@@ -122,7 +183,7 @@ pub fn run() {
             };
             std::fs::create_dir_all(&dir)?;
             app.manage(AppState {
-                store: store::Store::open(dir.join("tanzakoo.db"))?,
+                projects: Arc::new(Mutex::new(projects::Projects::open(dir)?)),
                 runtime: Arc::new(agent::AgentRuntime::default()),
             });
             Ok(())
@@ -130,6 +191,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             board_action,
+            switch_project,
+            create_project,
             send_prompt,
             cancel_prompt,
             answer_permission

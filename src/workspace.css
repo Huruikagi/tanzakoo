@@ -101,6 +101,58 @@ summary:focus-visible {
   align-items: center;
   gap: 18px;
 }
+.project-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.project-controls [data-slot="select-trigger"] {
+  width: 190px;
+}
+.project-controls [data-slot="select-value"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-memory-scroll {
+  max-height: 72dvh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.project-form {
+  display: grid;
+  gap: 12px;
+}
+.project-save {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.project-save > span {
+  margin-right: auto;
+}
+.memory-proposals {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.memory-proposals h3 {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.memory-proposal {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.memory-proposal > p,
+.memory-proposal details,
+.memory-proposal h4 {
+  margin-bottom: 12px;
+}
 .local-status {
   display: flex;
   gap: 7px;

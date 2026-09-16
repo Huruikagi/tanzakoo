@@ -2,4 +2,4 @@
 import type { AgentConfig } from "./AgentConfig";
 import type { Card } from "./Card";
 
-export type BoardAction = { "type": "createCard", title: string, body: string, } | { "type": "updateCard", card: Card, } | { "type": "resolveProposal", id: string, apply: boolean, } | { "type": "newConversation", agent: string, } | { "type": "configureAgent", config: AgentConfig, };
+export type BoardAction = { "type": "updateProject", name: string, memory: string, revision: number, } | { "type": "resolveMemoryProposal", id: string, apply: boolean, } | { "type": "createCard", title: string, body: string, } | { "type": "updateCard", card: Card, } | { "type": "resolveProposal", id: string, apply: boolean, } | { "type": "newConversation", agent: string, } | { "type": "configureAgent", config: AgentConfig, };

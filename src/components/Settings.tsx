@@ -76,7 +76,7 @@ export function Settings() {
         <DialogHeader>
           <DialogTitle>エージェントの接続設定</DialogTitle>
           <DialogDescription>
-            ログイン済みのCodex／ClaudeをACPアダプター経由で使います。会話・ボード・参照した内容は、選んだエージェントに送られます。
+            このプロジェクトの接続設定です。会話・ボード・メモリ・参照した内容は、選んだエージェントに送られます。
           </DialogDescription>
         </DialogHeader>
         <div className="settings-scroll">

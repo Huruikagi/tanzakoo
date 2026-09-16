@@ -17,9 +17,14 @@ export type Permission = {
   request: { options: { optionId: string; name: string; kind: string }[]; toolCall: unknown };
 };
 type Draft = { title: string; body: string; revision: number };
+export type ProjectDraft = { name: string; memory: string; revision: number };
 type Workspace = {
   snapshot: Snapshot;
   loaded: boolean;
+  switching: boolean;
+  projectDrafts: Record<string, ProjectDraft>;
+  changeProject: (id: string) => Promise<boolean>;
+  createProject: (name: string, memory: string) => Promise<boolean>;
   selected: string | null;
   conversation: string | null;
   references: CardReference[];
@@ -47,9 +52,77 @@ function serialized<T>(job: () => Promise<T>): Promise<T> {
   queue = task.catch(() => {});
   return task;
 }
+function restoredView(snapshot: Snapshot) {
+  let view: { selected?: string | null; conversation?: string | null } = {};
+  try {
+    view = JSON.parse(localStorage.getItem(`tanzakoo-view-${snapshot.project.id}`) ?? "{}");
+  } catch {
+    /* Optional UI preferences. */
+  }
+  return {
+    selected: snapshot.cards.some((c) => c.id === view?.selected) ? view.selected! : null,
+    conversation:
+      view?.conversation === null
+        ? null
+        : snapshot.conversations.some((c) => c.id === view?.conversation)
+          ? view.conversation!
+          : (snapshot.conversations.at(-1)?.id ?? null),
+  };
+}
 export const useWorkspace = create<Workspace>((set, get) => ({
   snapshot: emptySnapshot,
   loaded: false,
+  switching: false,
+  projectDrafts: {},
+  changeProject: async (id) => {
+    if (get().busy || get().switching) return false;
+    set({ switching: true });
+    return serialized(async () => {
+      try {
+        const snapshot = await api.switchProject(id);
+        set({
+          snapshot,
+          ...restoredView(snapshot),
+          references: [],
+          stream: "",
+          permissions: [],
+          error: null,
+          loaded: true,
+        });
+        return true;
+      } catch (error) {
+        set({ error: String(error) });
+        return false;
+      } finally {
+        set({ switching: false });
+      }
+    });
+  },
+  createProject: async (name, memory) => {
+    if (get().busy || get().switching) return false;
+    set({ switching: true });
+    return serialized(async () => {
+      try {
+        const snapshot = await api.createProject(name, memory);
+        set({
+          snapshot,
+          selected: null,
+          conversation: null,
+          references: [],
+          stream: "",
+          permissions: [],
+          error: null,
+          loaded: true,
+        });
+        return true;
+      } catch (error) {
+        set({ error: String(error) });
+        return false;
+      } finally {
+        set({ switching: false });
+      }
+    });
+  },
   selected: null,
   conversation: null,
   references: [],
@@ -67,25 +140,28 @@ export const useWorkspace = create<Workspace>((set, get) => ({
         set({
           snapshot,
           loaded: true,
-          conversation: get().loaded
-            ? get().conversation
-            : (snapshot.conversations.at(-1)?.id ?? null),
+          ...(!get().loaded || snapshot.project.id !== get().snapshot.project.id
+            ? { ...restoredView(snapshot), references: [] }
+            : {}),
         });
       } catch (error) {
         set({ error: String(error), loaded: true });
       }
     }),
-  act: (action) =>
-    serialized(async () => {
+  act: (action) => {
+    if (get().switching) return Promise.resolve(null);
+    const projectId = get().snapshot.project.id;
+    return serialized(async () => {
       try {
-        const snapshot = await api.action(action);
+        const snapshot = await api.action(action, projectId);
         set({ snapshot, error: null });
         return snapshot;
       } catch (error) {
         set({ error: String(error) });
         return null;
       }
-    }),
+    });
+  },
   newConversation: async (agent) => {
     const snapshot = await get().act({ type: "newConversation", agent });
     const id = snapshot?.conversations.at(-1)?.id ?? null;
@@ -113,7 +189,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       return { drafts };
     }),
   send: async (text, agent) => {
-    if (get().busy || !text.trim()) return false;
+    if (get().busy || get().switching || !text.trim()) return false;
     // Lock before creating the first conversation to prevent duplicate sends on double click.
     set({
       busy: get().conversation ?? "starting",
@@ -129,7 +205,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     }
     set({ busy: id, references: [] });
     try {
-      await api.send(id, text, references);
+      await api.send(id, text, references, get().snapshot.project.id);
       return true;
     } catch (error) {
       set({ error: String(error) });
@@ -161,6 +237,26 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     }
   },
 }));
+
+// Only remember navigation, not chat or unsaved content, in browser storage.
+useWorkspace.subscribe((state, previous) => {
+  const id = state.snapshot.project.id;
+  if (
+    !id ||
+    (id === previous.snapshot.project.id &&
+      state.selected === previous.selected &&
+      state.conversation === previous.conversation)
+  )
+    return;
+  try {
+    localStorage.setItem(
+      `tanzakoo-view-${id}`,
+      JSON.stringify({ selected: state.selected, conversation: state.conversation }),
+    );
+  } catch {
+    /* The database remains usable without UI preferences. */
+  }
+});
 
 export function moveCard(
   cards: Card[],

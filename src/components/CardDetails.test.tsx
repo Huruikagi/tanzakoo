@@ -6,7 +6,16 @@ import { useWorkspace } from "@/lib/workspace";
 import { emptySnapshot, api } from "@/lib/api";
 import type { Card } from "@/bindings/Card";
 vi.mock("@/lib/api", () => ({
-  emptySnapshot: { cards: [], proposals: [], conversations: [], messages: [], agents: [] },
+  emptySnapshot: {
+    project: { id: "a", name: "A", memory: "", revision: 1 },
+    projects: [],
+    memoryProposals: [],
+    cards: [],
+    proposals: [],
+    conversations: [],
+    messages: [],
+    agents: [],
+  },
   api: { action: vi.fn() },
 }));
 vi.mock("./MarkdownEditor", () => ({
@@ -63,7 +72,7 @@ it("shows a proposal separately and only applies after clicking Apply", async ()
     cards: [{ ...card, body: "毎夕", revision: 2 }],
   });
   await user.click(screen.getByRole("button", { name: "適用する" }));
-  expect(api.action).toHaveBeenCalledWith({ type: "resolveProposal", id: "p", apply: true });
+  expect(api.action).toHaveBeenCalledWith({ type: "resolveProposal", id: "p", apply: true }, "a");
   expect(screen.getByLabelText("カード本文")).toHaveValue("毎夕");
 });
 it("attaches the saved card and disables proposal apply while there is an unsaved draft", async () => {

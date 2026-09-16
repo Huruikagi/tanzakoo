@@ -27,7 +27,7 @@ export function Chat() {
     useWorkspace();
   const [agent, setAgent] = useState("codex");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const key = conversation ?? "new";
+  const key = `${snapshot.project.id}:${conversation ?? "new"}`;
   const text = drafts[key] ?? "";
   const setText = (value: string) => setDrafts((previous) => ({ ...previous, [key]: value }));
   const end = useRef<HTMLDivElement>(null);
@@ -46,8 +46,9 @@ export function Chat() {
       if (!ok)
         setDrafts((previous) => ({
           ...previous,
-          [useWorkspace.getState().conversation ?? key]:
-            previous[useWorkspace.getState().conversation ?? key] || pending,
+          [`${snapshot.project.id}:${useWorkspace.getState().conversation ?? "new"}`]:
+            previous[`${snapshot.project.id}:${useWorkspace.getState().conversation ?? "new"}`] ||
+            pending,
         }));
     });
   }

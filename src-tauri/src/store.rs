@@ -8,6 +8,8 @@ use std::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
+    #[error("保存先にアクセスできません: {0}")]
+    Io(#[from] std::io::Error),
     #[error("保存に失敗しました: {0}")]
     Sql(#[from] rusqlite::Error),
     #[error("データを読み取れません: {0}")]
@@ -71,6 +73,16 @@ impl Store {
         };
         let db = store.connect()?;
         db.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS records(kind TEXT NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(kind,id)); PRAGMA user_version=1;")?;
+        let project = Project {
+            id: id(&db)?,
+            name: "マイプロジェクト".into(),
+            memory: String::new(),
+            revision: 1,
+        };
+        db.execute(
+            "INSERT OR IGNORE INTO records(kind,id,data) VALUES ('project','current',?1)",
+            [serde_json::to_string(&project)?],
+        )?;
         Ok(store)
     }
     pub fn path(&self) -> &Path {
@@ -85,6 +97,9 @@ impl Store {
         let mut db = self.connect()?;
         let tx = db.transaction()?;
         let snapshot = Snapshot {
+            project: get(&tx, "project", "current")?,
+            projects: vec![],
+            memory_proposals: list(&tx, "memoryProposal")?,
             cards: list(&tx, "card")?,
             proposals: list(&tx, "proposal")?,
             conversations: list(&tx, "conversation")?,
@@ -121,6 +136,86 @@ impl Store {
         put(&tx, "card", &card.id, &card)?;
         tx.commit()?;
         Ok(card)
+    }
+    pub fn project(&self) -> Result<Project> {
+        get(&self.connect()?, "project", "current")
+    }
+    pub fn update_project(&self, name: String, memory: String, revision: u32) -> Result<()> {
+        check_text(&name, &memory)?;
+        let mut db = self.connect()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let mut project: Project = get(&tx, "project", "current")?;
+        if project.revision != revision {
+            return Err(invalid(
+                "プロジェクトメモリが更新されています。最新の内容を確認してください。",
+            ));
+        }
+        project.name = name.trim().into();
+        project.memory = memory;
+        project.revision += 1;
+        put(&tx, "project", "current", &project)?;
+        tx.commit()?;
+        Ok(())
+    }
+    pub fn propose_memory(
+        &self,
+        revision: u32,
+        memory: String,
+        reason: String,
+    ) -> Result<MemoryProposal> {
+        check_text("memory", &memory)?;
+        if reason.trim().is_empty() || reason.len() > 10_000 {
+            return Err(invalid("変更理由を1〜10000バイトで指定してください。"));
+        }
+        let mut db = self.connect()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let project: Project = get(&tx, "project", "current")?;
+        if project.revision != revision {
+            return Err(invalid(
+                "プロジェクトメモリが更新されています。読み直してください。",
+            ));
+        }
+        let proposals: Vec<MemoryProposal> = list(&tx, "memoryProposal")?;
+        if let Some(p) = proposals
+            .into_iter()
+            .find(|p| p.state == "pending" && p.base_revision == revision && p.memory == memory)
+        {
+            return Ok(p);
+        }
+        let p = MemoryProposal {
+            id: id(&tx)?,
+            base_revision: revision,
+            before_memory: project.memory,
+            memory,
+            reason,
+            state: "pending".into(),
+        };
+        put(&tx, "memoryProposal", &p.id, &p)?;
+        tx.commit()?;
+        Ok(p)
+    }
+    pub fn resolve_memory(&self, id: &str, apply: bool) -> Result<()> {
+        let mut db = self.connect()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let mut p: MemoryProposal = get(&tx, "memoryProposal", id)?;
+        if p.state != "pending" {
+            return Err(invalid("この提案は処理済みです。"));
+        }
+        if apply {
+            let mut project: Project = get(&tx, "project", "current")?;
+            if project.revision != p.base_revision {
+                return Err(invalid(
+                    "提案後にメモリが変わっています。再提案を依頼してください。",
+                ));
+            }
+            project.memory = p.memory.clone();
+            project.revision += 1;
+            put(&tx, "project", "current", &project)?;
+        }
+        p.state = if apply { "applied" } else { "rejected" }.into();
+        put(&tx, "memoryProposal", id, &p)?;
+        tx.commit()?;
+        Ok(())
     }
     pub fn update_card(&self, change: Card) -> Result<Card> {
         let Card {
@@ -372,5 +467,44 @@ mod tests {
             .unwrap();
         assert_eq!(a.id, b.id);
         assert!(f.store.create_card(" ".into(), "".into(), "user").is_err());
+    }
+    #[test]
+    fn memory_changes_require_approval_and_reject_stale_proposals() {
+        let f = Fixture::new();
+        f.store
+            .update_project("アプリA".into(), "個人用".into(), 1)
+            .unwrap();
+        let p = f
+            .store
+            .propose_memory(2, "個人用。通知なし".into(), "前提を追加".into())
+            .unwrap();
+        assert_eq!(f.store.project().unwrap().memory, "個人用");
+        assert_eq!(
+            f.store
+                .propose_memory(2, p.memory.clone(), "再試行".into())
+                .unwrap()
+                .id,
+            p.id
+        );
+        let reopened = Store::open(f.store.path()).unwrap();
+        reopened.resolve_memory(&p.id, true).unwrap();
+        assert_eq!(reopened.project().unwrap().memory, "個人用。通知なし");
+        assert_eq!(reopened.project().unwrap().revision, 3);
+        assert!(reopened.resolve_memory(&p.id, true).is_err());
+        let stale = reopened
+            .propose_memory(3, "共有用".into(), "用途変更".into())
+            .unwrap();
+        reopened
+            .update_project("新しい名前".into(), "個人用。通知なし".into(), 3)
+            .unwrap();
+        assert!(reopened.resolve_memory(&stale.id, true).is_err());
+        reopened.resolve_memory(&stale.id, false).unwrap();
+        assert_eq!(reopened.project().unwrap().memory, "個人用。通知なし");
+        assert!(
+            reopened
+                .update_project("旧データ".into(), "".into(), 1)
+                .is_err()
+        );
+        assert!(reopened.snapshot().unwrap().cards.is_empty());
     }
 }

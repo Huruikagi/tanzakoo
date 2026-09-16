@@ -20,6 +20,12 @@ pub struct EditProposal {
     pub body: String,
     pub reason: String,
 }
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct MemoryChange {
+    pub base_revision: u32,
+    pub memory: String,
+    pub reason: String,
+}
 #[derive(Clone)]
 pub struct BoardTools {
     store: Store,
@@ -44,10 +50,10 @@ impl BoardTools {
         }
     }
     #[tool(
-        description = "Read the authoritative Tanzakoo board. Read before proposing edits. Cards and pending proposals only; no chat or settings."
+        description = "Read the authoritative Tanzakoo project name, memory, revision, board and pending proposals. Read before proposing edits. No chat or connection settings."
     )]
     fn get_board(&self) -> CallToolResult {
-        response(self.store.snapshot().map(|s|serde_json::json!({"cards":s.cards.into_iter().filter(|c|!c.deleted).collect::<Vec<_>>(),"proposals":s.proposals.into_iter().filter(|p|p.state=="pending").collect::<Vec<_>>()})))
+        response(self.store.snapshot().map(|s|serde_json::json!({"project":s.project,"memoryProposals":s.memory_proposals.into_iter().filter(|p|p.state=="pending").collect::<Vec<_>>(),"cards":s.cards.into_iter().filter(|c|!c.deleted).collect::<Vec<_>>(),"proposals":s.proposals.into_iter().filter(|p|p.state=="pending").collect::<Vec<_>>()})))
     }
     #[tool(
         description = "Create one candidate discussion card. This is automatically saved to the idea pile, not an agreed requirement. Reuse existing topics; do not create duplicates."
@@ -62,6 +68,15 @@ impl BoardTools {
         response(
             self.store
                 .propose(&p.card_id, p.base_revision, p.title, p.body, p.reason),
+        )
+    }
+    #[tool(
+        description = "Propose a complete replacement Markdown project memory at its current revision. Remains pending until USER approval in the UI. Never applies changes. Preserve relevant existing memory; explain the reason."
+    )]
+    fn propose_memory_change(&self, Parameters(p): Parameters<MemoryChange>) -> CallToolResult {
+        response(
+            self.store
+                .propose_memory(p.base_revision, p.memory, p.reason),
         )
     }
 }

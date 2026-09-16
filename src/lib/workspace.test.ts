@@ -3,8 +3,24 @@ import type { Card } from "@/bindings/Card";
 import { api, emptySnapshot } from "./api";
 import { moveCard, useWorkspace } from "./workspace";
 vi.mock("./api", () => ({
-  emptySnapshot: { cards: [], proposals: [], conversations: [], messages: [], agents: [] },
-  api: { action: vi.fn(), snapshot: vi.fn(), send: vi.fn(), permission: vi.fn() },
+  emptySnapshot: {
+    project: { id: "a", name: "A", memory: "", revision: 1 },
+    projects: [],
+    memoryProposals: [],
+    cards: [],
+    proposals: [],
+    conversations: [],
+    messages: [],
+    agents: [],
+  },
+  api: {
+    action: vi.fn(),
+    snapshot: vi.fn(),
+    send: vi.fn(),
+    permission: vi.fn(),
+    switchProject: vi.fn(),
+    createProject: vi.fn(),
+  },
 }));
 export const card: Card = {
   id: "card-a",
@@ -20,9 +36,11 @@ export const card: Card = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
   useWorkspace.setState({
     snapshot: { ...emptySnapshot, cards: [card] },
     loaded: true,
+    switching: false,
     selected: card.id,
     conversation: null,
     references: [],
@@ -71,9 +89,12 @@ describe("chat lifecycle", () => {
     expect(await b).toBe(false);
     expect(await a).toBe(true);
     expect(api.action).toHaveBeenCalledTimes(1);
-    expect(api.send).toHaveBeenCalledWith("c1", "TODOアプリを考えたい", [
-      { cardId: card.id, title: card.title, revision: 1, quote: "" },
-    ]);
+    expect(api.send).toHaveBeenCalledWith(
+      "c1",
+      "TODOアプリを考えたい",
+      [{ cardId: card.id, title: card.title, revision: 1, quote: "" }],
+      "a",
+    );
     expect(useWorkspace.getState().busy).toBeNull();
   });
   it("keeps a new conversation empty across refresh and unlocks after connection failure", async () => {
@@ -88,6 +109,43 @@ describe("chat lifecycle", () => {
     expect(await useWorkspace.getState().send("test", "codex")).toBe(false);
     expect(useWorkspace.getState().busy).toBeNull();
     expect(useWorkspace.getState().error).toBe("接続失敗");
+  });
+});
+describe("project isolation", () => {
+  it("clears references, restores navigation, and preserves project-specific drafts on a round trip", async () => {
+    const a = useWorkspace.getState().snapshot;
+    useWorkspace.setState({ conversation: null });
+    useWorkspace.getState().select("other");
+    useWorkspace.getState().select(card.id);
+    useWorkspace.getState().attach(card);
+    useWorkspace.getState().draft(card.id, { title: card.title, body: "Aの下書き", revision: 1 });
+    const b = { ...emptySnapshot, project: { id: "b", name: "B", memory: "Bの前提", revision: 1 } };
+    vi.mocked(api.switchProject).mockResolvedValueOnce(b).mockResolvedValueOnce(a);
+    expect(await useWorkspace.getState().changeProject("b")).toBe(true);
+    expect(useWorkspace.getState().references).toEqual([]);
+    expect(useWorkspace.getState().selected).toBeNull();
+    expect(useWorkspace.getState().snapshot.cards).toEqual([]);
+    expect(await useWorkspace.getState().changeProject("a")).toBe(true);
+    expect(useWorkspace.getState().selected).toBe(card.id);
+    expect(useWorkspace.getState().drafts[card.id].body).toBe("Aの下書き");
+  });
+  it("blocks switching during a response and blocks sends while switching", async () => {
+    useWorkspace.setState({ busy: "running" });
+    expect(await useWorkspace.getState().changeProject("b")).toBe(false);
+    expect(api.switchProject).not.toHaveBeenCalled();
+    useWorkspace.setState({ busy: null });
+    let finish!: (snapshot: typeof emptySnapshot) => void;
+    vi.mocked(api.switchProject).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const switching = useWorkspace.getState().changeProject("b");
+    expect(await useWorkspace.getState().send("混入させない", "codex")).toBe(false);
+    await Promise.resolve();
+    finish({ ...emptySnapshot, project: { ...emptySnapshot.project, id: "b" } });
+    expect(await switching).toBe(true);
+    expect(api.send).not.toHaveBeenCalled();
   });
 });
 it("moves into empty columns and between cards without changing other cards", () => {

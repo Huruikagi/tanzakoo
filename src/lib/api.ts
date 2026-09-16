@@ -12,6 +12,9 @@ export type AgentEvent = {
 };
 export const native = isTauri();
 export const emptySnapshot: Snapshot = {
+  project: { id: "", name: "マイプロジェクト", memory: "", revision: 1 },
+  projects: [],
+  memoryProposals: [],
   cards: [],
   proposals: [],
   conversations: [],
@@ -20,9 +23,13 @@ export const emptySnapshot: Snapshot = {
 };
 export const api = {
   snapshot: () => (native ? invoke<Snapshot>("get_snapshot") : Promise.resolve(emptySnapshot)),
-  action: (action: BoardAction) => invoke<Snapshot>("board_action", { action }),
-  send: (conversationId: string, text: string, references: CardReference[]) =>
-    invoke<void>("send_prompt", { conversationId, text, references }),
+  action: (action: BoardAction, projectId: string) =>
+    invoke<Snapshot>("board_action", { action, projectId }),
+  switchProject: (projectId: string) => invoke<Snapshot>("switch_project", { projectId }),
+  createProject: (name: string, memory: string) =>
+    invoke<Snapshot>("create_project", { name, memory }),
+  send: (conversationId: string, text: string, references: CardReference[], projectId: string) =>
+    invoke<void>("send_prompt", { conversationId, text, references, projectId }),
   cancel: () => invoke<void>("cancel_prompt"),
   permission: (id: string, option: string | null) =>
     invoke<void>("answer_permission", { id, option }),
