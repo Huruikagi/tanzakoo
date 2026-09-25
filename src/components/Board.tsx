@@ -98,7 +98,7 @@ function Column({ column, cards }: { column: (typeof columns)[number]; cards: Ca
         {cards.length === 0 && (
           <div className="column-empty">
             {column.id === "idea"
-              ? "会話から生まれた論点が\nここに集まります"
+              ? "思いつきや会話の論点が\nここに集まります"
               : "カードをここへ移動"}
           </div>
         )}
@@ -157,7 +157,7 @@ export function Board() {
         <div>
           <p className="eyebrow">YOUR THINKING SPACE</p>
           <h1>アイデアを、少しずつ。</h1>
-          <p>全部を決めなくていい。気になる一枚から話そう。</p>
+          <p>全部を決めなくていい。気になる一枚から整理しよう。</p>
         </div>
         <span className="board-mark" aria-hidden="true">
           ✳
@@ -245,6 +245,23 @@ export function Board() {
           </DialogContent>
         </Dialog>
       </div>
+      {snapshot.cards.filter((c) => !c.deleted).length === 0 && (
+        <div className="board-welcome">
+          <p>思いつきを一枚に。AIなしでも、ここで整理できます。</p>
+          <div className="connection-actions">
+            <Button size="sm" disabled={!native} onClick={() => setOpen(true)}>
+              最初のカードを作る
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => useWorkspace.getState().setChatOpen(true)}
+            >
+              AIと考える
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Keep React in charge of DOM order while the asynchronous SQLite save is pending. */}
       <DragDropProvider onDragOver={(event) => event.preventDefault()} onDragEnd={onDragEnd}>
         <div className="board-grid">

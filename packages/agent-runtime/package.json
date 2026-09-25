@@ -1,0 +1,13 @@
+{
+  "name": "@tanzakoo/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "codex.mjs",
+    "licenses"
+  ],
+  "type": "module",
+  "dependencies": {
+    "@agentclientprotocol/codex-acp": "1.11.0"
+  }
+}

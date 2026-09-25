@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { X, RefreshCw } from "lucide-react";
+import { X, RefreshCw, MessageCircle } from "lucide-react";
+import { usePanelRef } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Board } from "@/components/Board";
@@ -11,7 +12,15 @@ import { useWorkspace } from "@/lib/workspace";
 import { api, native } from "@/lib/api";
 
 export default function App() {
-  const { error, busy, loaded, refresh, snapshot, switching } = useWorkspace();
+  const { error, busy, loaded, refresh, snapshot, switching, chatOpen, setChatOpen } =
+    useWorkspace();
+  const chatPanel = usePanelRef();
+  useEffect(() => {
+    if (loaded) {
+      if (chatOpen) chatPanel.current?.expand();
+      else chatPanel.current?.collapse();
+    }
+  }, [chatOpen, loaded, chatPanel]);
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
@@ -55,6 +64,15 @@ export default function App() {
             {native ? "ローカルに保存" : "ブラウザプレビュー"}
           </span>
           <Settings key={snapshot.project.id} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setChatOpen(!chatOpen)}
+            aria-pressed={chatOpen}
+          >
+            <MessageCircle />
+            AIと考える{busy ? " · 実行中" : ""}
+          </Button>
         </div>
       </header>
       {!native && (
@@ -95,9 +113,23 @@ export default function App() {
             <ResizablePanel id="details" defaultSize="26%" minSize="280px">
               <CardDetails />
             </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel id="chat" defaultSize="27%" minSize="290px">
-              <Chat />
+            <ResizableHandle withHandle disabled={!chatOpen} />
+            <ResizablePanel
+              id="chat"
+              panelRef={chatPanel}
+              collapsible
+              collapsedSize={0}
+              defaultSize="27%"
+              minSize="290px"
+              onResize={(size, _id, previous) => {
+                if (previous && (size.asPercentage === 0) !== (previous.asPercentage === 0)) {
+                  setChatOpen(size.asPercentage > 0);
+                }
+              }}
+            >
+              <div className="chat-panel-content" inert={!chatOpen} aria-hidden={!chatOpen}>
+                <Chat />
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </main>

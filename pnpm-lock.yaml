@@ -288,6 +288,12 @@ importers:
         specifier: 5.0.0
         version: 5.0.0(@types/node@26.5.1)(jsdom@30.0.1)(vite@8.3.0(@types/node@26.5.1)(jiti@2.7.0))
 
+  packages/agent-runtime:
+    dependencies:
+      '@agentclientprotocol/codex-acp':
+        specifier: 1.11.0
+        version: 1.11.0
+
 packages:
 
   '@adobe/css-tools@4.5.0':

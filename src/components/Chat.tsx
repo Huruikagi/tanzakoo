@@ -21,10 +21,22 @@ import {
 import { useWorkspace } from "@/lib/workspace";
 import { api, native } from "@/lib/api";
 import { Markdown } from "./Markdown";
+import { AgentConnection } from "./AgentConnection";
 
 export function Chat() {
-  const { snapshot, conversation, busy, stream, activity, references, permissions, send, answer } =
-    useWorkspace();
+  const {
+    snapshot,
+    conversation,
+    busy,
+    stream,
+    activity,
+    references,
+    permissions,
+    send,
+    answer,
+    chatError,
+    consents,
+  } = useWorkspace();
   const [agent, setAgent] = useState("codex");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const key = `${snapshot.project.id}:${conversation ?? "new"}`;
@@ -33,13 +45,15 @@ export function Chat() {
   const end = useRef<HTMLDivElement>(null);
   const composing = useRef(false);
   const active = snapshot.conversations.find((c) => c.id === conversation);
+  const selectedAgent = active?.agent ?? agent;
+  const consentKey = `${snapshot.project.id}:${selectedAgent}`;
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = busy !== null && (busy === conversation || busy === "starting");
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, stream, permissions.length]);
   function submit() {
-    if (!text.trim() || busy || !native) return;
+    if (!text.trim() || busy || !native || !consents[consentKey]) return;
     const pending = text;
     setText("");
     void send(pending, agent).then((ok) => {
@@ -57,6 +71,14 @@ export function Chat() {
       <div className="pane-heading">
         <MessageCircle size={16} />
         <h2>壁打ち</h2>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="チャットを閉じる"
+          onClick={() => useWorkspace.getState().setChatOpen(false)}
+        >
+          <X />
+        </Button>
         <Button
           size="icon-sm"
           variant="ghost"
@@ -117,6 +139,12 @@ export function Chat() {
         )}
       </div>
       <div className="chat-history" aria-label="会話メッセージ">
+        <AgentConnection agent={selectedAgent} />
+        {chatError && (
+          <p className="chat-error" role="alert">
+            {chatError}
+          </p>
+        )}
         {messages.length === 0 && !isThisBusy && (
           <div className="chat-welcome">
             <div className="welcome-symbol">
@@ -217,6 +245,23 @@ export function Chat() {
         <div ref={end} />
       </div>
       <div className="composer-area">
+        <label className="ai-consent">
+          <input
+            type="checkbox"
+            checked={!!consents[consentKey]}
+            disabled={!!busy}
+            onChange={(event) =>
+              useWorkspace.setState({
+                consents: { ...consents, [consentKey]: event.target.checked },
+              })
+            }
+          />
+          <span>
+            このプロジェクトのボード・メモリ・会話・参照を
+            {selectedAgent === "claude" ? "Anthropic（Claude）" : "OpenAI（Codex）"}
+            へ送信することに同意します。
+          </span>
+        </label>
         <div className="composer">
           {references.length > 0 && (
             <div className="composer-references">
@@ -267,7 +312,7 @@ export function Chat() {
           />
           <div className="composer-bottom">
             <span>{busy ? activity || "検討しています…" : "Ctrl + Enter で送信"}</span>
-            {busy ? (
+            {isThisBusy ? (
               <Button
                 size="icon-sm"
                 variant="secondary"
@@ -284,7 +329,7 @@ export function Chat() {
               <Button
                 size="icon-sm"
                 aria-label="メッセージを送信"
-                disabled={!text.trim() || !native}
+                disabled={!text.trim() || !native || !!busy || !consents[consentKey]}
                 onClick={submit}
               >
                 <ArrowUp />

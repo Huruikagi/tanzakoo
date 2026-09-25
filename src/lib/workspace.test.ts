@@ -20,6 +20,7 @@ vi.mock("./api", () => ({
     permission: vi.fn(),
     switchProject: vi.fn(),
     createProject: vi.fn(),
+    connection: vi.fn(),
   },
 }));
 export const card: Card = {
@@ -49,6 +50,9 @@ beforeEach(() => {
     stream: "",
     permissions: [],
     error: null,
+    chatError: null,
+    connections: {},
+    consents: { "a:codex": true, "a:claude": true },
   });
 });
 describe("card references and drafts", () => {
@@ -108,10 +112,33 @@ describe("chat lifecycle", () => {
     vi.mocked(api.send).mockRejectedValue("接続失敗");
     expect(await useWorkspace.getState().send("test", "codex")).toBe(false);
     expect(useWorkspace.getState().busy).toBeNull();
-    expect(useWorkspace.getState().error).toBe("接続失敗");
+    expect(useWorkspace.getState().chatError).toBe("接続失敗");
+    expect(useWorkspace.getState().error).toBeNull();
   });
 });
 describe("project isolation", () => {
+  it("does not send or create a conversation before consent", async () => {
+    useWorkspace.setState({ consents: {} });
+    expect(await useWorkspace.getState().send("test", "codex")).toBe(false);
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.action).not.toHaveBeenCalled();
+  });
+  it("locks project switching during login and releases it after cancellation", async () => {
+    let finish!: (value: { state: string; message: string; canLogin: boolean }) => void;
+    vi.mocked(api.connection).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const connecting = useWorkspace.getState().connect("codex", "login");
+    expect(await useWorkspace.getState().changeProject("b")).toBe(false);
+    expect(await useWorkspace.getState().send("test", "codex")).toBe(false);
+    finish({ state: "unknown", message: "中止", canLogin: false });
+    await connecting;
+    expect(useWorkspace.getState().busy).toBeNull();
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.switchProject).not.toHaveBeenCalled();
+  });
   it("clears references, restores navigation, and preserves project-specific drafts on a round trip", async () => {
     const a = useWorkspace.getState().snapshot;
     useWorkspace.setState({ conversation: null });

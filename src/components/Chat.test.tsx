@@ -16,7 +16,7 @@ vi.mock("@/lib/api", () => ({
     messages: [],
     agents: [],
   },
-  api: { action: vi.fn(), snapshot: vi.fn(), send: vi.fn(), cancel: vi.fn() },
+  api: { action: vi.fn(), snapshot: vi.fn(), send: vi.fn(), cancel: vi.fn(), connection: vi.fn() },
 }));
 beforeEach(() => {
   vi.resetAllMocks();
@@ -31,6 +31,9 @@ beforeEach(() => {
     stream: "",
     activity: "",
     error: null,
+    chatError: null,
+    consents: {},
+    connections: {},
   });
 });
 it("shows the freeform starting point with no conversation and no active agent", () => {
@@ -51,6 +54,25 @@ it("keeps ordinary Enter for newlines and sends with Ctrl+Enter", async () => {
     "TODOアプリ{Enter}朝に使いたい",
   );
   expect(api.send).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("checkbox"));
+  await user.click(screen.getByLabelText("エージェントへのメッセージ"));
   await user.keyboard("{Control>}{Enter}{/Control}");
   expect(api.send).toHaveBeenCalledWith("c", "TODOアプリ\n朝に使いたい", [], "a");
+});
+
+it("checks connectivity without sending a prompt and preserves a draft when sign-in is required", async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.connection).mockResolvedValue({
+    state: "authRequired",
+    message: "サインインが必要です。",
+    canLogin: true,
+  });
+  render(<Chat />);
+  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "残しておきたい文章");
+  await user.click(screen.getByRole("button", { name: "接続を確認" }));
+  expect(await screen.findByRole("button", { name: "ChatGPTでサインイン" })).toBeEnabled();
+  expect(api.send).not.toHaveBeenCalled();
+  expect(api.action).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("残しておきたい文章");
+  expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
 });

@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod agent_setup;
 pub mod mcp;
 pub mod model;
 pub mod projects;
@@ -109,9 +110,13 @@ async fn send_prompt(
     conversation_id: String,
     text: String,
     references: Vec<CardReference>,
+    consent: bool,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    if !consent {
+        return Err("AIへの送信内容を確認してください。".into());
+    }
     if text.trim().is_empty() || text.len() > 100_000 || references.len() > 20 {
         return Err("メッセージは1〜100000バイト、参照は20件以内にしてください。".into());
     }
@@ -173,6 +178,24 @@ fn answer_permission(
     state.runtime.answer(id, option)
 }
 
+#[tauri::command]
+async fn agent_connection(
+    project_id: String,
+    agent: String,
+    action: String,
+    state: State<'_, AppState>,
+) -> Result<ConnectionStatus, String> {
+    let (store, cancel) = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let store = projects
+            .require_active(&project_id)
+            .map_err(|e| e.to_string())?;
+        (store, state.runtime.begin()?)
+    };
+    let _guard = agent_setup::OperationGuard(state.runtime.clone());
+    Ok(agent_setup::probe(store, agent, action, cancel).await)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
@@ -182,6 +205,7 @@ pub fn run() {
                 app.path().app_data_dir()?
             };
             std::fs::create_dir_all(&dir)?;
+            agent_setup::initialize(app.path().resource_dir()?, dir.clone());
             app.manage(AppState {
                 projects: Arc::new(Mutex::new(projects::Projects::open(dir)?)),
                 runtime: Arc::new(agent::AgentRuntime::default()),
@@ -195,7 +219,8 @@ pub fn run() {
             create_project,
             send_prompt,
             cancel_prompt,
-            answer_permission
+            answer_permission,
+            agent_connection
         ])
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {

@@ -1,0 +1,208 @@
+//! App-owned runtime and credentials. Reading a board never calls this module's probe.
+use crate::{agent::AgentRuntime, model::*, store::Store};
+use agent_client_protocol::{
+    AcpAgent, AcpAgentConfig, Agent, ConnectionTo,
+    schema::{ProtocolVersion, v1::*},
+};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex, OnceLock},
+    time::Duration,
+};
+use tokio::sync::oneshot;
+
+pub const MANAGED: &str = "@tanzakoo/managed";
+static PATHS: OnceLock<(PathBuf, PathBuf)> = OnceLock::new();
+
+pub fn initialize(resources: PathBuf, data: PathBuf) {
+    let _ = PATHS.set((resources, data));
+}
+
+pub fn managed_config() -> AgentConfig {
+    AgentConfig {
+        id: "codex".into(),
+        command: MANAGED.into(),
+        args: vec![],
+    }
+}
+
+pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, String> {
+    let managed = config.command == MANAGED;
+    let mut command = config.command.clone();
+    let mut args = config.args;
+    if command == MANAGED {
+        if config.id != "codex" {
+            return Err("このエージェントの同梱版はまだ利用できません。".into());
+        }
+        let resources = PATHS
+            .get()
+            .map(|p| p.0.clone())
+            .or_else(|| {
+                std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|p| p.to_owned()))
+            })
+            .ok_or("アプリの保存場所を取得できません。")?;
+        let runtime = resources.join("agent-runtime");
+        let node = runtime
+            .join("bin")
+            .join(if cfg!(windows) { "node.exe" } else { "node" });
+        let entry = runtime.join("codex.mjs");
+        if node.is_file() && entry.is_file() {
+            command = node.to_string_lossy().into();
+            args = vec![entry.to_string_lossy().into()];
+        } else if cfg!(debug_assertions) {
+            command = std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into());
+            args = vec![
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../packages/agent-runtime/codex.mjs")
+                    .to_string_lossy()
+                    .into(),
+            ];
+        } else {
+            return Err(
+                "同梱エージェントが見つかりません。カードの閲覧・編集は引き続き利用できます。"
+                    .into(),
+            );
+        }
+    }
+    let mut launch = AcpAgentConfig::new(command)
+        .args(args)
+        .env("INITIAL_AGENT_MODE", "read-only");
+    if managed {
+        launch = launch.env("NODE_OPTIONS", "");
+    }
+    if config.id == "codex" {
+        let data = PATHS
+            .get()
+            .map(|p| p.1.clone())
+            .unwrap_or_else(|| store.path().parent().unwrap().to_owned());
+        let home = data.join("agents/codex");
+        std::fs::create_dir_all(&home).map_err(|e| e.to_string())?;
+        launch = launch.env("CODEX_HOME", home.to_string_lossy());
+    }
+    Ok(launch)
+}
+
+pub async fn probe(
+    store: Store,
+    agent: String,
+    action: String,
+    mut cancel: oneshot::Receiver<()>,
+) -> ConnectionStatus {
+    let result = |state: &str, message: &str, can_login: bool| ConnectionStatus {
+        state: state.into(),
+        message: message.into(),
+        can_login,
+    };
+    if !["check", "login", "logout"].contains(&action.as_str())
+        || !["codex", "claude"].contains(&agent.as_str())
+    {
+        return result("error", "接続操作が不正です。", false);
+    }
+    if action != "check" && agent != "codex" {
+        return result(
+            "error",
+            "Claudeの配布版ログインは提供条件を確認中です。",
+            false,
+        );
+    }
+    let snapshot = match store.snapshot() {
+        Ok(s) => s,
+        Err(_) => return result("error", "接続設定を読み込めませんでした。", false),
+    };
+    let config = snapshot
+        .agents
+        .into_iter()
+        .find(|c| c.id == agent)
+        .unwrap_or_else(|| crate::agent::default_config(&agent));
+    let launch = match launch(config, &store) {
+        Ok(v) => v,
+        Err(e) => return result("error", &e, false),
+    };
+    // No project data, MCP servers, prompts or model requests in connection checks.
+    let check_dir = PATHS
+        .get()
+        .map(|p| p.1.clone())
+        .unwrap_or_else(|| store.path().parent().unwrap().to_owned())
+        .join("agents/connection-check");
+    if std::fs::create_dir_all(&check_dir).is_err() {
+        return result("error", "接続確認用の保存場所を作れませんでした。", false);
+    }
+    let status = Arc::new(Mutex::new(result(
+        "error",
+        "接続を確認できませんでした。起動設定を確認してください。",
+        false,
+    )));
+    let output = status.clone();
+    let login = action == "login";
+    let job = agent_client_protocol::Client.builder().connect_with(
+        AcpAgent::new(launch),
+        |cx: ConnectionTo<Agent>| async move {
+            let initialized = cx
+                .send_request(InitializeRequest::new(ProtocolVersion::V1))
+                .block_task()
+                .await?;
+            let methods = serde_json::to_value(&initialized.auth_methods).unwrap_or_default();
+            let can_login = agent == "codex"
+                && methods
+                    .as_array()
+                    .is_some_and(|methods| methods.iter().any(|m| m["id"] == "chat-gpt"));
+            if action == "logout" {
+                cx.send_request(LogoutRequest::new()).block_task().await?;
+                *output.lock().unwrap() = result(
+                    "authRequired",
+                    "サインアウトしました。保存済みのカードや会話は残ります。",
+                    can_login,
+                );
+                return Ok(());
+            }
+            if login {
+                if !can_login {
+                    return Err(agent_client_protocol::Error::invalid_params());
+                }
+                cx.send_request(AuthenticateRequest::new("chat-gpt"))
+                    .block_task()
+                    .await?;
+            }
+            let session = cx
+                .send_request(NewSessionRequest::new(check_dir))
+                .block_task()
+                .await;
+            *output.lock().unwrap() = match session {
+                Ok(_) => result(
+                    "ready",
+                    "接続を確認しました。送信時には通信・利用枠の確認が行われます。",
+                    can_login,
+                ),
+                Err(e) if e.code == ErrorCode::AuthRequired => {
+                    result("authRequired", "サインインが必要です。", can_login)
+                }
+                Err(_) => result(
+                    "error",
+                    "会話の開始を確認できませんでした。起動設定と認証を確認してください。",
+                    can_login,
+                ),
+            };
+            Ok(())
+        },
+    );
+    tokio::select! {
+        response = tokio::time::timeout(Duration::from_secs(if login { 300 } else { 45 }), job) => {
+            match response {
+                Ok(Ok(())) => status.lock().unwrap().clone(),
+                Ok(Err(_)) => result("error", "接続処理が完了しませんでした。起動設定・ネット接続を確認して再試行してください。", false),
+                Err(_) => result("error", "接続処理が時間内に完了しませんでした。再試行できます。", false),
+            }
+        }
+        _ = &mut cancel => result("unknown", "接続処理を中止しました。", false),
+    }
+}
+
+// An RAII guard also releases the slot when a command returns early.
+pub struct OperationGuard(pub Arc<AgentRuntime>);
+impl Drop for OperationGuard {
+    fn drop(&mut self) {
+        self.0.finish();
+    }
+}

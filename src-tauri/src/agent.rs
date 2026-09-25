@@ -1,6 +1,6 @@
 use crate::{model::*, store::Store};
 use agent_client_protocol::{
-    AcpAgent, AcpAgentConfig, Agent, ConnectionTo,
+    AcpAgent, Agent, ConnectionTo,
     schema::{ProtocolVersion, v1::*},
 };
 use serde::Serialize;
@@ -102,6 +102,9 @@ impl AgentRuntime {
 }
 
 pub fn default_config(id: &str) -> AgentConfig {
+    if id == "codex" {
+        return crate::agent_setup::managed_config();
+    }
     let package = if id == "claude" {
         "claude-agent-acp"
     } else {
@@ -196,9 +199,7 @@ pub async fn run(
     let permission_emit = emit.clone();
     let permission_id = conversation_id.clone();
     let permission_runtime = runtime.clone();
-    let launch = AcpAgentConfig::new(config.command)
-        .args(config.args)
-        .env("INITIAL_AGENT_MODE", "read-only");
+    let launch = crate::agent_setup::launch(config, &store)?;
     let session_store = store.clone();
     let session_conversation_id = conversation_id.clone();
     let job = agent_client_protocol::Client
@@ -299,11 +300,19 @@ pub async fn run(
                     .send_request(InitializeRequest::new(ProtocolVersion::V1))
                     .block_task()
                     .await?;
-                let restoring = conversation.session_id.is_some()
-                    && initialized.agent_capabilities.load_session;
-                let session_id = if let Some(saved) = conversation
-                    .session_id
-                    .filter(|_| initialized.agent_capabilities.load_session)
+                // Sessions created before app-owned credentials live in the user's
+                // CLI home. Keep the chat history, but start a fresh app-owned session.
+                let saved_session = conversation.session_id.and_then(|id| {
+                    if conversation.agent == "codex" {
+                        id.strip_prefix("tanzakoo-v1:").map(str::to_owned)
+                    } else {
+                        Some(id)
+                    }
+                });
+                let restoring =
+                    saved_session.is_some() && initialized.agent_capabilities.load_session;
+                let session_id = if let Some(saved) =
+                    saved_session.filter(|_| initialized.agent_capabilities.load_session)
                 {
                     replaying.store(true, Ordering::SeqCst);
                     cx.send_request(
@@ -319,7 +328,14 @@ pub async fn run(
                         .block_task()
                         .await?;
                     session_store
-                        .save_session(&session_conversation_id, response.session_id.to_string())
+                        .save_session(
+                            &session_conversation_id,
+                            if conversation.agent == "codex" {
+                                format!("tanzakoo-v1:{}", response.session_id)
+                            } else {
+                                response.session_id.to_string()
+                            },
+                        )
                         .map_err(|e| {
                             agent_client_protocol::Error::internal_error().data(e.to_string())
                         })?;

@@ -4,6 +4,11 @@
   "rules": {
     "shadcn/no-restyle": ["error", { "allow": ["layout"] }]
   },
-  "ignorePatterns": ["src/bindings/**", "src-tauri/target/**", "dist/**"],
+  "ignorePatterns": [
+    "src/bindings/**",
+    "src-tauri/target/**",
+    "src-tauri/resources/agent-runtime/**",
+    "dist/**"
+  ],
   "overrides": [{ "files": ["src/components/ui/**"], "rules": { "shadcn/no-restyle": "off" } }]
 }

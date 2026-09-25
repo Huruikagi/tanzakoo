@@ -1,6 +1,6 @@
 # Tanzakoo
 
-曖昧なプロダクトアイデアを、AIとの対話とカード操作で少しずつ具体化するローカルツール。
+曖昧なプロダクトアイデアを、カード操作と必要に応じたAIとの対話で少しずつ具体化するローカルツール。AIなしでもプロジェクト・カード・メモリを作成して整理できます。
 
 **会話から論点が生まれる → 気になるカードを選ぶ → 内容を指して話す → 提案を確認して適用する。**
 
@@ -18,9 +18,9 @@ mise exec -- pnpm install --frozen-lockfile
 mise exec -- pnpm tauri dev
 ```
 
-エージェントを使う前に、普段のCodex / Claude Codeの環境でログインしておいてください。
-ACPアダプターはプロジェクトの依存に含まれます。アプリをmise経由で起動すると、同じNodeを利用します。
-起動できない場合は右上の接続設定で、Nodeの実行ファイルとアダプターの引数を確認できます。
+Codexは「AIと考える」→「接続を確認」→「ChatGPTでサインイン」から既存のブラウザ認証を開始できます。Tanzakoo専用のログインを使い、普段のCLIの認証ファイルはコピーしません。開発時はmiseのNodeとプロジェクト依存を利用します。
+
+Claudeの配布版ログインは提供条件を確認中で、新しいログインボタンは実装していません。既存の外部ACP接続は詳細設定で維持しています。[Claude公式資料](https://code.claude.com/docs/en/agent-sdk/overview)では、第三者製品がclaude.aiログインを提供するには事前承認が必要とされています。APIキー方式への切り替えは未決です。
 
 `mise exec -- pnpm dev` だけでも画面をプレビューできます。ブラウザプレビューでは保存とエージェント接続は利用できません。
 
@@ -33,11 +33,22 @@ mise exec -- .\src-tauri\target\debug\tanzakoo.exe
 
 この実行ファイルも、エージェント接続にはプロジェクト内のNode依存を使います。単体配布用ではありません。
 
+### Node・Codexを同梱するビルド
+
+```powershell
+mise exec -- pnpm runtime:stage
+mise exec -- pnpm build:desktop
+```
+
+`runtime:stage` はビルドを実行したOS・CPU向けの依存をpnpm deployで固定ロックファイルからまとめ、miseのNodeとライセンス表示を同梱します。生成先は `src-tauri/resources/agent-runtime`。再生成時はこの生成フォルダーだけを削除してから実行します。
+
+Windowsでは出力された実行ファイルと、その隣の `agent-runtime` フォルダーを一緒に配置します。開発用Node・CodexをPATHから外した条件で起動確認済みです。MSIX・インストーラー・Mac署名／Sandbox・ストア申請はまだ提供していません。
+
 ## 使い方
 
 上部のプロジェクト選択から作業対象を切り替えます。その横の「＋」でプロジェクトを作成し、「メモリ」で名前とMarkdownの前提メモを編集できます。
 
-1. 右側のチャットでエージェントを選び、作りたいものを話します。送信はボタンまたは **Ctrl + Enter**。
+1. 「カード」から手動で始められます。AIを使う場合は「AIと考える」でチャットを開き、接続を確認して、送信内容への同意後に話しかけます。送信はボタンまたは **Ctrl + Enter**。
 2. エージェントが論点を「アイデアの山」に自動起票します。全部を片付ける必要はなく、放置しても消えません。
 3. 気になるカードを開き、本文を編集します。列の移動はドラッグか、詳細の列選択から行えます。
 4. 「会話に参照」でカード全体を添付できます。本文を範囲選択すると「選択範囲を参照」も使えます。編集中の内容は先に保存します。
@@ -45,6 +56,9 @@ mise exec -- .\src-tauri\target\debug\tanzakoo.exe
 6. 不要なカードは削除できます。ボード右上のアーカイブから復元できます。
 
 チャットの「＋」で新しい会話を開始します。会話途中でエージェントは切り替えず、会話履歴から再開できます。
+チャットは開閉でき、閉じても起動中の下書きは保持します。接続確認・ログイン・ログアウトではプロジェクト内容やプロンプトを渡しません。保存済みの会話と変更提案は未接続でも閲覧・適用できます。
+
+Codexの認証・セッションはアプリ保存先の `agents/codex` に保存します。認証ファイルを含むため、このフォルダーを共有・Git登録しないでください。認証は全プロジェクト共通で、同意はプロジェクト・エージェントごとに起動中だけ保持します。以前のCLI領域で作ったCodex会話は、履歴を参照して新しい専用セッションで続けます。
 カードを切り替えても編集途中の下書きは保持します。ただし、未保存の下書きはアプリを終了すると消えます。
 
 ### プロジェクトとメモリ
@@ -73,18 +87,18 @@ mise exec -- .\src-tauri\target\debug\tanzakoo.exe
 ```powershell
 mise exec -- pnpm check
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo test --manifest-path src-tauri/Cargo.toml --locked
+mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
 ```
 
 - Oxlint + Oxfmt。`@shadcn/lint` の `no-restyle` で共通部品の利用を確認します。レイアウト調整と動的スタイルは許容します。
 - Vitest / React Testing Libraryで参照・下書き・送信・提案適用を検証します。
-- Rustのテストで保存、承認時の競合検出、許可対象、キャンセル状態を検証します。`ts-rs` によるTypeScript型も生成します。
-- 実エージェントのスモークテストは `scripts/agent-smoke.ps1`。ログイン済みのアカウントを使い、テスト用の会話を送信します。CIでは実行しません。
+- Rustのテストで保存、承認時の競合検出、許可対象、キャンセル状態を検証します。認証のテストではmiseのNodeで模擬ACPエージェントを起動します。`ts-rs` によるTypeScript型も生成します。
+- 実エージェントのスモークテストは `scripts/agent-smoke.ps1`。ログイン済みのアカウントを使い、テスト用の会話を送信します。CIでは実行しません。Codexは先に検証専用フォルダーを `TANZAKOO_DATA_DIR` に指定してアプリからサインインし、アプリを終了した後、同じフォルダーを `-DataDirectory` に指定します。認証ファイルをコピーする必要はありません。
 
 ```powershell
 cargo build --manifest-path src-tauri/Cargo.toml
-mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent codex
+mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent codex -DataDirectory .local/codex-smoke-login
 mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent claude
 ```
 

@@ -19,10 +19,17 @@ jobs:
       - name: Rust format
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Rust tests and generated types
-        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
       - name: Check generated types are current
         run: git diff --exit-code -- src/bindings
       - name: Rust lint
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Stage bundled runtime
+        run: mise exec -- pnpm runtime:stage
       - name: Build desktop executable
-        run: mise exec -- pnpm tauri build --debug --no-bundle
+        run: mise exec -- pnpm tauri build --debug --no-bundle --config src-tauri/tauri.runtime.conf.json
+      - name: Check bundled runtime without developer tools
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:WINDIR\System32;$env:WINDIR"
+          & .\src-tauri\target\debug\tanzakoo.exe --connection-check codex "$env:RUNNER_TEMP\tanzakoo-connection-check"

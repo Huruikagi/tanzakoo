@@ -1,10 +1,20 @@
-param([ValidateSet('codex', 'claude')][string]$Agent = 'codex')
+param(
+    [ValidateSet('codex', 'claude')][string]$Agent = 'codex',
+    [string]$DataDirectory
+)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $executable = Join-Path $projectRoot 'src-tauri/target/debug/tanzakoo.exe'
 if (-not (Test-Path -LiteralPath $executable)) { throw '先にcargo buildを実行してください。' }
-$testRoot = Join-Path $projectRoot ".local/smoke-$Agent-$([guid]::NewGuid().ToString('N'))"
-New-Item -ItemType Directory -Path $testRoot | Out-Null
+$testRoot = if ($DataDirectory) { [System.IO.Path]::GetFullPath($DataDirectory) } else { Join-Path $projectRoot ".local/smoke-$Agent-$([guid]::NewGuid().ToString('N'))" }
+if (Test-Path -LiteralPath (Join-Path $testRoot 'smoke.db')) { throw '既存の検証DBは使い回せません。別の検証専用フォルダーを指定してください。' }
+New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+if ($Agent -eq 'codex') {
+    $status = & $executable --connection-check codex $testRoot | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $status.state -ne 'ready') {
+        throw "先にTANZAKOO_DATA_DIRを $testRoot にしてアプリでサインインし、アプリを終了してください。同じフォルダーを -DataDirectory に指定して再実行できます。"
+    }
+}
 function Invoke-Smoke([string]$Mode, [string]$Prompt, [string]$LogName) {
     $log = Join-Path $testRoot $LogName
     & $executable $Mode $Agent $testRoot $Prompt > $log 2>&1

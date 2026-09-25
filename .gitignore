@@ -3,6 +3,7 @@ node_modules/
 dist/
 target/
 src-tauri/gen/
+src-tauri/resources/agent-runtime/
 .local/
 test-results/
 playwright-report/

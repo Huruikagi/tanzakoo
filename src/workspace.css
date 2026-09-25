@@ -19,6 +19,45 @@
   --radius: 0.6rem;
   --font-sans: "Geist Variable", "Yu Gothic UI", "Meiryo", sans-serif;
 }
+.chat-panel-content {
+  height: 100%;
+}
+.agent-connection,
+.board-welcome {
+  padding: 12px;
+  background: var(--muted);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.agent-connection p,
+.agent-connection output,
+.board-welcome p {
+  display: block;
+  margin: 0 0 8px;
+}
+.board-welcome {
+  margin: 0 24px 12px;
+}
+.connection-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.ai-consent input {
+  margin-top: 4px;
+}
+.chat-error {
+  color: #a32c2c;
+  overflow-wrap: anywhere;
+}
 * {
   box-sizing: border-box;
 }

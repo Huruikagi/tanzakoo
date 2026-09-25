@@ -4,6 +4,7 @@ import type { Snapshot } from "@/bindings/Snapshot";
 import type { BoardAction } from "@/bindings/BoardAction";
 import type { Card } from "@/bindings/Card";
 import type { CardReference } from "@/bindings/CardReference";
+import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 
 export const columns = [
   { id: "idea", title: "アイデアの山", hint: "いつか拾う、小さな種", number: "01" },
@@ -19,6 +20,12 @@ export type Permission = {
 type Draft = { title: string; body: string; revision: number };
 export type ProjectDraft = { name: string; memory: string; revision: number };
 type Workspace = {
+  chatOpen: boolean;
+  setChatOpen: (open: boolean) => void;
+  chatError: string | null;
+  connections: Record<string, ConnectionStatus>;
+  consents: Record<string, boolean>;
+  connect: (agent: string, action: "check" | "login" | "logout") => Promise<void>;
   snapshot: Snapshot;
   loaded: boolean;
   switching: boolean;
@@ -70,6 +77,58 @@ function restoredView(snapshot: Snapshot) {
   };
 }
 export const useWorkspace = create<Workspace>((set, get) => ({
+  chatOpen: (() => {
+    try {
+      return localStorage.getItem("tanzakoo-chat-open") === "true";
+    } catch {
+      return false;
+    }
+  })(),
+  setChatOpen: (chatOpen) => {
+    set({ chatOpen });
+    try {
+      localStorage.setItem("tanzakoo-chat-open", String(chatOpen));
+    } catch {
+      /* Optional UI preference. */
+    }
+  },
+  chatError: null,
+  connections: {},
+  consents: {},
+  connect: async (agent, action) => {
+    if (get().busy || get().switching) return;
+    const key = `${get().snapshot.project.id}:${agent}`;
+    set({
+      busy: `connection:${agent}`,
+      chatError: null,
+      activity:
+        action === "login" ? "ブラウザでサインインを完了してください…" : "接続を確認しています…",
+    });
+    try {
+      const status = await api.connection(get().snapshot.project.id, agent, action);
+      set((s) => ({
+        connections: {
+          ...Object.fromEntries(
+            Object.entries(s.connections).map(([k, v]) => [
+              k,
+              action === "logout" && agent === "codex" && k.endsWith(":codex")
+                ? {
+                    state: "unknown",
+                    message: "サインアウトしました。接続を再確認してください。",
+                    canLogin: false,
+                  }
+                : v,
+            ]),
+          ),
+          [key]: status,
+        },
+      }));
+    } catch (error) {
+      set({ chatError: String(error) });
+    } finally {
+      set({ busy: null, activity: "" });
+    }
+  },
   snapshot: emptySnapshot,
   loaded: false,
   switching: false,
@@ -87,6 +146,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
           stream: "",
           permissions: [],
           error: null,
+          chatError: null,
           loaded: true,
         });
         return true;
@@ -112,6 +172,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
           stream: "",
           permissions: [],
           error: null,
+          chatError: null,
           loaded: true,
         });
         return true;
@@ -155,6 +216,20 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       try {
         const snapshot = await api.action(action, projectId);
         set({ snapshot, error: null });
+        if (action.type === "configureAgent") {
+          const key = `${projectId}:${action.config.id}`;
+          set((s) => ({
+            connections: {
+              ...s.connections,
+              [key]: {
+                state: "unknown",
+                message: "設定を変更しました。接続を確認してください。",
+                canLogin: false,
+              },
+            },
+            consents: { ...s.consents, [key]: false },
+          }));
+        }
         return snapshot;
       } catch (error) {
         set({ error: String(error) });
@@ -169,6 +244,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     return id;
   },
   attach: (card, quote = "") => {
+    get().setChatOpen(true);
     const reference = { cardId: card.id, title: card.title, revision: card.revision, quote };
     if (get().references.length >= 20) {
       set({ error: "参照は20件までです。" });
@@ -190,12 +266,19 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     }),
   send: async (text, agent) => {
     if (get().busy || get().switching || !text.trim()) return false;
+    const activeAgent =
+      get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
+    if (!get().consents[`${get().snapshot.project.id}:${activeAgent}`]) {
+      set({ chatError: "送信先と共有する内容を確認してください。" });
+      return false;
+    }
     // Lock before creating the first conversation to prevent duplicate sends on double click.
     set({
       busy: get().conversation ?? "starting",
       stream: "",
       activity: "接続しています…",
       error: null,
+      chatError: null,
     });
     const references = [...get().references];
     const id = get().conversation ?? (await get().newConversation(agent));
@@ -208,7 +291,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       await api.send(id, text, references, get().snapshot.project.id);
       return true;
     } catch (error) {
-      set({ error: String(error) });
+      set({ chatError: String(error), references });
       return false;
     } finally {
       await get().refresh();

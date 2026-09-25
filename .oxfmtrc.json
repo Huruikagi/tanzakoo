@@ -1,3 +1,9 @@
 {
-  "ignorePatterns": ["src/bindings/**", "src-tauri/target/**", "dist/**", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    "src/bindings/**",
+    "src-tauri/target/**",
+    "src-tauri/resources/agent-runtime/**",
+    "dist/**",
+    "pnpm-lock.yaml"
+  ]
 }

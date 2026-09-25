@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { Snapshot } from "@/bindings/Snapshot";
 import type { BoardAction } from "@/bindings/BoardAction";
 import type { CardReference } from "@/bindings/CardReference";
+import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 
 export type AgentEvent = {
   conversationId: string;
@@ -29,7 +30,9 @@ export const api = {
   createProject: (name: string, memory: string) =>
     invoke<Snapshot>("create_project", { name, memory }),
   send: (conversationId: string, text: string, references: CardReference[], projectId: string) =>
-    invoke<void>("send_prompt", { conversationId, text, references, projectId }),
+    invoke<void>("send_prompt", { conversationId, text, references, projectId, consent: true }),
+  connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>
+    invoke<ConnectionStatus>("agent_connection", { projectId, agent, action }),
   cancel: () => invoke<void>("cancel_prompt"),
   permission: (id: string, option: string | null) =>
     invoke<void>("answer_permission", { id, option }),

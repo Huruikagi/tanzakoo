@@ -88,6 +88,15 @@ pub struct AgentConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
+pub struct ConnectionStatus {
+    pub state: String,
+    pub message: String,
+    pub can_login: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
 pub struct Project {
     pub id: String,
     pub name: String,

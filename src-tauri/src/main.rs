@@ -16,6 +16,26 @@ fn main() {
             eprintln!("{error}");
             std::process::exit(1);
         }
+    } else if args.get(1).map(String::as_str) == Some("--connection-check") {
+        let agent = args.get(2).expect("agent").clone();
+        let path = std::path::PathBuf::from(args.get(3).expect("test data directory"));
+        std::fs::create_dir_all(&path).expect("test directory");
+        let store = tanzakoo_lib::store::Store::open(path.join("check.db")).expect("test database");
+        let runtime = tanzakoo_lib::agent::AgentRuntime::default();
+        let status =
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(tanzakoo_lib::agent_setup::probe(
+                    store,
+                    agent,
+                    "check".into(),
+                    runtime.begin().unwrap(),
+                ));
+        runtime.finish();
+        println!("{}", serde_json::to_string(&status).unwrap());
+        if status.state == "error" {
+            std::process::exit(1);
+        }
     } else if matches!(
         args.get(1).map(String::as_str),
         Some("--smoke" | "--smoke-resume" | "--smoke-cancel")

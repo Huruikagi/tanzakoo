@@ -14,6 +14,7 @@ import {
 import { useWorkspace } from "@/lib/workspace";
 import type { AgentConfig } from "@/bindings/AgentConfig";
 import { native } from "@/lib/api";
+import { AgentConnection } from "./AgentConnection";
 function AgentSettings({ config }: { config: AgentConfig }) {
   const [command, setCommand] = useState(config.command);
   const [args, setArgs] = useState(JSON.stringify(config.args, null, 2));
@@ -40,20 +41,37 @@ function AgentSettings({ config }: { config: AgentConfig }) {
       }}
     >
       <h3>{config.id === "claude" ? "Claude" : "Codex"}</h3>
-      <label htmlFor={`${config.id}-command`}>実行ファイル</label>
-      <Input
-        id={`${config.id}-command`}
-        value={command}
-        onChange={(e) => setCommand(e.target.value)}
-      />
-      <label htmlFor={`${config.id}-args`}>引数（JSON配列）</label>
-      <Textarea id={`${config.id}-args`} value={args} onChange={(e) => setArgs(e.target.value)} />
-      <div className="settings-save">
-        <output>{message}</output>
-        <Button size="sm" type="submit" disabled={!command.trim()}>
-          設定を保存
-        </Button>
-      </div>
+      <AgentConnection agent={config.id} />
+      <details>
+        <summary>詳細な起動設定</summary>
+        <label htmlFor={`${config.id}-command`}>実行ファイル</label>
+        <Input
+          id={`${config.id}-command`}
+          value={command}
+          onChange={(e) => setCommand(e.target.value)}
+        />
+        <label htmlFor={`${config.id}-args`}>引数（JSON配列）</label>
+        <Textarea id={`${config.id}-args`} value={args} onChange={(e) => setArgs(e.target.value)} />
+        <div className="settings-save">
+          <output>{message}</output>
+          <Button size="sm" type="submit" disabled={!command.trim()}>
+            設定を保存
+          </Button>
+        </div>
+        {config.id === "codex" && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setCommand("@tanzakoo/managed");
+              setArgs("[]");
+            }}
+          >
+            同梱版の設定に戻す
+          </Button>
+        )}
+      </details>
     </form>
   );
 }
@@ -81,7 +99,7 @@ export function Settings() {
         </DialogHeader>
         <div className="settings-scroll">
           <p className="hint muted">
-            通常は既定値のまま使えます。起動できない場合はNodeの実行ファイルを絶対パスで指定してください。
+            ボードの閲覧・編集には接続不要です。Codexの同梱版は既定値のまま利用できます。
           </p>
           {agents.map((a) => (
             <AgentSettings key={`${a.id}-${a.command}-${a.args.join()}`} config={a} />
