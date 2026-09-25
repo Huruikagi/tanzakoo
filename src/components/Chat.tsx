@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useWorkspace } from "@/lib/workspace";
+import { chatRunning, useWorkspace } from "@/lib/workspace";
 import { agentUnavailable, api, native } from "@/lib/api";
 import { Markdown } from "./Markdown";
 import { AgentConnection } from "./AgentConnection";
@@ -40,7 +40,7 @@ export function Chat() {
   const consented = snapshot.consents.includes(selectedAgent);
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
-  const isThisBusy = busy !== null && (busy === conversation || busy === "starting");
+  const isThisBusy = chatRunning(busy, conversation);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, stream, permissions.length]);

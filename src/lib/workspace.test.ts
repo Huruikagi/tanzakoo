@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Card } from "@/bindings/Card";
 import { api, emptySnapshot } from "./api";
-import { moveCard, useWorkspace } from "./workspace";
+import { connectionStatus, moveCard, useWorkspace } from "./workspace";
 vi.mock("./api", () => ({
   emptySnapshot: {
     project: { id: "a", name: "A", memory: "", revision: 1 },
@@ -134,6 +134,35 @@ describe("chat lifecycle", () => {
     expect(useWorkspace.getState().error).toBeNull();
   });
 });
+describe("connection status", () => {
+  const codex = { id: "codex", command: "@tanzakoo/managed", args: [] };
+  const ready = { state: "ready", message: "接続できました。", canLogin: true };
+  it("is shared across projects only while they launch the agent the same way", async () => {
+    useWorkspace.setState((s) => ({ snapshot: { ...s.snapshot, agents: [codex] } }));
+    vi.mocked(api.connection).mockResolvedValue(ready);
+    await useWorkspace.getState().connect("codex", "check");
+    const other = { ...emptySnapshot, project: { ...emptySnapshot.project, id: "b" } };
+    useWorkspace.setState({ snapshot: { ...other, agents: [codex] } });
+    expect(connectionStatus(useWorkspace.getState(), "codex")).toEqual(ready);
+    useWorkspace.setState({
+      snapshot: { ...other, agents: [{ ...codex, command: "node", args: ["custom.mjs"] }] },
+    });
+    expect(connectionStatus(useWorkspace.getState(), "codex")).toBeUndefined();
+  });
+  it("replaces a signed-in status for every matching project after sign-out", async () => {
+    useWorkspace.setState((s) => ({ snapshot: { ...s.snapshot, agents: [codex] } }));
+    vi.mocked(api.connection).mockResolvedValueOnce(ready).mockResolvedValueOnce({
+      state: "authRequired",
+      message: "サインアウトしました。",
+      canLogin: true,
+    });
+    await useWorkspace.getState().connect("codex", "check");
+    await useWorkspace.getState().connect("codex", "logout");
+    const other = { ...emptySnapshot, project: { ...emptySnapshot.project, id: "b" } };
+    useWorkspace.setState({ snapshot: { ...other, agents: [codex] } });
+    expect(connectionStatus(useWorkspace.getState(), "codex")?.state).toBe("authRequired");
+  });
+});
 describe("project isolation", () => {
   it("does not route legacy Claude history to Codex or start a Claude connection", async () => {
     useWorkspace.setState({
@@ -191,7 +220,7 @@ describe("project isolation", () => {
     expect(useWorkspace.getState().drafts[card.id].body).toBe("Aの下書き");
   });
   it("blocks switching during a response and blocks sends while switching", async () => {
-    useWorkspace.setState({ busy: "running" });
+    useWorkspace.setState({ busy: { kind: "chat", conversation: "running" } });
     expect(await useWorkspace.getState().changeProject("b")).toBe(false);
     expect(api.switchProject).not.toHaveBeenCalled();
     useWorkspace.setState({ busy: null });

@@ -18,12 +18,22 @@ export type Permission = {
   request: { options: { optionId: string; name: string; kind: string }[]; toolCall: unknown };
 };
 type Draft = { title: string; body: string; revision: number };
+/** What the single agent slot is doing. `conversation: null` means the first message is creating one. */
+export type Busy =
+  | { kind: "chat"; conversation: string | null }
+  | { kind: "connecting"; agent: string };
+/**
+ * Sign-in is shared by all projects, but each project has its own launch settings.
+ * A status is reused only while the current project launches the agent the same way.
+ */
+type Connection = { status: ConnectionStatus; launch: string };
 export type ProjectDraft = { name: string; memory: string; revision: number };
 type Workspace = {
   chatOpen: boolean;
   setChatOpen: (open: boolean) => void;
   chatError: string | null;
-  connections: Record<string, ConnectionStatus>;
+  /** Keyed by agent id. Read through `connectionStatus`. */
+  connections: Record<string, Connection>;
   setConsent: (agent: string, granted: boolean) => Promise<void>;
   connect: (agent: string, action: "check" | "login" | "logout") => Promise<void>;
   snapshot: Snapshot;
@@ -37,7 +47,7 @@ type Workspace = {
   references: CardReference[];
   drafts: Record<string, Draft>;
   error: string | null;
-  busy: string | null;
+  busy: Busy | null;
   stream: string;
   activity: string;
   permissions: Permission[];
@@ -58,6 +68,23 @@ function serialized<T>(job: () => Promise<T>): Promise<T> {
   const task = queue.then(job, job);
   queue = task.catch(() => {});
   return task;
+}
+function launchKey(snapshot: Snapshot, agent: string) {
+  const config = snapshot.agents.find((a) => a.id === agent);
+  return JSON.stringify([config?.command, config?.args]);
+}
+export function connectionStatus(
+  state: Pick<Workspace, "snapshot" | "connections">,
+  agent: string,
+): ConnectionStatus | undefined {
+  const connection = state.connections[agent];
+  return connection?.launch === launchKey(state.snapshot, agent) ? connection.status : undefined;
+}
+/** Whether the chat for `conversation` (null: a new chat) is the one currently running. */
+export function chatRunning(busy: Busy | null, conversation: string | null) {
+  return (
+    busy?.kind === "chat" && (busy.conversation === null || busy.conversation === conversation)
+  );
 }
 function restoredView(snapshot: Snapshot) {
   let view: { selected?: string | null; conversation?: string | null } = {};
@@ -125,32 +152,16 @@ export const useWorkspace = create<Workspace>((set, get) => ({
   connect: async (agent, action) => {
     if (get().busy || get().switching) return;
     if (agent !== "codex") return;
-    const key = `${get().snapshot.project.id}:${agent}`;
+    const launch = launchKey(get().snapshot, agent);
     set({
-      busy: `connection:${agent}`,
+      busy: { kind: "connecting", agent },
       chatError: null,
       activity:
         action === "login" ? "ブラウザでサインインを完了してください…" : "接続を確認しています…",
     });
     try {
       const status = await api.connection(get().snapshot.project.id, agent, action);
-      set((s) => ({
-        connections: {
-          ...Object.fromEntries(
-            Object.entries(s.connections).map(([k, v]) => [
-              k,
-              action === "logout" && agent === "codex" && k.endsWith(":codex")
-                ? {
-                    state: "unknown",
-                    message: "サインアウトしました。",
-                    canLogin: false,
-                  }
-                : v,
-            ]),
-          ),
-          [key]: status,
-        },
-      }));
+      set((s) => ({ connections: { ...s.connections, [agent]: { status, launch } } }));
     } catch (error) {
       set({ chatError: String(error) });
     } finally {
@@ -250,14 +261,17 @@ export const useWorkspace = create<Workspace>((set, get) => ({
           error: null,
         });
         if (action.type === "configureAgent") {
-          const key = `${projectId}:${action.config.id}`;
+          const agent = action.config.id;
           set((s) => ({
             connections: {
               ...s.connections,
-              [key]: {
-                state: "unknown",
-                message: "設定を変更しました。接続を確認してください。",
-                canLogin: false,
+              [agent]: {
+                status: {
+                  state: "unknown",
+                  message: "設定を変更しました。接続を確認してください。",
+                  canLogin: false,
+                },
+                launch: launchKey(snapshot, agent),
               },
             },
           }));
@@ -310,7 +324,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     }
     // Lock before creating the first conversation to prevent duplicate sends on double click.
     set({
-      busy: get().conversation ?? "starting",
+      busy: { kind: "chat", conversation: get().conversation },
       stream: "",
       activity: "接続しています…",
       error: null,
@@ -322,7 +336,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       set({ busy: null });
       return false;
     }
-    set({ busy: id, references: [] });
+    set({ busy: { kind: "chat", conversation: id }, references: [] });
     try {
       await api.send(id, text, references, get().snapshot.project.id);
       return true;
@@ -335,7 +349,8 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     }
   },
   event: (event) => {
-    if (event.conversationId !== get().busy) return;
+    const busy = get().busy;
+    if (busy?.kind !== "chat" || busy.conversation !== event.conversationId) return;
     if (event.kind === "delta")
       set({ stream: get().stream + event.text, activity: "応答しています…" });
     if (event.kind === "activity") set({ activity: event.text });

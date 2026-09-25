@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { useWorkspace } from "@/lib/workspace";
+import { connectionStatus, useWorkspace } from "@/lib/workspace";
 import { agentUnavailable, api, native } from "@/lib/api";
 
 export function AgentConnection({
@@ -9,9 +9,10 @@ export function AgentConnection({
   agent: string;
   hideWhenReady?: boolean;
 }) {
-  const { snapshot, connections, busy, activity, connect } = useWorkspace();
-  const status = connections[`${snapshot.project.id}:${agent}`];
-  const connecting = busy === `connection:${agent}`;
+  const workspace = useWorkspace();
+  const { snapshot, busy, activity, connect } = workspace;
+  const status = connectionStatus(workspace, agent);
+  const connecting = busy?.kind === "connecting" && busy.agent === agent;
   if (agent !== "codex")
     return (
       <div className="agent-connection">
