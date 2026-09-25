@@ -59,8 +59,15 @@ async fn board_action(
             }
             BoardAction::UpdateCard { card } => store.update_card(card).map(|_| ()),
             BoardAction::ResolveProposal { id, apply } => store.resolve(&id, apply),
+            BoardAction::ResolveDiscussion { id, action } => store.resolve_discussion(&id, action),
             BoardAction::NewConversation { agent } => store.create_conversation(&agent).map(|_| ()),
-            BoardAction::ConfigureAgent { config } => store.set_agent(config),
+            BoardAction::ConfigureAgent { config } => {
+                // A changed launch command may send data elsewhere, so ask again.
+                let agent = config.id.clone();
+                store
+                    .set_agent(config)
+                    .and_then(|_| projects.set_consent(&agent, false))
+            }
         };
         result.map_err(|e| e.to_string())?;
         snapshot(&projects)
@@ -110,13 +117,9 @@ async fn send_prompt(
     conversation_id: String,
     text: String,
     references: Vec<CardReference>,
-    consent: bool,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    if !consent {
-        return Err("AIへの送信内容を確認してください。".into());
-    }
     if text.trim().is_empty() || text.len() > 100_000 || references.len() > 20 {
         return Err("メッセージは1〜100000バイト、参照は20件以内にしてください。".into());
     }
@@ -126,9 +129,15 @@ async fn send_prompt(
         let store = projects
             .require_active(&project_id)
             .map_err(|e| e.to_string())?;
-        store
+        let conversation = store
             .conversation(&conversation_id)
             .map_err(|e| e.to_string())?;
+        if !projects
+            .consented(&conversation.agent)
+            .map_err(|e| e.to_string())?
+        {
+            return Err("AIへの送信に同意してください。".into());
+        }
         let cancel = state.runtime.begin()?;
         (store, cancel)
     };
@@ -163,6 +172,27 @@ async fn send_prompt(
         detail: None,
     });
     result
+}
+
+#[tauri::command]
+async fn set_consent(
+    agent: String,
+    granted: bool,
+    state: State<'_, AppState>,
+) -> Result<Snapshot, String> {
+    if agent != "codex" && granted {
+        return Err("この接続先には送信できません。".into());
+    }
+    let projects = state.projects.clone();
+    tokio::task::spawn_blocking(move || {
+        let projects = projects.lock().map_err(|e| e.to_string())?;
+        projects
+            .set_consent(&agent, granted)
+            .map_err(|e| e.to_string())?;
+        snapshot(&projects)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -218,6 +248,7 @@ pub fn run() {
             switch_project,
             create_project,
             send_prompt,
+            set_consent,
             cancel_prompt,
             answer_permission,
             agent_connection

@@ -45,14 +45,18 @@
 }
 .ai-consent {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--muted);
+  border-radius: 8px;
   font-size: 11px;
   line-height: 1.6;
   margin-bottom: 10px;
 }
-.ai-consent input {
-  margin-top: 4px;
+.ai-consent p {
+  flex: 1;
+  margin: 0;
 }
 .chat-error {
   color: #a32c2c;
@@ -865,6 +869,38 @@ summary:focus-visible {
 }
 .muted {
   color: #8d9981;
+}
+.discussion-notice {
+  margin: 8px 0 16px;
+  padding: 8px 10px;
+  border-left: 2px solid #a7b593;
+  color: #58674e;
+  background: #f4f6ee;
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.discussion-notice p {
+  margin: 0;
+}
+.discussion-card-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.discussion-card-link:disabled {
+  text-decoration: none;
+  cursor: default;
+}
+.discussion-reason {
+  color: #727b6b;
+}
+.discussion-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
 }
 .hint {
   font-size: 10px;

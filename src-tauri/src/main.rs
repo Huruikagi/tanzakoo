@@ -11,6 +11,7 @@ fn main() {
                 .block_on(tanzakoo_lib::mcp::serve(
                     path.into(),
                     args.get(3).cloned().unwrap_or_else(|| "agent".into()),
+                    args.get(4).cloned().zip(args.get(5).cloned()),
                 ));
         if let Err(error) = result {
             eprintln!("{error}");

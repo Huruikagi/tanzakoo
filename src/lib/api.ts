@@ -25,7 +25,9 @@ export const emptySnapshot: Snapshot = {
   proposals: [],
   conversations: [],
   messages: [],
+  discussions: [],
   agents: [],
+  consents: [],
 };
 export const api = {
   snapshot: () => (native ? invoke<Snapshot>("get_snapshot") : Promise.resolve(emptySnapshot)),
@@ -35,7 +37,9 @@ export const api = {
   createProject: (name: string, memory: string) =>
     invoke<Snapshot>("create_project", { name, memory }),
   send: (conversationId: string, text: string, references: CardReference[], projectId: string) =>
-    invoke<void>("send_prompt", { conversationId, text, references, projectId, consent: true }),
+    invoke<void>("send_prompt", { conversationId, text, references, projectId }),
+  setConsent: (agent: string, granted: boolean) =>
+    invoke<Snapshot>("set_consent", { agent, granted }),
   connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>
     invoke<ConnectionStatus>("agent_connection", { projectId, agent, action }),
   cancel: () => invoke<void>("cancel_prompt"),

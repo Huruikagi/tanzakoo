@@ -11,7 +11,9 @@ vi.mock("./api", () => ({
     proposals: [],
     conversations: [],
     messages: [],
+    discussions: [],
     agents: [],
+    consents: [],
   },
   api: {
     action: vi.fn(),
@@ -39,7 +41,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   useWorkspace.setState({
-    snapshot: { ...emptySnapshot, cards: [card] },
+    snapshot: { ...emptySnapshot, cards: [card], consents: ["codex", "claude"] },
     loaded: true,
     switching: false,
     selected: card.id,
@@ -52,10 +54,25 @@ beforeEach(() => {
     error: null,
     chatError: null,
     connections: {},
-    consents: { "a:codex": true, "a:claude": true },
   });
 });
 describe("card references and drafts", () => {
+  it("keeps a content draft editable when only the card's column changes", async () => {
+    useWorkspace
+      .getState()
+      .draft(card.id, { title: card.title, body: "編集中の本文", revision: 1 });
+    vi.mocked(api.snapshot).mockResolvedValue({
+      ...emptySnapshot,
+      cards: [{ ...card, status: "discuss", revision: 2 }],
+    });
+    await useWorkspace.getState().refresh();
+    expect(useWorkspace.getState().drafts[card.id]).toEqual({
+      title: card.title,
+      body: "編集中の本文",
+      revision: 2,
+    });
+    expect(useWorkspace.getState().selected).toBe(card.id);
+  });
   it("keeps a revision-specific quote when the card changes, without approving a change", () => {
     useWorkspace.getState().attach(card, "毎朝");
     useWorkspace.getState().attach(card, "毎朝");
@@ -104,6 +121,7 @@ describe("chat lifecycle", () => {
   it("keeps a new conversation empty across refresh and unlocks after connection failure", async () => {
     vi.mocked(api.snapshot).mockResolvedValue({
       ...emptySnapshot,
+      consents: ["codex"],
       conversations: [{ id: "old", title: "old", agent: "codex", sessionId: null, createdAt: 1 }],
     });
     await useWorkspace.getState().refresh();
@@ -134,7 +152,7 @@ describe("project isolation", () => {
     expect(api.action).not.toHaveBeenCalled();
   });
   it("does not send or create a conversation before consent", async () => {
-    useWorkspace.setState({ consents: {} });
+    useWorkspace.setState((s) => ({ snapshot: { ...s.snapshot, consents: [] } }));
     expect(await useWorkspace.getState().send("test", "codex")).toBe(false);
     expect(api.send).not.toHaveBeenCalled();
     expect(api.action).not.toHaveBeenCalled();

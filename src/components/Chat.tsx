@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowUp, Square, Plus, MessageCircle, X, Paperclip, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,7 @@ import { useWorkspace } from "@/lib/workspace";
 import { agentUnavailable, api, native } from "@/lib/api";
 import { Markdown } from "./Markdown";
 import { AgentConnection } from "./AgentConnection";
+import { DiscussionNotice } from "./DiscussionNotice";
 
 export function Chat() {
   const {
@@ -26,7 +27,6 @@ export function Chat() {
     send,
     answer,
     chatError,
-    consents,
   } = useWorkspace();
   const agent = "codex";
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -37,7 +37,7 @@ export function Chat() {
   const composing = useRef(false);
   const active = snapshot.conversations.find((c) => c.id === conversation);
   const selectedAgent = active?.agent ?? agent;
-  const consentKey = `${snapshot.project.id}:${selectedAgent}`;
+  const consented = snapshot.consents.includes(selectedAgent);
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = busy !== null && (busy === conversation || busy === "starting");
@@ -45,7 +45,7 @@ export function Chat() {
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, stream, permissions.length]);
   function submit() {
-    if (!text.trim() || busy || !native || unavailable || !consents[consentKey]) return;
+    if (!text.trim() || busy || !native || unavailable || !consented) return;
     const pending = text;
     setText("");
     void send(pending, agent).then((ok) => {
@@ -153,34 +153,41 @@ export function Chat() {
           </div>
         )}
         {messages.map((m) => (
-          <article key={m.id} className={`message message-${m.role}`}>
-            <div className="message-label">
-              {m.role === "user"
-                ? "あなた"
-                : m.role === "error"
-                  ? "エラー"
-                  : active?.agent === "claude"
-                    ? "Claude"
-                    : "Codex"}
-            </div>
-            {m.references.length > 0 && (
-              <div className="message-references">
-                {m.references.map((r, index) => (
-                  <button
-                    key={index}
-                    className="reference-chip"
-                    title={r.quote || r.title}
-                    onClick={() => useWorkspace.getState().select(r.cardId)}
-                  >
-                    <Paperclip size={11} />
-                    {r.title}
-                    {r.quote && " · 引用"}
-                  </button>
-                ))}
+          <Fragment key={m.id}>
+            <article className={`message message-${m.role}`}>
+              <div className="message-label">
+                {m.role === "user"
+                  ? "あなた"
+                  : m.role === "error"
+                    ? "エラー"
+                    : active?.agent === "claude"
+                      ? "Claude"
+                      : "Codex"}
               </div>
-            )}
-            <Markdown>{m.text}</Markdown>
-          </article>
+              {m.references.length > 0 && (
+                <div className="message-references">
+                  {m.references.map((r, index) => (
+                    <button
+                      key={index}
+                      className="reference-chip"
+                      title={r.quote || r.title}
+                      onClick={() => useWorkspace.getState().select(r.cardId)}
+                    >
+                      <Paperclip size={11} />
+                      {r.title}
+                      {r.quote && " · 引用"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Markdown>{m.text}</Markdown>
+            </article>
+            {snapshot.discussions
+              .filter((d) => d.conversationId === conversation && d.messageId === m.id)
+              .map((d) => (
+                <DiscussionNotice key={d.id} discussion={d} />
+              ))}
+          </Fragment>
         ))}
         {isThisBusy && (
           <article className="message message-assistant">
@@ -222,24 +229,19 @@ export function Chat() {
         <div ref={end} />
       </div>
       <div className="composer-area">
-        {!unavailable && (
-          <label className="ai-consent">
-            <input
-              type="checkbox"
-              checked={!!consents[consentKey]}
-              disabled={!!busy}
-              onChange={(event) =>
-                useWorkspace.setState({
-                  consents: { ...consents, [consentKey]: event.target.checked },
-                })
-              }
-            />
-            <span>
-              このプロジェクトのボード・メモリ・会話を
-              {selectedAgent === "claude" ? "Anthropic" : "OpenAI"}
-              へ送信することに同意する
-            </span>
-          </label>
+        {!unavailable && !consented && (
+          <div className="ai-consent">
+            <p>
+              話しかけると、そのプロジェクトのボード・メモリ・会話がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。
+            </p>
+            <Button
+              size="sm"
+              disabled={!native || !!busy}
+              onClick={() => void useWorkspace.getState().setConsent(selectedAgent, true)}
+            >
+              同意して使う
+            </Button>
+          </div>
         )}
         <div className="composer">
           {references.length > 0 && (
@@ -314,7 +316,7 @@ export function Chat() {
               <Button
                 size="icon-sm"
                 aria-label="メッセージを送信"
-                disabled={!text.trim() || !native || !!busy || unavailable || !consents[consentKey]}
+                disabled={!text.trim() || !native || !!busy || unavailable || !consented}
                 onClick={submit}
               >
                 <ArrowUp />

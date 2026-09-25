@@ -19,6 +19,8 @@ function AgentSettings({ config }: { config: AgentConfig }) {
   const [command, setCommand] = useState(config.command);
   const [args, setArgs] = useState(JSON.stringify(config.args, null, 2));
   const [message, setMessage] = useState("");
+  const consented = useWorkspace((s) => s.snapshot.consents.includes(config.id));
+  const busy = useWorkspace((s) => s.busy);
   async function save() {
     try {
       const parsed: unknown = JSON.parse(args);
@@ -27,7 +29,13 @@ function AgentSettings({ config }: { config: AgentConfig }) {
       const result = await useWorkspace
         .getState()
         .act({ type: "configureAgent", config: { ...config, command, args: parsed } });
-      setMessage(result ? "保存しました。" : "保存に失敗しました。");
+      setMessage(
+        result
+          ? consented
+            ? "保存しました。送信先が変わりうるため、送信の同意は取り消しました。"
+            : "保存しました。"
+          : "保存に失敗しました。",
+      );
     } catch (error) {
       setMessage(String(error));
     }
@@ -41,6 +49,20 @@ function AgentSettings({ config }: { config: AgentConfig }) {
       }}
     >
       <AgentConnection agent={config.id} />
+      {consented && (
+        <div className="settings-save">
+          <span className="hint muted">OpenAIへの送信に同意済み（全プロジェクト共通）</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!!busy}
+            onClick={() => void useWorkspace.getState().setConsent(config.id, false)}
+          >
+            同意を取り消す
+          </Button>
+        </div>
+      )}
       <details>
         <summary>詳細な起動設定</summary>
         <label htmlFor={`${config.id}-command`}>実行ファイル</label>

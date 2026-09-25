@@ -24,7 +24,7 @@ type Workspace = {
   setChatOpen: (open: boolean) => void;
   chatError: string | null;
   connections: Record<string, ConnectionStatus>;
-  consents: Record<string, boolean>;
+  setConsent: (agent: string, granted: boolean) => Promise<void>;
   connect: (agent: string, action: "check" | "login" | "logout") => Promise<void>;
   snapshot: Snapshot;
   loaded: boolean;
@@ -76,6 +76,25 @@ function restoredView(snapshot: Snapshot) {
           : (snapshot.conversations.at(-1)?.id ?? null),
   };
 }
+function syncedDrafts(previous: Snapshot, snapshot: Snapshot, drafts: Record<string, Draft>) {
+  if (previous.project.id !== snapshot.project.id) return drafts;
+  const result = { ...drafts };
+  for (const card of snapshot.cards) {
+    const draft = drafts[card.id];
+    const before = previous.cards.find((c) => c.id === card.id);
+    // A column-only move must not turn an in-progress content edit into a conflict.
+    if (
+      draft &&
+      before?.revision === draft.revision &&
+      before.title === card.title &&
+      before.body === card.body &&
+      before.deleted === card.deleted
+    ) {
+      result[card.id] = { ...draft, revision: card.revision };
+    }
+  }
+  return result;
+}
 export const useWorkspace = create<Workspace>((set, get) => ({
   chatOpen: (() => {
     try {
@@ -94,7 +113,15 @@ export const useWorkspace = create<Workspace>((set, get) => ({
   },
   chatError: null,
   connections: {},
-  consents: {},
+  setConsent: async (agent, granted) =>
+    serialized(async () => {
+      try {
+        const snapshot = await api.setConsent(agent, granted);
+        set({ snapshot, chatError: null });
+      } catch (error) {
+        set({ chatError: String(error) });
+      }
+    }),
   connect: async (agent, action) => {
     if (get().busy || get().switching) return;
     if (agent !== "codex") return;
@@ -202,6 +229,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
         set({
           snapshot,
           loaded: true,
+          drafts: syncedDrafts(get().snapshot, snapshot, get().drafts),
           ...(!get().loaded || snapshot.project.id !== get().snapshot.project.id
             ? { ...restoredView(snapshot), references: [] }
             : {}),
@@ -216,7 +244,11 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     return serialized(async () => {
       try {
         const snapshot = await api.action(action, projectId);
-        set({ snapshot, error: null });
+        set({
+          snapshot,
+          drafts: syncedDrafts(get().snapshot, snapshot, get().drafts),
+          error: null,
+        });
         if (action.type === "configureAgent") {
           const key = `${projectId}:${action.config.id}`;
           set((s) => ({
@@ -228,7 +260,6 @@ export const useWorkspace = create<Workspace>((set, get) => ({
                 canLogin: false,
               },
             },
-            consents: { ...s.consents, [key]: false },
           }));
         }
         return snapshot;
@@ -273,8 +304,8 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       set({ chatError: "この会話は閲覧のみです。新しい会話をCodexで始めてください。" });
       return false;
     }
-    if (!get().consents[`${get().snapshot.project.id}:${activeAgent}`]) {
-      set({ chatError: "送信先と共有する内容を確認してください。" });
+    if (!get().snapshot.consents.includes(activeAgent)) {
+      set({ chatError: "AIへの送信に同意してください。" });
       return false;
     }
     // Lock before creating the first conversation to prevent duplicate sends on double click.

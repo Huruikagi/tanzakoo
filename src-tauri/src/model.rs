@@ -76,6 +76,34 @@ pub struct Message {
     pub created_at: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum DiscussionState {
+    Suggested,
+    Moved,
+    Undone,
+    Dismissed,
+    Superseded,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct Discussion {
+    pub id: String,
+    pub conversation_id: String,
+    pub message_id: String,
+    pub card_id: String,
+    pub title: String,
+    pub reason: String,
+    pub previous_status: CardStatus,
+    pub previous_position: f64,
+    pub card_revision: u32,
+    pub state: DiscussionState,
+    pub automatic: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -135,7 +163,10 @@ pub struct Snapshot {
     pub proposals: Vec<Proposal>,
     pub conversations: Vec<Conversation>,
     pub messages: Vec<Message>,
+    pub discussions: Vec<Discussion>,
     pub agents: Vec<AgentConfig>,
+    /// Agents the user has agreed to send project content to. App-wide, not per project.
+    pub consents: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -166,10 +197,23 @@ pub enum BoardAction {
         id: String,
         apply: bool,
     },
+    ResolveDiscussion {
+        id: String,
+        action: DiscussionResolution,
+    },
     NewConversation {
         agent: String,
     },
     ConfigureAgent {
         config: AgentConfig,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum DiscussionResolution {
+    Accept,
+    Dismiss,
+    Undo,
 }

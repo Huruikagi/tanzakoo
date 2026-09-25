@@ -15,7 +15,9 @@ vi.mock("@/lib/api", () => ({
     proposals: [],
     conversations: [],
     messages: [],
+    discussions: [],
     agents: [],
+    consents: [],
   },
   api: { action: vi.fn(), createProject: vi.fn(), switchProject: vi.fn() },
 }));

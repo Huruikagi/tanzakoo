@@ -181,11 +181,8 @@ pub async fn probe(
                         .is_some_and(|methods| methods.iter().any(|m| m["id"] == "chat-gpt"));
                 if action == "logout" {
                     cx.send_request(LogoutRequest::new()).block_task().await?;
-                    *output.lock().unwrap() = result(
-                        "authRequired",
-                        "サインアウトしました。",
-                        can_login,
-                    );
+                    *output.lock().unwrap() =
+                        result("authRequired", "サインアウトしました。", can_login);
                     return Ok(());
                 }
                 if login {
@@ -210,11 +207,7 @@ pub async fn probe(
                     return Ok(());
                 }
                 *output.lock().unwrap() = match session {
-                    Ok(_) => result(
-                        "ready",
-                        "接続できました。",
-                        can_login,
-                    ),
+                    Ok(_) => result("ready", "接続できました。", can_login),
                     Err(e) if e.code == ErrorCode::AuthRequired => {
                         result("authRequired", "サインインが必要です。", can_login)
                     }

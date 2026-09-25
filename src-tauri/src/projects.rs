@@ -90,7 +90,37 @@ impl Projects {
                 name: p.name,
             });
         }
+        let mut query = db.prepare(
+            "SELECT substr(key,9) FROM preferences WHERE key LIKE 'consent:%' ORDER BY key",
+        )?;
+        for row in query.query_map([], |r| r.get::<_, String>(0))? {
+            snapshot.consents.push(row?);
+        }
         Ok(snapshot)
+    }
+    pub fn consented(&self, agent: &str) -> Result<bool> {
+        Ok(self
+            .catalog()?
+            .query_row(
+                "SELECT 1 FROM preferences WHERE key=?1",
+                [format!("consent:{agent}")],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
+    }
+    pub fn set_consent(&self, agent: &str, granted: bool) -> Result<()> {
+        let key = format!("consent:{agent}");
+        let db = self.catalog()?;
+        if granted {
+            db.execute(
+                "INSERT OR REPLACE INTO preferences(key,value) VALUES (?1,'1')",
+                [key],
+            )?;
+        } else {
+            db.execute("DELETE FROM preferences WHERE key=?1", [key])?;
+        }
+        Ok(())
     }
     pub fn switch(&mut self, id: &str) -> Result<()> {
         self.store(id)?;
@@ -157,6 +187,23 @@ mod tests {
         );
         assert_eq!(snapshot.projects.len(), 2);
         assert!(snapshot.project.memory.is_empty());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn consent_is_app_wide_and_survives_reopen() {
+        let root =
+            std::env::temp_dir().join(format!("tanzakoo-consent-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut projects = Projects::open(root.clone()).unwrap();
+        assert!(!projects.consented("codex").unwrap());
+        projects.set_consent("codex", true).unwrap();
+        projects.create("アプリB".into(), String::new()).unwrap();
+        let projects = Projects::open(root.clone()).unwrap();
+        assert!(projects.consented("codex").unwrap());
+        assert_eq!(projects.snapshot().unwrap().consents, vec!["codex"]);
+        projects.set_consent("codex", false).unwrap();
+        assert!(!projects.consented("codex").unwrap());
+        assert!(projects.snapshot().unwrap().consents.is_empty());
         std::fs::remove_dir_all(root).unwrap();
     }
 }
