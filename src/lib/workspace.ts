@@ -7,10 +7,10 @@ import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 
 export const columns = [
-  { id: "idea", title: "アイデアの山", hint: "いつか拾う、小さな種", number: "01" },
-  { id: "explore", title: "検討する", hint: "気になることから", number: "02" },
-  { id: "discuss", title: "話し合う", hint: "会話で掘り下げる", number: "03" },
-  { id: "decided", title: "決めたこと", hint: "今の答えを残す", number: "04" },
+  { id: "idea", title: "アイデアの山", number: "01" },
+  { id: "explore", title: "検討する", number: "02" },
+  { id: "discuss", title: "話し合う", number: "03" },
+  { id: "decided", title: "決めたこと", number: "04" },
 ] as const;
 export type Permission = {
   id: string;
@@ -97,6 +97,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
   consents: {},
   connect: async (agent, action) => {
     if (get().busy || get().switching) return;
+    if (agent !== "codex") return;
     const key = `${get().snapshot.project.id}:${agent}`;
     set({
       busy: `connection:${agent}`,
@@ -114,7 +115,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
               action === "logout" && agent === "codex" && k.endsWith(":codex")
                 ? {
                     state: "unknown",
-                    message: "サインアウトしました。接続を再確認してください。",
+                    message: "サインアウトしました。",
                     canLogin: false,
                   }
                 : v,
@@ -268,6 +269,10 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     if (get().busy || get().switching || !text.trim()) return false;
     const activeAgent =
       get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
+    if (activeAgent !== "codex") {
+      set({ chatError: "この会話は閲覧のみです。新しい会話をCodexで始めてください。" });
+      return false;
+    }
     if (!get().consents[`${get().snapshot.project.id}:${activeAgent}`]) {
       set({ chatError: "送信先と共有する内容を確認してください。" });
       return false;

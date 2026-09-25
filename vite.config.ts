@@ -9,5 +9,10 @@ export default defineConfig({
   clearScreen: false,
   server: { watch: { ignored: ["**/src-tauri/**", "**/.local/**"] } },
   envPrefix: ["VITE_", "TAURI_ENV_"],
-  test: { environment: "jsdom", setupFiles: ["./src/test/setup.ts"] },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    // Keep local verification data (.local/) out of the test run.
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
 });

@@ -4,7 +4,7 @@
 
 **会話から論点が生まれる → 気になるカードを選ぶ → 内容を指して話す → 提案を確認して適用する。**
 
-初版のプロトタイプです。Tauri 2 / React / TypeScript / Rustを使い、CodexとClaudeへACPで接続します。
+初版のプロトタイプです。Tauri 2 / React / TypeScript / Rustを使い、CodexへACPで接続します。
 
 ## 起動
 
@@ -20,7 +20,7 @@ mise exec -- pnpm tauri dev
 
 Codexは「AIと考える」→「接続を確認」→「ChatGPTでサインイン」から既存のブラウザ認証を開始できます。Tanzakoo専用のログインを使い、普段のCLIの認証ファイルはコピーしません。開発時はmiseのNodeとプロジェクト依存を利用します。
 
-Claudeの配布版ログインは提供条件を確認中で、新しいログインボタンは実装していません。既存の外部ACP接続は詳細設定で維持しています。[Claude公式資料](https://code.claude.com/docs/en/agent-sdk/overview)では、第三者製品がclaude.aiログインを提供するには事前承認が必要とされています。APIキー方式への切り替えは未決です。
+当面はCodexに絞って使い心地を確かめます。新規会話と接続設定はCodexのみで、保存済みのClaude会話は閲覧できます。Claudeなどは将来、APIキーを設定する方式での追加を検討します（未実装）。過去の調査は [Claude接続の提供条件](notes/claude-connection-terms.md) に残しています。
 
 `mise exec -- pnpm dev` だけでも画面をプレビューできます。ブラウザプレビューでは保存とエージェント接続は利用できません。
 
@@ -99,7 +99,13 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 ```powershell
 cargo build --manifest-path src-tauri/Cargo.toml
 mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent codex -DataDirectory .local/codex-smoke-login
-mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent claude
+```
+
+Claudeのアダプターと検証コードは将来の調査用に残していますが、現在の画面からは利用しません。通常の開発で実接続の検証は不要です。調査を再開する場合、未ログイン時の確認には、空のフォルダーを `CLAUDE_CONFIG_DIR` に指定し、`ANTHROPIC_API_KEY` を設定しない状態で次を実行できます。
+
+```powershell
+$env:CLAUDE_CONFIG_DIR = (New-Item -ItemType Directory -Force .local/claude-empty-config).FullName
+mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test agent_connection -- --ignored real_claude
 ```
 
 初版ではインストーラー配布を設定していません。ソースから起動してください。

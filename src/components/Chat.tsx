@@ -1,14 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  ArrowUp,
-  Square,
-  Plus,
-  MessageCircle,
-  X,
-  Paperclip,
-  Sparkles,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowUp, Square, Plus, MessageCircle, X, Paperclip, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useWorkspace } from "@/lib/workspace";
-import { api, native } from "@/lib/api";
+import { agentUnavailable, api, native } from "@/lib/api";
 import { Markdown } from "./Markdown";
 import { AgentConnection } from "./AgentConnection";
 
@@ -37,7 +28,7 @@ export function Chat() {
     chatError,
     consents,
   } = useWorkspace();
-  const [agent, setAgent] = useState("codex");
+  const agent = "codex";
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const key = `${snapshot.project.id}:${conversation ?? "new"}`;
   const text = drafts[key] ?? "";
@@ -47,13 +38,14 @@ export function Chat() {
   const active = snapshot.conversations.find((c) => c.id === conversation);
   const selectedAgent = active?.agent ?? agent;
   const consentKey = `${snapshot.project.id}:${selectedAgent}`;
+  const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = busy !== null && (busy === conversation || busy === "starting");
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, stream, permissions.length]);
   function submit() {
-    if (!text.trim() || busy || !native || !consents[consentKey]) return;
+    if (!text.trim() || busy || !native || unavailable || !consents[consentKey]) return;
     const pending = text;
     setText("");
     void send(pending, agent).then((ok) => {
@@ -115,15 +107,7 @@ export function Chat() {
         ) : (
           <>
             <span className="agent-avatar">◎</span>
-            <Select value={agent} onValueChange={setAgent} disabled={!!busy}>
-              <SelectTrigger size="sm" aria-label="エージェント">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="codex">Codex</SelectItem>
-                <SelectItem value="claude">Claude</SelectItem>
-              </SelectContent>
-            </Select>
+            <span>Codex</span>
             {snapshot.conversations.length > 0 && (
               <Button
                 size="sm"
@@ -139,23 +123,15 @@ export function Chat() {
         )}
       </div>
       <div className="chat-history" aria-label="会話メッセージ">
-        <AgentConnection agent={selectedAgent} />
+        <AgentConnection agent={selectedAgent} hideWhenReady />
         {chatError && (
           <p className="chat-error" role="alert">
             {chatError}
           </p>
         )}
-        {messages.length === 0 && !isThisBusy && (
+        {messages.length === 0 && !isThisBusy && !unavailable && (
           <div className="chat-welcome">
-            <div className="welcome-symbol">
-              <Sparkles size={24} strokeWidth={1.3} />
-            </div>
-            <h3>まだ、曖昧なままで。</h3>
-            <p>
-              作りたいものを聞かせてください。
-              <br />
-              話しながら、論点をカードにしていきます。
-            </p>
+            <p>作りたいものを、曖昧なままで話してください。論点はカードにしていきます。</p>
             <button
               className="suggestion"
               disabled={!native}
@@ -182,7 +158,7 @@ export function Chat() {
               {m.role === "user"
                 ? "あなた"
                 : m.role === "error"
-                  ? "接続メッセージ"
+                  ? "エラー"
                   : active?.agent === "claude"
                     ? "Claude"
                     : "Codex"}
@@ -218,13 +194,14 @@ export function Chat() {
         {isThisBusy &&
           permissions.map((p) => (
             <div className="permission" key={p.id}>
-              <strong>エージェントが操作の許可を求めています</strong>
+              <strong>
+                {active?.agent === "claude" ? "Claude" : "Codex"}が操作の許可を求めています
+              </strong>
               <p>{p.title}</p>
               <details>
                 <summary>操作の詳細</summary>
                 <pre>{JSON.stringify(p.request.toolCall, null, 2)}</pre>
               </details>
-              <p className="hint muted">カードの変更提案の適用とは別の確認です。</p>
               <div className="permission-actions">
                 {p.request.options.map((option) => (
                   <Button
@@ -245,23 +222,25 @@ export function Chat() {
         <div ref={end} />
       </div>
       <div className="composer-area">
-        <label className="ai-consent">
-          <input
-            type="checkbox"
-            checked={!!consents[consentKey]}
-            disabled={!!busy}
-            onChange={(event) =>
-              useWorkspace.setState({
-                consents: { ...consents, [consentKey]: event.target.checked },
-              })
-            }
-          />
-          <span>
-            このプロジェクトのボード・メモリ・会話・参照を
-            {selectedAgent === "claude" ? "Anthropic（Claude）" : "OpenAI（Codex）"}
-            へ送信することに同意します。
-          </span>
-        </label>
+        {!unavailable && (
+          <label className="ai-consent">
+            <input
+              type="checkbox"
+              checked={!!consents[consentKey]}
+              disabled={!!busy}
+              onChange={(event) =>
+                useWorkspace.setState({
+                  consents: { ...consents, [consentKey]: event.target.checked },
+                })
+              }
+            />
+            <span>
+              このプロジェクトのボード・メモリ・会話を
+              {selectedAgent === "claude" ? "Anthropic" : "OpenAI"}
+              へ送信することに同意する
+            </span>
+          </label>
+        )}
         <div className="composer">
           {references.length > 0 && (
             <div className="composer-references">
@@ -311,7 +290,13 @@ export function Chat() {
             }}
           />
           <div className="composer-bottom">
-            <span>{busy ? activity || "検討しています…" : "Ctrl + Enter で送信"}</span>
+            <span>
+              {unavailable
+                ? "履歴の閲覧のみ"
+                : busy
+                  ? activity || "検討しています…"
+                  : "Ctrl + Enter で送信"}
+            </span>
             {isThisBusy ? (
               <Button
                 size="icon-sm"
@@ -329,7 +314,7 @@ export function Chat() {
               <Button
                 size="icon-sm"
                 aria-label="メッセージを送信"
-                disabled={!text.trim() || !native || !!busy || !consents[consentKey]}
+                disabled={!text.trim() || !native || !!busy || unavailable || !consents[consentKey]}
                 onClick={submit}
               >
                 <ArrowUp />
@@ -337,7 +322,6 @@ export function Chat() {
             )}
           </div>
         </div>
-        <p className="composer-hint">起票は自動。変更の適用は、あなたの手で。</p>
       </div>
     </section>
   );

@@ -27,7 +27,7 @@ function AgentSettings({ config }: { config: AgentConfig }) {
       const result = await useWorkspace
         .getState()
         .act({ type: "configureAgent", config: { ...config, command, args: parsed } });
-      setMessage(result ? "保存しました。次の送信から使用します。" : "保存に失敗しました。");
+      setMessage(result ? "保存しました。" : "保存に失敗しました。");
     } catch (error) {
       setMessage(String(error));
     }
@@ -40,7 +40,6 @@ function AgentSettings({ config }: { config: AgentConfig }) {
         void save();
       }}
     >
-      <h3>{config.id === "claude" ? "Claude" : "Codex"}</h3>
       <AgentConnection agent={config.id} />
       <details>
         <summary>詳細な起動設定</summary>
@@ -92,18 +91,15 @@ export function Settings() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>エージェントの接続設定</DialogTitle>
-          <DialogDescription>
-            このプロジェクトの接続設定です。会話・ボード・メモリ・参照した内容は、選んだエージェントに送られます。
-          </DialogDescription>
+          <DialogTitle>Codexの接続設定</DialogTitle>
+          <DialogDescription>このプロジェクトでCodexを使うための設定です。</DialogDescription>
         </DialogHeader>
         <div className="settings-scroll">
-          <p className="hint muted">
-            ボードの閲覧・編集には接続不要です。Codexの同梱版は既定値のまま利用できます。
-          </p>
-          {agents.map((a) => (
-            <AgentSettings key={`${a.id}-${a.command}-${a.args.join()}`} config={a} />
-          ))}
+          {agents
+            .filter((a) => a.id === "codex")
+            .map((a) => (
+              <AgentSettings key={`${a.id}-${a.command}-${a.args.join()}`} config={a} />
+            ))}
         </div>
       </DialogContent>
     </Dialog>

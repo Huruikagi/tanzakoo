@@ -114,11 +114,18 @@ pub fn default_config(id: &str) -> AgentConfig {
         .join("../node_modules/@agentclientprotocol")
         .join(package)
         .join("dist/index.js");
-    if script.exists() {
+    // Development adapters only: a release build never falls back to them.
+    if cfg!(debug_assertions) && script.exists() {
         AgentConfig {
             id: id.into(),
             command: std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into()),
             args: vec![script.to_string_lossy().into()],
+        }
+    } else if id == "claude" {
+        AgentConfig {
+            id: id.into(),
+            command: crate::agent_setup::CLAUDE_UNAVAILABLE.into(),
+            args: vec![],
         }
     } else {
         AgentConfig {

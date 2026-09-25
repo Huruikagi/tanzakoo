@@ -30,7 +30,10 @@ export function Projects() {
   const disabled = !native || !loaded || !!busy || switching;
   const pending = snapshot.memoryProposals.filter((p) => p.state === "pending").length;
   return (
-    <div className="project-controls">
+    <div
+      className="project-controls"
+      title={busy ? "AIの応答中はプロジェクトを切り替えられません" : undefined}
+    >
       <FolderOpen size={15} aria-hidden="true" />
       <Select
         value={snapshot.project.id}
@@ -85,13 +88,12 @@ export function Projects() {
           <DialogHeader>
             <DialogTitle>プロジェクトメモリ</DialogTitle>
             <DialogDescription>
-              概要・目的・制約・進め方など、新しい会話でも引き継ぐ前提を残せます。送信時に、選んだエージェントへ渡します。
+              目的・制約・進め方など、会話をまたいでAIと共有したい前提を書いておけます。
             </DialogDescription>
           </DialogHeader>
           <ProjectMemory />
         </DialogContent>
       </Dialog>
-      {!!busy && <span className="hint muted">切り替えは応答終了・停止後に</span>}
     </div>
   );
 }
@@ -176,7 +178,7 @@ function ProjectMemory() {
     });
     if (result) {
       reset();
-      setMessage("保存しました。次の送信から反映します。");
+      setMessage("保存しました。");
     } else setMessage(useWorkspace.getState().error ?? "保存できませんでした。");
     setSaving(false);
   }
@@ -221,7 +223,7 @@ function ProjectMemory() {
         </Tabs>
         <div className="project-save">
           <span className="hint muted">
-            rev. {project.revision} · {dirty ? "未保存" : "保存済み"}
+            {dirty && "未保存の変更は、アプリを閉じると失われます"}
           </span>
           <Button size="sm" variant="ghost" disabled={!dirty} onClick={reset}>
             取り消す
@@ -237,52 +239,50 @@ function ProjectMemory() {
         </div>
         {stale && (
           <p role="alert">
-            メモリが更新されています。下書きを控えてから「取り消す」で最新の内容を確認してください。
+            ほかの操作でメモリが更新されました。下書きを控えてから「取り消す」で最新の内容を確認してください。
           </p>
         )}
-        <p className="hint muted">
-          下書きはプロジェクトを切り替えても保持します。アプリを閉じる前に保存してください。
-        </p>
       </div>
       <output aria-live="polite">{message}</output>
-      <section className="memory-proposals">
-        <h3>エージェントの変更提案 · {proposals.length}</h3>
-        {proposals.length === 0 && (
-          <p className="hint muted">AIからの提案は、ここで確認して適用できます。</p>
-        )}
-        {proposals.map((p) => (
-          <article key={p.id} className="memory-proposal">
-            <p>{p.reason}</p>
-            <details>
-              <summary>変更前 · rev. {p.baseRevision}</summary>
-              <Markdown>{p.beforeMemory || "（空）"}</Markdown>
-            </details>
-            <h4>変更案</h4>
-            <Markdown>{p.memory || "（空）"}</Markdown>
-            {p.baseRevision !== project.revision && (
-              <p className="hint">提案後に内容が変わっています。再提案を依頼してください。</p>
-            )}
-            {dirty && <p className="hint">下書きを保存するか取り消してから適用してください。</p>}
-            <div className="project-save">
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={saving}
-                onClick={() => void resolve(p.id, false)}
-              >
-                却下
-              </Button>
-              <Button
-                size="sm"
-                disabled={saving || dirty || p.baseRevision !== project.revision}
-                onClick={() => void resolve(p.id, true)}
-              >
-                適用する
-              </Button>
-            </div>
-          </article>
-        ))}
-      </section>
+      {proposals.length > 0 && (
+        <section className="memory-proposals">
+          <h3>AIの変更提案 · {proposals.length}</h3>
+          {proposals.map((p) => (
+            <article key={p.id} className="memory-proposal">
+              <p>{p.reason}</p>
+              <details>
+                <summary>変更前</summary>
+                <Markdown>{p.beforeMemory || "（空）"}</Markdown>
+              </details>
+              <h4>変更案</h4>
+              <Markdown>{p.memory || "（空）"}</Markdown>
+              {p.baseRevision !== project.revision && (
+                <p className="hint">提案後にメモリが変わったため適用できません。</p>
+              )}
+              {dirty && (
+                <p className="hint">適用する前に、下書きを保存するか取り消してください。</p>
+              )}
+              <div className="project-save">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => void resolve(p.id, false)}
+                >
+                  却下
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={saving || dirty || p.baseRevision !== project.revision}
+                  onClick={() => void resolve(p.id, true)}
+                >
+                  適用する
+                </Button>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

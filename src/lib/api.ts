@@ -12,6 +12,11 @@ export type AgentEvent = {
   detail: unknown;
 };
 export const native = isTauri();
+/** Matches `agent_setup::CLAUDE_UNAVAILABLE`: this build offers no Claude connection. */
+export const CLAUDE_UNAVAILABLE = "@tanzakoo/claude-unavailable";
+export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
+  agent !== "codex" ||
+  snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);
 export const emptySnapshot: Snapshot = {
   project: { id: "", name: "マイプロジェクト", memory: "", revision: 1 },
   projects: [],

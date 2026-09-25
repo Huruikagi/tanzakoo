@@ -192,19 +192,6 @@ summary:focus-visible {
 .memory-proposal h4 {
   margin-bottom: 12px;
 }
-.local-status {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  font-size: 11px;
-  color: #7b867d;
-}
-.local-status > span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #84a276;
-}
 .workspace {
   flex: 1;
   min-height: 0;
@@ -243,44 +230,16 @@ summary:focus-visible {
 .board-pane {
   background: #f4f6ef;
 }
-.board-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 32px 25px 24px;
-}
-.eyebrow,
 .small-label {
   font-size: 9px;
   letter-spacing: 1.5px;
   color: #8b9785;
   font-weight: 600;
 }
-.eyebrow {
-  margin: 0 0 12px;
-}
-.board-heading h1 {
-  font-size: 25px;
-  font-weight: 600;
-  letter-spacing: -1px;
-  margin: 0 0 10px;
-}
-.board-heading p:last-child {
-  color: #7b8675;
-  font-size: 11px;
-  line-height: 1.8;
-  margin: 0;
-}
-.board-mark {
-  font-size: 52px;
-  color: #c0cc9e;
-  line-height: 1;
-  margin-left: 15px;
-}
 .board-toolbar {
   display: flex;
   gap: 8px;
-  padding: 0 24px 22px;
+  padding: 20px 24px 16px;
   align-items: center;
 }
 .search-field {
@@ -352,11 +311,6 @@ summary:focus-visible {
   padding: 1px 6px;
   border-radius: 4px;
 }
-.column-header p {
-  font-size: 10px;
-  color: #99a08d;
-  margin: 7px 0 0 19px;
-}
 .column-cards {
   display: flex;
   flex-direction: column;
@@ -365,6 +319,7 @@ summary:focus-visible {
 .column-empty {
   border: 1px dashed #dbe2d1;
   border-radius: 8px;
+  min-height: 72px;
   padding: 28px 12px;
   text-align: center;
   color: #9aa58f;
@@ -476,25 +431,16 @@ summary:focus-visible {
 .pane-heading > :last-child:not(h2) {
   margin-left: auto;
 }
-.revision {
-  font-size: 10px;
-  color: #a2ac98;
-}
 .details-empty {
   margin: auto 20px;
   text-align: center;
   padding-bottom: 70px;
 }
-.details-empty h3 {
-  font-size: 15px;
-  font-weight: 500;
-  margin: 26px 0 12px;
-}
 .details-empty p {
   font-size: 11px;
   line-height: 2;
   color: #8e9a85;
-  margin: 0 0 25px;
+  margin: 26px 0 0;
 }
 .paper-stack {
   position: relative;
@@ -707,22 +653,7 @@ summary:focus-visible {
   padding: 0 20px 20px;
 }
 .chat-welcome {
-  padding: 44px 0 20px;
-}
-.welcome-symbol {
-  background: #ecf1df;
-  color: #78945b;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-}
-.chat-welcome h3 {
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.5px;
-  margin: 22px 0 12px;
+  padding: 24px 0 20px;
 }
 .chat-welcome p {
   color: #87927d;
@@ -866,12 +797,6 @@ summary:focus-visible {
 .composer-bottom > span {
   color: #a0aa91;
   font-size: 9px;
-}
-.composer-hint {
-  color: #9aa58e;
-  text-align: center;
-  font-size: 9px;
-  margin: 10px 0 0;
 }
 .composer-references,
 .message-references {

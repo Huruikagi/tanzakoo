@@ -59,10 +59,6 @@ export default function App() {
         </div>
         <Projects />
         <div className="header-right">
-          <span className="local-status">
-            <span />
-            {native ? "ローカルに保存" : "ブラウザプレビュー"}
-          </span>
           <Settings key={snapshot.project.id} />
           <Button
             variant="ghost"
@@ -76,9 +72,7 @@ export default function App() {
         </div>
       </header>
       {!native && (
-        <div className="preview-notice">
-          画面プレビューです。保存とエージェント接続はデスクトップアプリで利用できます。
-        </div>
+        <div className="preview-notice">ブラウザプレビューのため、保存とAI接続は使えません。</div>
       )}
       {error && (
         <div className="error-banner" role="alert">

@@ -43,13 +43,7 @@ export function CardDetails() {
               <FileText size={26} />
             </span>
           </div>
-          <h3>一枚に、焦点を合わせる。</h3>
-          <p>
-            ボードのカードを選ぶと、ここで
-            <br />
-            内容を編集したり、会話に参照できます。
-          </p>
-          <span className="small-label">SELECT A CARD TO BEGIN</span>
+          <p>カードを選ぶと、ここで編集できます。</p>
         </div>
       </section>
     );
@@ -76,7 +70,6 @@ function Details({ card }: { card: Card }) {
       <div className="pane-heading">
         <FileText size={16} />
         <h2>カード詳細</h2>
-        <span className="revision">rev. {card.revision}</span>
       </div>
       <div className="details-scroll">
         {card.deleted && (
@@ -111,11 +104,9 @@ function Details({ card }: { card: Card }) {
               ))}
             </SelectContent>
           </Select>
-          <span>
-            {card.source === "user"
-              ? "あなたが作成"
-              : `${card.source === "claude" ? "Claude" : "Codex"}が起票`}
-          </span>
+          {card.source !== "user" && (
+            <span>{card.source === "claude" ? "Claude" : "Codex"}が起票</span>
+          )}
         </div>
         <label className="field-label" htmlFor="card-title">
           タイトル
@@ -133,7 +124,6 @@ function Details({ card }: { card: Card }) {
               <TabsTrigger value="edit">編集</TabsTrigger>
               <TabsTrigger value="preview">プレビュー</TabsTrigger>
             </TabsList>
-            <span className="small-label">MARKDOWN</span>
           </div>
           <TabsContent value="edit">
             {card.deleted ? (
@@ -154,11 +144,11 @@ function Details({ card }: { card: Card }) {
         </Tabs>
         {stale && (
           <p className="inline-error">
-            編集中にカードが更新されました。下書きをコピーするか、取り消して最新の内容を確認してください。
+            編集中にカードが更新されました。下書きを控えてから「取り消す」で最新の内容を確認してください。
           </p>
         )}
         <div className="editor-actions">
-          <span className="muted">{dirty ? "未保存の変更" : "保存済み"}</span>
+          <span className="muted">{dirty && "未保存の変更"}</span>
           <Button
             size="sm"
             variant="ghost"
@@ -184,6 +174,7 @@ function Details({ card }: { card: Card }) {
             variant="outline"
             size="sm"
             disabled={dirty || card.deleted}
+            title={dirty ? "保存すると参照できます" : undefined}
             onClick={() => attach(card)}
           >
             <MessageSquarePlus />
@@ -201,23 +192,20 @@ function Details({ card }: { card: Card }) {
             </Button>
           )}
         </div>
-        {dirty && <p className="muted hint">保存すると、編集した内容を会話に参照できます。</p>}
-        <section className="proposals">
-          <div className="section-label">
-            <Sparkles size={14} />
-            <h3>エージェントの変更提案</h3>
-            <span>{proposals.length}</span>
-          </div>
-          {proposals.length === 0 ? (
-            <p className="muted hint">提案が届くと、変更前後をここで確認できます。</p>
-          ) : (
-            proposals.map((p) => {
+        {proposals.length > 0 && (
+          <section className="proposals">
+            <div className="section-label">
+              <Sparkles size={14} />
+              <h3>AIの変更提案</h3>
+              <span>{proposals.length}</span>
+            </div>
+            {proposals.map((p) => {
               const conflict = card.deleted || p.baseRevision !== card.revision;
               return (
                 <article className="proposal" key={p.id}>
                   <p className="proposal-reason">{p.reason}</p>
                   <details>
-                    <summary>変更前 · rev. {p.baseRevision}</summary>
+                    <summary>変更前</summary>
                     <div className="proposal-before">
                       <strong>{p.beforeTitle}</strong>
                       <Markdown>{p.beforeBody}</Markdown>
@@ -229,9 +217,7 @@ function Details({ card }: { card: Card }) {
                     <Markdown>{p.body}</Markdown>
                   </div>
                   {conflict && (
-                    <p className="inline-error">
-                      元のカードが更新されています。再提案を依頼してください。
-                    </p>
+                    <p className="inline-error">提案後にカードが変わったため適用できません。</p>
                   )}
                   <div className="proposal-actions">
                     <Button
@@ -253,9 +239,9 @@ function Details({ card }: { card: Card }) {
                   </div>
                 </article>
               );
-            })
-          )}
-        </section>
+            })}
+          </section>
+        )}
       </div>
       <footer className="details-footer">
         <span className="muted">{new Date(card.updatedAt).toLocaleDateString("ja-JP")} 更新</span>

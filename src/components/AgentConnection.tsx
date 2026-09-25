@@ -1,27 +1,41 @@
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/lib/workspace";
-import { api, native } from "@/lib/api";
+import { agentUnavailable, api, native } from "@/lib/api";
 
-export function AgentConnection({ agent }: { agent: string }) {
+export function AgentConnection({
+  agent,
+  hideWhenReady = false,
+}: {
+  agent: string;
+  hideWhenReady?: boolean;
+}) {
   const { snapshot, connections, busy, activity, connect } = useWorkspace();
   const status = connections[`${snapshot.project.id}:${agent}`];
   const connecting = busy === `connection:${agent}`;
+  if (agent !== "codex")
+    return (
+      <div className="agent-connection">
+        <output>この会話は閲覧のみです。新しい会話はCodexで始められます。</output>
+      </div>
+    );
+  if (agentUnavailable(snapshot, agent) || status?.state === "unsupported")
+    return (
+      <div className="agent-connection">
+        <output>
+          {status?.message ??
+            "この接続は利用できません。カードの閲覧・編集は引き続き利用できます。"}
+        </output>
+      </div>
+    );
+  const ready = status?.state === "ready";
+  if (hideWhenReady && ready && !connecting) return null;
   return (
     <div className="agent-connection">
       <output>
-        {connecting
-          ? activity
-          : (status?.message ?? "AIは任意です。利用する場合は接続を確認してください。")}
+        {connecting ? activity : (status?.message ?? "Codexの接続はまだ確認していません。")}
       </output>
-      {agent === "codex" && (
-        <p className="hint muted">
-          Tanzakoo専用のログインを使います。ターミナルのCodexとは別にサインインしてください。
-        </p>
-      )}
-      {agent === "claude" && (
-        <p className="hint muted">
-          Claudeの配布版ログインは提供条件を確認中です。現在は詳細設定の既存接続を確認できます。
-        </p>
+      {status?.canLogin && !ready && (
+        <p className="hint muted">ターミナルのCodexとは別に、Tanzakoo用のサインインが必要です。</p>
       )}
       <div className="connection-actions">
         <Button
@@ -33,7 +47,7 @@ export function AgentConnection({ agent }: { agent: string }) {
         >
           接続を確認
         </Button>
-        {status?.canLogin && (
+        {agent === "codex" && status?.canLogin && (
           <Button
             type="button"
             size="sm"

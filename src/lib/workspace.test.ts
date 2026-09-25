@@ -83,13 +83,13 @@ describe("card references and drafts", () => {
 });
 describe("chat lifecycle", () => {
   it("creates one conversation on double submit and sends explicit references", async () => {
-    const conversation = { id: "c1", title: "new", agent: "claude", sessionId: null, createdAt: 1 };
+    const conversation = { id: "c1", title: "new", agent: "codex", sessionId: null, createdAt: 1 };
     vi.mocked(api.action).mockResolvedValue({ ...emptySnapshot, conversations: [conversation] });
     vi.mocked(api.snapshot).mockResolvedValue({ ...emptySnapshot, conversations: [conversation] });
     vi.mocked(api.send).mockResolvedValue();
     useWorkspace.getState().attach(card);
-    const a = useWorkspace.getState().send("TODOアプリを考えたい", "claude");
-    const b = useWorkspace.getState().send("TODOアプリを考えたい", "claude");
+    const a = useWorkspace.getState().send("TODOアプリを考えたい", "codex");
+    const b = useWorkspace.getState().send("TODOアプリを考えたい", "codex");
     expect(await b).toBe(false);
     expect(await a).toBe(true);
     expect(api.action).toHaveBeenCalledTimes(1);
@@ -117,6 +117,22 @@ describe("chat lifecycle", () => {
   });
 });
 describe("project isolation", () => {
+  it("does not route legacy Claude history to Codex or start a Claude connection", async () => {
+    useWorkspace.setState({
+      conversation: "legacy",
+      snapshot: {
+        ...emptySnapshot,
+        conversations: [
+          { id: "legacy", title: "old", agent: "claude", sessionId: null, createdAt: 1 },
+        ],
+      },
+    });
+    expect(await useWorkspace.getState().send("続けたい", "codex")).toBe(false);
+    await useWorkspace.getState().connect("claude", "check");
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.connection).not.toHaveBeenCalled();
+    expect(api.action).not.toHaveBeenCalled();
+  });
   it("does not send or create a conversation before consent", async () => {
     useWorkspace.setState({ consents: {} });
     expect(await useWorkspace.getState().send("test", "codex")).toBe(false);

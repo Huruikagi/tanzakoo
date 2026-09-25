@@ -1,7 +1,7 @@
 //! App-owned runtime and credentials. Reading a board never calls this module's probe.
 use crate::{agent::AgentRuntime, model::*, store::Store};
 use agent_client_protocol::{
-    AcpAgent, AcpAgentConfig, Agent, ConnectionTo,
+    AcpAgent, AcpAgentConfig, Agent, ConnectionTo, UntypedMessage,
     schema::{ProtocolVersion, v1::*},
 };
 use std::{
@@ -9,9 +9,15 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
 };
-use tokio::sync::oneshot;
+use tokio::sync::{Notify, oneshot};
 
 pub const MANAGED: &str = "@tanzakoo/managed";
+/// Claude is not bundled, and Tanzakoo offers no Claude sign-in, until the
+/// provider terms for a third-party app are confirmed (notes/claude-connection-terms.md).
+pub const CLAUDE_UNAVAILABLE: &str = "@tanzakoo/claude-unavailable";
+const CLAUDE_UNAVAILABLE_MESSAGE: &str = "このTanzakooはClaude接続を提供していません。提供条件を確認中です。カードの閲覧・編集は引き続き利用できます。";
+/// Pushed by claude-agent-acp after `initialize` and session creation. Reporting only.
+const AUTH_STATUS_UPDATE: &str = "_auth/status_update";
 static PATHS: OnceLock<(PathBuf, PathBuf)> = OnceLock::new();
 
 pub fn initialize(resources: PathBuf, data: PathBuf) {
@@ -30,6 +36,9 @@ pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, Stri
     let managed = config.command == MANAGED;
     let mut command = config.command.clone();
     let mut args = config.args;
+    if command == CLAUDE_UNAVAILABLE {
+        return Err(CLAUDE_UNAVAILABLE_MESSAGE.into());
+    }
     if command == MANAGED {
         if config.id != "codex" {
             return Err("このエージェントの同梱版はまだ利用できません。".into());
@@ -100,10 +109,12 @@ pub async fn probe(
     {
         return result("error", "接続操作が不正です。", false);
     }
+    // Claude sign-in and sign-out stay with the user's own Claude Code; Tanzakoo
+    // neither starts them nor advertises terminal auth to the adapter.
     if action != "check" && agent != "codex" {
         return result(
-            "error",
-            "Claudeの配布版ログインは提供条件を確認中です。",
+            "unsupported",
+            "TanzakooはClaudeのサインイン・サインアウトを提供していません。提供条件を確認中です。",
             false,
         );
     }
@@ -116,6 +127,9 @@ pub async fn probe(
         .into_iter()
         .find(|c| c.id == agent)
         .unwrap_or_else(|| crate::agent::default_config(&agent));
+    if config.command == CLAUDE_UNAVAILABLE {
+        return result("unsupported", CLAUDE_UNAVAILABLE_MESSAGE, false);
+    }
     let launch = match launch(config, &store) {
         Ok(v) => v,
         Err(e) => return result("error", &e, false),
@@ -136,57 +150,83 @@ pub async fn probe(
     )));
     let output = status.clone();
     let login = action == "login";
-    let job = agent_client_protocol::Client.builder().connect_with(
-        AcpAgent::new(launch),
-        |cx: ConnectionTo<Agent>| async move {
-            let initialized = cx
-                .send_request(InitializeRequest::new(ProtocolVersion::V1))
-                .block_task()
-                .await?;
-            let methods = serde_json::to_value(&initialized.auth_methods).unwrap_or_default();
-            let can_login = agent == "codex"
-                && methods
-                    .as_array()
-                    .is_some_and(|methods| methods.iter().any(|m| m["id"] == "chat-gpt"));
-            if action == "logout" {
-                cx.send_request(LogoutRequest::new()).block_task().await?;
-                *output.lock().unwrap() = result(
-                    "authRequired",
-                    "サインアウトしました。保存済みのカードや会話は残ります。",
-                    can_login,
-                );
-                return Ok(());
-            }
-            if login {
-                if !can_login {
-                    return Err(agent_client_protocol::Error::invalid_params());
+    let auth = Arc::new(Mutex::new(None::<serde_json::Value>));
+    let auth_seen = Arc::new(Notify::new());
+    let (notify_auth, notify_seen) = (auth.clone(), auth_seen.clone());
+    let job = agent_client_protocol::Client
+        .builder()
+        .on_receive_notification(
+            async move |notice: UntypedMessage, _cx| {
+                if notice.method == AUTH_STATUS_UPDATE
+                    && let Ok(mut current) = notify_auth.lock()
+                {
+                    *current = Some(notice.params["authStatus"].clone());
+                    notify_seen.notify_one();
                 }
-                cx.send_request(AuthenticateRequest::new("chat-gpt"))
+                Ok(())
+            },
+            agent_client_protocol::on_receive_notification!(),
+        )
+        .connect_with(
+            AcpAgent::new(launch),
+            |cx: ConnectionTo<Agent>| async move {
+                let initialized = cx
+                    .send_request(InitializeRequest::new(ProtocolVersion::V1))
                     .block_task()
                     .await?;
-            }
-            let session = cx
-                .send_request(NewSessionRequest::new(check_dir))
-                .block_task()
-                .await;
-            *output.lock().unwrap() = match session {
-                Ok(_) => result(
-                    "ready",
-                    "接続を確認しました。送信時には通信・利用枠の確認が行われます。",
-                    can_login,
-                ),
-                Err(e) if e.code == ErrorCode::AuthRequired => {
-                    result("authRequired", "サインインが必要です。", can_login)
+                let methods = serde_json::to_value(&initialized.auth_methods).unwrap_or_default();
+                let can_login = agent == "codex"
+                    && methods
+                        .as_array()
+                        .is_some_and(|methods| methods.iter().any(|m| m["id"] == "chat-gpt"));
+                if action == "logout" {
+                    cx.send_request(LogoutRequest::new()).block_task().await?;
+                    *output.lock().unwrap() = result(
+                        "authRequired",
+                        "サインアウトしました。",
+                        can_login,
+                    );
+                    return Ok(());
                 }
-                Err(_) => result(
-                    "error",
-                    "会話の開始を確認できませんでした。起動設定と認証を確認してください。",
-                    can_login,
-                ),
-            };
-            Ok(())
-        },
-    );
+                if login {
+                    if !can_login {
+                        return Err(agent_client_protocol::Error::invalid_params());
+                    }
+                    cx.send_request(AuthenticateRequest::new("chat-gpt"))
+                        .block_task()
+                        .await?;
+                }
+                let session = cx
+                    .send_request(NewSessionRequest::new(check_dir))
+                    .block_task()
+                    .await;
+                if session.is_ok() && agent == "claude" {
+                    // The adapter reads the CLI's auth state in the background.
+                    if auth.lock().unwrap().is_none() {
+                        let _ = tokio::time::timeout(Duration::from_secs(6), auth_seen.notified())
+                            .await;
+                    }
+                    *output.lock().unwrap() = claude_status(auth.lock().unwrap().as_ref());
+                    return Ok(());
+                }
+                *output.lock().unwrap() = match session {
+                    Ok(_) => result(
+                        "ready",
+                        "接続できました。",
+                        can_login,
+                    ),
+                    Err(e) if e.code == ErrorCode::AuthRequired => {
+                        result("authRequired", "サインインが必要です。", can_login)
+                    }
+                    Err(_) => result(
+                        "error",
+                        "会話の開始を確認できませんでした。起動設定と認証を確認してください。",
+                        can_login,
+                    ),
+                };
+                Ok(())
+            },
+        );
     tokio::select! {
         response = tokio::time::timeout(Duration::from_secs(if login { 300 } else { 45 }), job) => {
             match response {
@@ -196,6 +236,42 @@ pub async fn probe(
             }
         }
         _ = &mut cancel => result("unknown", "接続処理を中止しました。", false),
+    }
+}
+
+/// Describes which credential the user's own Claude Code would use. The e-mail
+/// address in the payload is deliberately not shown or kept.
+pub fn claude_status(auth: Option<&serde_json::Value>) -> ConnectionStatus {
+    let status = |state: &str, message: String| ConnectionStatus {
+        state: state.into(),
+        message,
+        can_login: false,
+    };
+    let label = auth
+        .and_then(|a| a["label"].as_str())
+        .map(|l| l.chars().take(60).collect::<String>())
+        .unwrap_or_default();
+    match auth.and_then(|a| a["kind"].as_str()) {
+        Some("none") => status(
+            "authRequired",
+            "Claudeにログインしていません。TanzakooはClaudeのサインインを提供していません（提供条件を確認中）。".into(),
+        ),
+        Some("account") => status(
+            "ready",
+            format!("接続を確認しました（{label}）。Tanzakooからのサブスクリプション利用は提供条件を確認中の開発用接続です。送信時に利用枠が確認されます。"),
+        ),
+        Some("api_key") => status(
+            "ready",
+            "接続を確認しました（Anthropic APIキー）。Claudeの月額契約とは別の従量課金です。".into(),
+        ),
+        Some("gateway" | "external") => status(
+            "ready",
+            format!("接続を確認しました（{label}）。料金はその接続先の契約に従います。"),
+        ),
+        _ => status(
+            "ready",
+            "接続を確認しました。認証の種類は確認できませんでした。送信時に認証と利用枠が確認されます。".into(),
+        ),
     }
 }
 

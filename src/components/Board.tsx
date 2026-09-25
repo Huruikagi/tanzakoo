@@ -1,15 +1,7 @@
-import { useState } from "react";
-import { DragDropProvider, useDroppable, type DragEndEvent } from "@dnd-kit/react";
+import { useState, type Ref } from "react";
+import { DragDropProvider, DragOverlay, useDroppable, type DragEndEvent } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
-import {
-  GripVertical,
-  Plus,
-  Search,
-  Sparkles,
-  Archive,
-  RotateCcw,
-  ArrowUpRight,
-} from "lucide-react";
+import { GripVertical, Plus, Search, Sparkles, Archive, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,20 +22,35 @@ function Topic({ card, index }: { card: Card; index: number }) {
     index,
     group: card.status,
   });
+  return (
+    <TopicView
+      card={card}
+      ref={ref}
+      handleRef={handleRef}
+      className={`${isDragging ? "dragging" : ""} ${isDropTarget && !isDragging ? "drop-target" : ""}`}
+    />
+  );
+}
+function TopicView({
+  card,
+  ref,
+  handleRef,
+  className = "",
+}: {
+  card: Card;
+  ref?: Ref<HTMLElement>;
+  handleRef?: Ref<HTMLButtonElement>;
+  className?: string;
+}) {
   const selected = useWorkspace((s) => s.selected === card.id);
   const proposals = useWorkspace(
     (s) => s.snapshot.proposals.filter((p) => p.cardId === card.id && p.state === "pending").length,
   );
   return (
-    <article
-      ref={ref}
-      className={`topic ${selected ? "selected" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget && !isDragging ? "drop-target" : ""}`}
-    >
+    <article ref={ref} className={`topic ${selected ? "selected" : ""} ${className}`}>
       <div className="topic-top">
         <span className="topic-source">
-          {card.source === "user" ? (
-            "あなたのメモ"
-          ) : (
+          {card.source !== "user" && (
             <>
               <Sparkles size={11} />
               {card.source === "claude" ? "Claude" : "Codex"}
@@ -60,18 +67,13 @@ function Topic({ card, index }: { card: Card; index: number }) {
         aria-pressed={selected}
       >
         <h3>{card.title}</h3>
-        <p>{card.body || "まだ本文はありません"}</p>
+        {card.body && <p>{card.body}</p>}
       </button>
-      <div className="topic-bottom">
-        <span>
-          {proposals ? (
-            <span className="proposal-dot">{proposals}件の変更提案</span>
-          ) : (
-            `rev. ${card.revision}`
-          )}
-        </span>
-        <ArrowUpRight size={13} />
-      </div>
+      {proposals > 0 && (
+        <div className="topic-bottom">
+          <span className="proposal-dot">{proposals}件の変更提案</span>
+        </div>
+      )}
     </article>
   );
 }
@@ -89,29 +91,30 @@ function Column({ column, cards }: { column: (typeof columns)[number]; cards: Ca
           <h2>{column.title}</h2>
           <span className="column-count">{cards.length}</span>
         </div>
-        <p>{column.hint}</p>
       </header>
       <div className="column-cards">
         {cards.map((card, index) => (
           <Topic key={card.id} card={card} index={index} />
         ))}
-        {cards.length === 0 && (
-          <div className="column-empty">
-            {column.id === "idea"
-              ? "思いつきや会話の論点が\nここに集まります"
-              : "カードをここへ移動"}
-          </div>
-        )}
+        {cards.length === 0 && <div className="column-empty" />}
       </div>
     </section>
   );
 }
 export function Board() {
   const { snapshot, act } = useWorkspace();
+  const empty = snapshot.cards.every((c) => c.deleted);
   const [search, setSearch] = useState("");
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
-  const cards = snapshot.cards.filter(
+  const [pendingMove, setPendingMove] = useState<Card | null>(null);
+  // Preview only the placement. The saved snapshot remains authoritative for card content.
+  const placedCards = snapshot.cards.map((card) =>
+    card.id === pendingMove?.id
+      ? { ...card, status: pendingMove.status, position: pendingMove.position }
+      : card,
+  );
+  const cards = placedCards.filter(
     (c) =>
       !c.deleted &&
       `${c.title}\n${c.body}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
@@ -119,7 +122,7 @@ export function Board() {
   const deleted = snapshot.cards.filter((c) => c.deleted);
   const pending = snapshot.proposals.filter((p) => p.state === "pending").length;
   function onDragEnd(event: DragEndEvent) {
-    if (event.canceled || !event.operation.source || !event.operation.target) return;
+    if (pendingMove || event.canceled || !event.operation.source || !event.operation.target) return;
     const { source, target } = event.operation;
     if (source.id === target.id) return;
     let status: Card["status"] | undefined;
@@ -140,7 +143,12 @@ export function Board() {
     }
     if (!status || !columns.some((c) => c.id === status)) return;
     const next = moveCard(snapshot.cards, String(source.id), status, index);
-    if (next) void act({ type: "updateCard", card: next });
+    if (next) {
+      setPendingMove(next);
+      // act reports save failures and retains the previous snapshot, so clearing the
+      // preview either reveals the committed position or rolls back the move.
+      void act({ type: "updateCard", card: next }).finally(() => setPendingMove(null));
+    }
   }
   async function create() {
     const result = await act({ type: "createCard", title, body: "" });
@@ -153,16 +161,7 @@ export function Board() {
   }
   return (
     <div className="board-pane">
-      <div className="board-heading">
-        <div>
-          <p className="eyebrow">YOUR THINKING SPACE</p>
-          <h1>アイデアを、少しずつ。</h1>
-          <p>全部を決めなくていい。気になる一枚から整理しよう。</p>
-        </div>
-        <span className="board-mark" aria-hidden="true">
-          ✳
-        </span>
-      </div>
+      <h1 className="sr-only">{snapshot.project.name}</h1>
       <div className="board-toolbar">
         <div className="search-field">
           <Search size={14} />
@@ -182,8 +181,8 @@ export function Board() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>思いついたことを一枚に</DialogTitle>
-              <DialogDescription>まずはタイトルだけでも大丈夫です。</DialogDescription>
+              <DialogTitle>新しいカード</DialogTitle>
+              <DialogDescription>タイトルだけでも追加できます。</DialogDescription>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -200,7 +199,7 @@ export function Board() {
               />
               <div className="dialog-actions">
                 <Button type="submit" disabled={!title.trim()}>
-                  アイデアの山に追加
+                  追加
                 </Button>
               </div>
             </form>
@@ -245,9 +244,9 @@ export function Board() {
           </DialogContent>
         </Dialog>
       </div>
-      {snapshot.cards.filter((c) => !c.deleted).length === 0 && (
+      {empty && (
         <div className="board-welcome">
-          <p>思いつきを一枚に。AIなしでも、ここで整理できます。</p>
+          <p>カードを作るか、AIと話して論点を出してみましょう。</p>
           <div className="connection-actions">
             <Button size="sm" disabled={!native} onClick={() => setOpen(true)}>
               最初のカードを作る
@@ -263,7 +262,13 @@ export function Board() {
         </div>
       )}
       {/* Keep React in charge of DOM order while the asynchronous SQLite save is pending. */}
-      <DragDropProvider onDragOver={(event) => event.preventDefault()} onDragEnd={onDragEnd}>
+      <DragDropProvider
+        onBeforeDragStart={(event) => {
+          if (pendingMove) event.preventDefault();
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragEnd={onDragEnd}
+      >
         <div className="board-grid">
           {columns.map((column) => (
             <Column
@@ -275,12 +280,21 @@ export function Board() {
             />
           ))}
         </div>
+        {/* Cross-column moves unmount the source. Never animate toward that stale element. */}
+        <DragOverlay dropAnimation={null}>
+          {(source) => {
+            const card = snapshot.cards.find((card) => card.id === source.id);
+            return card ? (
+              <div aria-hidden="true" inert>
+                <TopicView card={card} className="dragging" />
+              </div>
+            ) : null;
+          }}
+        </DragOverlay>
       </DragDropProvider>
       <footer className="board-footer">
         <span>{snapshot.cards.filter((c) => !c.deleted).length}枚のカード</span>
-        <span>
-          {pending ? `${pending}件の提案が確認を待っています` : "候補は消えずに、ここに残ります"}
-        </span>
+        {pending > 0 && <span>{pending}件の変更提案</span>}
       </footer>
     </div>
   );
