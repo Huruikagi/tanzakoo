@@ -1,5 +1,5 @@
-import type { ComponentProps } from "react";
-import { act, render, screen, within } from "@testing-library/react";
+import { Profiler, type ComponentProps } from "react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { DragDropProvider, DragEndEvent } from "@dnd-kit/react";
 import type { Card } from "@/bindings/Card";
@@ -20,7 +20,8 @@ vi.mock("@dnd-kit/react", () => ({
 vi.mock("@dnd-kit/react/sortable", () => ({ useSortable: () => ({}) }));
 vi.mock("@/lib/api", async (original) => ({
   ...(await original<typeof import("@/lib/api")>()),
-  api: { action: vi.fn() },
+  native: true,
+  api: { action: vi.fn(), send: vi.fn(), snapshot: vi.fn() },
 }));
 
 const card: Card = {
@@ -39,7 +40,29 @@ const initial = { ...emptySnapshot, cards: [card] };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useWorkspace.setState({ snapshot: structuredClone(initial), switching: false, error: null });
+  useWorkspace.setState({
+    snapshot: structuredClone(initial),
+    switching: false,
+    error: null,
+    busy: null,
+    conversation: null,
+    chatOpen: false,
+  });
+});
+
+it("offers broadening in the idea column, opens consent guidance, and disables it during work", () => {
+  render(<Board />);
+  const button = within(screen.getByRole("region", { name: "アイデアの山" })).getByRole("button", {
+    name: "話題を広げる",
+  });
+  fireEvent.click(button);
+  expect(useWorkspace.getState().chatOpen).toBe(true);
+  expect(useWorkspace.getState().chatError).toContain("同意");
+  expect(api.send).not.toHaveBeenCalled();
+  act(() => useWorkspace.setState({ busy: { kind: "chat", conversation: "c" } }));
+  expect(button).toBeDisabled();
+  act(() => useWorkspace.setState({ busy: null, switching: true }));
+  expect(button).toBeDisabled();
 });
 
 function drop(canceled = false, target: string | null = "explore") {
@@ -59,6 +82,23 @@ function expectPlacement(column: string) {
   expect(within(screen.getByRole("region", { name: column })).getByText(card.title)).toBeVisible();
   expect(screen.getAllByText(card.title)).toHaveLength(1);
 }
+
+it("does not render the board again for streamed chat text", () => {
+  const rendered = vi.fn();
+  render(
+    <Profiler id="board" onRender={rendered}>
+      <Board />
+    </Profiler>,
+  );
+  rendered.mockClear();
+  act(() => useWorkspace.setState({ stream: "新しい応答", activity: "応答しています…" }));
+  expect(rendered).not.toHaveBeenCalled();
+  act(() => useWorkspace.setState({ selected: card.id }));
+  expect(screen.getByRole("button", { name: `${card.title} ${card.body}` })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
 
 it("shows the destination before saving and keeps the committed position", async () => {
   let resolve!: (snapshot: Snapshot) => void;

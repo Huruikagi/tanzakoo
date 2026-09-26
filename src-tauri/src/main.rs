@@ -22,7 +22,8 @@ fn main() {
         let path = std::path::PathBuf::from(args.get(3).expect("test data directory"));
         std::fs::create_dir_all(&path).expect("test directory");
         let store = tanzakoo_lib::store::Store::open(path.join("check.db")).expect("test database");
-        let runtime = tanzakoo_lib::agent::AgentRuntime::default();
+        let runtime = std::sync::Arc::new(tanzakoo_lib::agent::AgentRuntime::default());
+        let (guard, cancel) = runtime.begin().unwrap();
         let status =
             tokio::runtime::Runtime::new()
                 .unwrap()
@@ -30,9 +31,9 @@ fn main() {
                     store,
                     agent,
                     "check".into(),
-                    runtime.begin().unwrap(),
+                    cancel,
                 ));
-        runtime.finish();
+        drop(guard);
         println!("{}", serde_json::to_string(&status).unwrap());
         if status.state == "error" {
             std::process::exit(1);
@@ -65,7 +66,7 @@ fn main() {
         store
             .append_message(&conversation.id, "user", prompt.clone(), vec![])
             .expect("message");
-        let cancel = runtime.begin().expect("begin");
+        let (guard, cancel) = runtime.begin().expect("begin");
         let permission_runtime = runtime.clone();
         let cancel_on_delta = args[1] == "--smoke-cancel";
         let emit: tanzakoo_lib::agent::Emit = std::sync::Arc::new(move |event| {
@@ -92,7 +93,7 @@ fn main() {
                     cancel,
                     emit,
                 ));
-        runtime.finish();
+        drop(guard);
         println!(
             "{}",
             serde_json::to_string(&store.snapshot().unwrap()).unwrap()

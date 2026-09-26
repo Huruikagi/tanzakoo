@@ -5,7 +5,8 @@ import { CardDetails } from "./CardDetails";
 import { useWorkspace } from "@/lib/workspace";
 import { emptySnapshot, api } from "@/lib/api";
 import type { Card } from "@/bindings/Card";
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
   emptySnapshot: {
     project: { id: "a", name: "A", memory: "", revision: 1 },
     projects: [],

@@ -1,6 +1,52 @@
 import { Button } from "@/components/ui/button";
+import { LoaderCircle, Plug, TriangleAlert } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useShallow } from "zustand/react/shallow";
 import { connectionStatus, useWorkspace } from "@/lib/workspace";
 import { agentUnavailable, api, native } from "@/lib/api";
+
+export function AgentConnectionDialog({ agent }: { agent: string }) {
+  const status = useWorkspace((s) => connectionStatus(s, agent));
+  const connecting = useWorkspace((s) => s.busy?.kind === "connecting" && s.busy.agent === agent);
+  const needsAttention = status && status.state !== "ready";
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="接続状況"
+          title={connecting ? "接続処理中" : (status?.message ?? "接続状況")}
+        >
+          {connecting ? (
+            <LoaderCircle className="animate-spin" />
+          ) : needsAttention ? (
+            <TriangleAlert className="text-amber-600" />
+          ) : (
+            <Plug />
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Codexの接続状況</DialogTitle>
+          <DialogDescription>
+            接続の確認やサインインでは、プロジェクトの内容は送信しません。
+          </DialogDescription>
+        </DialogHeader>
+        <AgentConnection agent={agent} />
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function AgentConnection({
   agent,
@@ -9,7 +55,15 @@ export function AgentConnection({
   agent: string;
   hideWhenReady?: boolean;
 }) {
-  const workspace = useWorkspace();
+  const workspace = useWorkspace(
+    useShallow((s) => ({
+      snapshot: s.snapshot,
+      busy: s.busy,
+      activity: s.activity,
+      connect: s.connect,
+      connections: s.connections,
+    })),
+  );
   const { snapshot, busy, activity, connect } = workspace;
   const status = connectionStatus(workspace, agent);
   const connecting = busy?.kind === "connecting" && busy.agent === agent;

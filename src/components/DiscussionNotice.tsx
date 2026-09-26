@@ -6,7 +6,9 @@ import { native } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 
 export function DiscussionNotice({ discussion: d }: { discussion: Discussion }) {
-  const { snapshot, act, select } = useWorkspace();
+  const snapshot = useWorkspace((s) => s.snapshot);
+  const act = useWorkspace((s) => s.act);
+  const select = useWorkspace((s) => s.select);
   const [saving, setSaving] = useState(false);
   const card = snapshot.cards.find((c) => c.id === d.cardId && !c.deleted);
   const current = card?.revision === d.cardRevision;

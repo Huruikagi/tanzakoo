@@ -107,6 +107,7 @@ impl Store {
             messages: list(&tx, "message")?,
             discussions: list(&tx, "discussion")?,
             agents: list(&tx, "agent")?,
+            chat_settings: list(&tx, "chatSettings")?.pop().unwrap_or_default(),
             consents: vec![],
         };
         tx.commit()?;
@@ -384,6 +385,18 @@ impl Store {
             return Err(invalid("起動設定が不正です。"));
         }
         put(&self.connect()?, "agent", &config.id, &config)
+    }
+    pub fn set_chat_settings(&self, settings: ChatSettings) -> Result<()> {
+        if [&settings.model, &settings.reasoning_effort]
+            .into_iter()
+            .flatten()
+            .any(|value| value.trim().is_empty() || value.len() > 200)
+        {
+            return Err(invalid(
+                "モデルと推論強度は1〜200バイトで指定してください。",
+            ));
+        }
+        put(&self.connect()?, "chatSettings", "codex", &settings)
     }
 }
 

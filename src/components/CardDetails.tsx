@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { FileText, MessageSquarePlus, Save, Trash2, RotateCcw, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { Markdown } from "./Markdown";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { ProposalCard, Proposals } from "./Proposals";
 import { editDraft } from "@/lib/draft";
+import { agentLabel } from "@/lib/api";
 
 export function CardDetails() {
   const selected = useWorkspace((s) => s.selected);
@@ -42,7 +44,15 @@ export function CardDetails() {
   return <Details key={card.id} card={card} />;
 }
 function Details({ card }: { card: Card }) {
-  const { drafts, draft, act, attach, snapshot } = useWorkspace();
+  const { drafts, draft, act, attach, snapshot } = useWorkspace(
+    useShallow((s) => ({
+      drafts: s.drafts,
+      draft: s.draft,
+      act: s.act,
+      attach: s.attach,
+      snapshot: s.snapshot,
+    })),
+  );
   const [quote, setQuote] = useState("");
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("edit");
@@ -97,9 +107,7 @@ function Details({ card }: { card: Card }) {
               ))}
             </SelectContent>
           </Select>
-          {card.source !== "user" && (
-            <span>{card.source === "claude" ? "Claude" : "Codex"}が起票</span>
-          )}
+          {card.source !== "user" && <span>{agentLabel(card.source)}が起票</span>}
         </div>
         <label className="field-label" htmlFor="card-title">
           タイトル

@@ -1,4 +1,5 @@
 import { useState, type Ref } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { DragDropProvider, DragOverlay, useDroppable, type DragEndEvent } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { GripVertical, Plus, Search, Sparkles, Archive, RotateCcw } from "lucide-react";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Card } from "@/bindings/Card";
 import { columns, moveCard, useWorkspace } from "@/lib/workspace";
-import { native } from "@/lib/api";
+import { agentLabel, native } from "@/lib/api";
 
 function Topic({ card, index }: { card: Card; index: number }) {
   const { ref, handleRef, isDragging, isDropTarget } = useSortable({
@@ -53,7 +54,7 @@ function TopicView({
           {card.source !== "user" && (
             <>
               <Sparkles size={11} />
-              {card.source === "claude" ? "Claude" : "Codex"}
+              {agentLabel(card.source)}
             </>
           )}
         </span>
@@ -91,6 +92,7 @@ function Column({ column, cards }: { column: (typeof columns)[number]; cards: Ca
           <h2>{column.title}</h2>
           <span className="column-count">{cards.length}</span>
         </div>
+        {column.id === "idea" && <BroadenTopics />}
       </header>
       <div className="column-cards">
         {cards.map((card, index) => (
@@ -101,8 +103,26 @@ function Column({ column, cards }: { column: (typeof columns)[number]; cards: Ca
     </section>
   );
 }
+function BroadenTopics() {
+  const { busy, switching, broadenTopics } = useWorkspace(
+    useShallow((s) => ({ busy: s.busy, switching: s.switching, broadenTopics: s.broadenTopics })),
+  );
+  return (
+    <Button
+      className="mt-2.5 w-full"
+      variant="outline"
+      size="sm"
+      disabled={!native || !!busy || switching}
+      title="既存カードを見て、新しい切り口の候補を3〜5枚ほど追加します"
+      onClick={() => void broadenTopics()}
+    >
+      <Sparkles />
+      話題を広げる
+    </Button>
+  );
+}
 export function Board() {
-  const { snapshot, act } = useWorkspace();
+  const { snapshot, act } = useWorkspace(useShallow((s) => ({ snapshot: s.snapshot, act: s.act })));
   const empty = snapshot.cards.every((c) => c.deleted);
   const [search, setSearch] = useState("");
   const [title, setTitle] = useState("");

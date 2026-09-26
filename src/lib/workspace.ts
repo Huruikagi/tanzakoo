@@ -5,6 +5,7 @@ import type { BoardAction } from "@/bindings/BoardAction";
 import type { Card } from "@/bindings/Card";
 import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
+import type { ChatOption } from "@/bindings/ChatOption";
 
 export const columns = [
   { id: "idea", title: "アイデアの山", number: "01" },
@@ -12,6 +13,8 @@ export const columns = [
   { id: "discuss", title: "話し合う", number: "03" },
   { id: "decided", title: "決めたこと", number: "04" },
 ] as const;
+const BROADEN_TOPICS_PROMPT =
+  "話題を広げてください。既存カードとプロジェクトの前提を見て、新しい切り口の候補を3〜5枚ほど追加してください。既存カードやメモリの変更・移動は不要です。";
 export type Permission = {
   id: string;
   title: string;
@@ -21,6 +24,7 @@ type Draft = { title: string; body: string; revision: number };
 /** What the single agent slot is doing. `conversation: null` means the first message is creating one. */
 export type Busy =
   | { kind: "chat"; conversation: string | null }
+  | { kind: "settings" }
   | { kind: "connecting"; agent: string };
 /**
  * Sign-in is shared by all projects, but each project has its own launch settings.
@@ -36,6 +40,7 @@ type Workspace = {
   connections: Record<string, Connection>;
   setConsent: (agent: string, granted: boolean) => Promise<void>;
   connect: (agent: string, action: "check" | "login" | "logout") => Promise<void>;
+  loadChatOptions: (model: string | null) => Promise<ChatOption[]>;
   snapshot: Snapshot;
   loaded: boolean;
   switching: boolean;
@@ -52,12 +57,16 @@ type Workspace = {
   activity: string;
   permissions: Permission[];
   select: (id: string) => void;
+  selectConversation: (id: string | null) => void;
   refresh: () => Promise<void>;
   act: (action: BoardAction) => Promise<Snapshot | null>;
   newConversation: (agent: string) => Promise<string | null>;
   attach: (card: Card, quote?: string) => void;
+  detach: (index: number) => void;
   draft: (id: string, value: Draft | null) => void;
-  send: (text: string, agent: string) => Promise<boolean>;
+  draftProject: (id: string, value: ProjectDraft | null) => void;
+  send: (text: string, agent: string, options?: { useReferences?: boolean }) => Promise<boolean>;
+  broadenTopics: () => Promise<boolean>;
   event: (event: AgentEvent) => void;
   answer: (id: string, option: string | null) => Promise<void>;
 };
@@ -122,6 +131,21 @@ function syncedDrafts(previous: Snapshot, snapshot: Snapshot, drafts: Record<str
   }
   return result;
 }
+/** All saved-board responses reconcile content drafts using the same revision rules. */
+function snapshotUpdate(state: Workspace, snapshot: Snapshot) {
+  return { snapshot, drafts: syncedDrafts(state.snapshot, snapshot, state.drafts) };
+}
+function projectView(snapshot: Snapshot, view = restoredView(snapshot)) {
+  return {
+    ...view,
+    references: [],
+    stream: "",
+    permissions: [],
+    error: null,
+    chatError: null,
+    loaded: true,
+  };
+}
 export const useWorkspace = create<Workspace>((set, get) => ({
   chatOpen: (() => {
     try {
@@ -144,7 +168,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     serialized(async () => {
       try {
         const snapshot = await api.setConsent(agent, granted);
-        set({ snapshot, chatError: null });
+        set((state) => ({ ...snapshotUpdate(state, snapshot), chatError: null }));
       } catch (error) {
         set({ chatError: String(error) });
       }
@@ -169,6 +193,16 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     }
   },
   snapshot: emptySnapshot,
+  loadChatOptions: async (model) => {
+    if (get().busy || get().switching) throw new Error("処理が終わってから設定してください。");
+    const projectId = get().snapshot.project.id;
+    set({ busy: { kind: "settings" }, activity: "モデルの選択肢を確認しています…" });
+    try {
+      return await api.chatOptions(projectId, model);
+    } finally {
+      set({ busy: null, activity: "" });
+    }
+  },
   loaded: false,
   switching: false,
   projectDrafts: {},
@@ -178,16 +212,7 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     return serialized(async () => {
       try {
         const snapshot = await api.switchProject(id);
-        set({
-          snapshot,
-          ...restoredView(snapshot),
-          references: [],
-          stream: "",
-          permissions: [],
-          error: null,
-          chatError: null,
-          loaded: true,
-        });
+        set((state) => ({ ...snapshotUpdate(state, snapshot), ...projectView(snapshot) }));
         return true;
       } catch (error) {
         set({ error: String(error) });
@@ -203,17 +228,10 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     return serialized(async () => {
       try {
         const snapshot = await api.createProject(name, memory);
-        set({
-          snapshot,
-          selected: null,
-          conversation: null,
-          references: [],
-          stream: "",
-          permissions: [],
-          error: null,
-          chatError: null,
-          loaded: true,
-        });
+        set((state) => ({
+          ...snapshotUpdate(state, snapshot),
+          ...projectView(snapshot, { selected: null, conversation: null }),
+        }));
         return true;
       } catch (error) {
         set({ error: String(error) });
@@ -233,18 +251,18 @@ export const useWorkspace = create<Workspace>((set, get) => ({
   activity: "",
   permissions: [],
   select: (id) => set({ selected: id }),
+  selectConversation: (conversation) => set({ conversation, references: [] }),
   refresh: () =>
     serialized(async () => {
       try {
         const snapshot = await api.snapshot();
-        set({
-          snapshot,
+        set((state) => ({
+          ...snapshotUpdate(state, snapshot),
           loaded: true,
-          drafts: syncedDrafts(get().snapshot, snapshot, get().drafts),
-          ...(!get().loaded || snapshot.project.id !== get().snapshot.project.id
+          ...(!state.loaded || snapshot.project.id !== state.snapshot.project.id
             ? { ...restoredView(snapshot), references: [] }
             : {}),
-        });
+        }));
       } catch (error) {
         set({ error: String(error), loaded: true });
       }
@@ -255,11 +273,10 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     return serialized(async () => {
       try {
         const snapshot = await api.action(action, projectId);
-        set({
-          snapshot,
-          drafts: syncedDrafts(get().snapshot, snapshot, get().drafts),
+        set((state) => ({
+          ...snapshotUpdate(state, snapshot),
           error: null,
-        });
+        }));
         if (action.type === "configureAgent") {
           const agent = action.config.id;
           set((s) => ({
@@ -286,7 +303,10 @@ export const useWorkspace = create<Workspace>((set, get) => ({
   newConversation: async (agent) => {
     const snapshot = await get().act({ type: "newConversation", agent });
     const id = snapshot?.conversations.at(-1)?.id ?? null;
-    if (id) set({ conversation: id, stream: "", references: [] });
+    if (id) {
+      get().selectConversation(id);
+      set({ stream: "" });
+    }
     return id;
   },
   attach: (card, quote = "") => {
@@ -303,6 +323,15 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     )
       set({ references: [...get().references, reference] });
   },
+  detach: (index) =>
+    set((state) => ({ references: state.references.filter((_, i) => i !== index) })),
+  draftProject: (id, value) =>
+    set((state) => {
+      const projectDrafts = { ...state.projectDrafts };
+      if (value) projectDrafts[id] = value;
+      else delete projectDrafts[id];
+      return { projectDrafts };
+    }),
   draft: (id, value) =>
     set((state) => {
       const drafts = { ...state.drafts };
@@ -310,7 +339,12 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       else delete drafts[id];
       return { drafts };
     }),
-  send: async (text, agent) => {
+  broadenTopics: () => {
+    if (get().busy || get().switching) return Promise.resolve(false);
+    get().setChatOpen(true);
+    return get().send(BROADEN_TOPICS_PROMPT, "codex", { useReferences: false });
+  },
+  send: async (text, agent, { useReferences = true } = {}) => {
     if (get().busy || get().switching || !text.trim()) return false;
     const activeAgent =
       get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
@@ -330,18 +364,22 @@ export const useWorkspace = create<Workspace>((set, get) => ({
       error: null,
       chatError: null,
     });
-    const references = [...get().references];
+    const pendingReferences = [...get().references];
+    const references = useReferences ? pendingReferences : [];
     const id = get().conversation ?? (await get().newConversation(agent));
     if (!id) {
       set({ busy: null });
       return false;
     }
-    set({ busy: { kind: "chat", conversation: id }, references: [] });
+    set({
+      busy: { kind: "chat", conversation: id },
+      references: useReferences ? [] : pendingReferences,
+    });
     try {
       await api.send(id, text, references, get().snapshot.project.id);
       return true;
     } catch (error) {
-      set({ chatError: String(error), references });
+      set({ chatError: String(error), ...(useReferences ? { references } : {}) });
       return false;
     } finally {
       await get().refresh();

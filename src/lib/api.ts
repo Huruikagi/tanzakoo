@@ -4,6 +4,8 @@ import type { Snapshot } from "@/bindings/Snapshot";
 import type { BoardAction } from "@/bindings/BoardAction";
 import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
+import type { ChatOption } from "@/bindings/ChatOption";
+import type { ExportResult } from "@/bindings/ExportResult";
 
 export type AgentEvent = {
   conversationId: string;
@@ -14,6 +16,8 @@ export type AgentEvent = {
 export const native = isTauri();
 /** Matches `agent_setup::CLAUDE_UNAVAILABLE`: this build offers no Claude connection. */
 export const CLAUDE_UNAVAILABLE = "@tanzakoo/claude-unavailable";
+/** Display name for an agent id. New conversations use Codex, so it is the default. */
+export const agentLabel = (agent?: string) => (agent === "claude" ? "Claude" : "Codex");
 export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
   agent !== "codex" ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);
@@ -27,9 +31,12 @@ export const emptySnapshot: Snapshot = {
   messages: [],
   discussions: [],
   agents: [],
+  chatSettings: { model: null, reasoningEffort: null },
   consents: [],
 };
 export const api = {
+  exportDecisions: (projectId: string) =>
+    invoke<ExportResult | null>("export_decisions", { projectId }),
   snapshot: () => (native ? invoke<Snapshot>("get_snapshot") : Promise.resolve(emptySnapshot)),
   action: (action: BoardAction, projectId: string) =>
     invoke<Snapshot>("board_action", { action, projectId }),
@@ -43,6 +50,8 @@ export const api = {
   connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>
     invoke<ConnectionStatus>("agent_connection", { projectId, agent, action }),
   cancel: () => invoke<void>("cancel_prompt"),
+  chatOptions: (projectId: string, model: string | null) =>
+    invoke<ChatOption[]>("chat_options", { projectId, model }),
   permission: (id: string, option: string | null) =>
     invoke<void>("answer_permission", { id, option }),
   subscribe: (handler: (event: AgentEvent) => void) =>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { FolderOpen, Plus, NotebookPen, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,15 @@ import { ProposalCard, Proposals } from "./Proposals";
 import { editDraft } from "@/lib/draft";
 
 export function Projects() {
-  const { snapshot, busy, switching, loaded, changeProject } = useWorkspace();
+  const { snapshot, busy, switching, loaded, changeProject } = useWorkspace(
+    useShallow((s) => ({
+      snapshot: s.snapshot,
+      busy: s.busy,
+      switching: s.switching,
+      loaded: s.loaded,
+      changeProject: s.changeProject,
+    })),
+  );
   const [creating, setCreating] = useState(false);
   const disabled = !native || !loaded || !!busy || switching;
   const pending = snapshot.memoryProposals.filter((p) => p.state === "pending").length;
@@ -104,7 +113,9 @@ function CreateProject({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [memory, setMemory] = useState("");
   const [error, setError] = useState("");
-  const { createProject, switching } = useWorkspace();
+  const { createProject, switching } = useWorkspace(
+    useShallow((s) => ({ createProject: s.createProject, switching: s.switching })),
+  );
   async function create() {
     if (await createProject(name, memory)) onCreated();
     else setError(useWorkspace.getState().error ?? "作成できませんでした。");
@@ -143,7 +154,9 @@ function CreateProject({ onCreated }: { onCreated: () => void }) {
 }
 
 function ProjectMemory() {
-  const { snapshot, projectDrafts, act } = useWorkspace();
+  const { snapshot, projectDrafts, act } = useWorkspace(
+    useShallow((s) => ({ snapshot: s.snapshot, projectDrafts: s.projectDrafts, act: s.act })),
+  );
   const project = snapshot.project;
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -151,12 +164,7 @@ function ProjectMemory() {
     { name: project.name, memory: project.memory, revision: project.revision },
     projectDrafts[project.id],
     (next) => {
-      useWorkspace.setState((s) => {
-        const drafts = { ...s.projectDrafts };
-        if (next) drafts[project.id] = next;
-        else delete drafts[project.id];
-        return { projectDrafts: drafts };
-      });
+      useWorkspace.getState().draftProject(project.id, next);
       setMessage("");
     },
   );

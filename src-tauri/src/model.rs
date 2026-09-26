@@ -113,6 +113,31 @@ pub struct AgentConfig {
     pub args: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ChatSettings {
+    pub model: Option<String>,
+    pub reasoning_effort: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ChatOptionValue {
+    pub value: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ChatOption {
+    pub id: String,
+    pub current_value: String,
+    pub options: Vec<ChatOptionValue>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -165,6 +190,7 @@ pub struct Snapshot {
     pub messages: Vec<Message>,
     pub discussions: Vec<Discussion>,
     pub agents: Vec<AgentConfig>,
+    pub chat_settings: ChatSettings,
     /// Agents the user has agreed to send project content to. App-wide, not per project.
     pub consents: Vec<String>,
 }
@@ -206,6 +232,9 @@ pub enum BoardAction {
     },
     ConfigureAgent {
         config: AgentConfig,
+    },
+    ConfigureChat {
+        settings: ChatSettings,
     },
 }
 

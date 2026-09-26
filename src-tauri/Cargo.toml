@@ -31,3 +31,4 @@ rmcp = { version = "=3.3.0", features = ["transport-io"] }
 thiserror = "2"
 tracing = "0.1"
 ts-rs = { version = "12", features = ["serde-compat"] }
+tauri-plugin-dialog = "2"

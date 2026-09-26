@@ -1,19 +1,16 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tanzakoo_lib::{
-    agent::AgentRuntime,
-    agent_setup::{OperationGuard, probe},
-    model::AgentConfig,
-    store::Store,
-};
+use tanzakoo_lib::{agent::AgentRuntime, agent_setup::probe, model::AgentConfig, store::Store};
 
 fn fixture(hang: bool) -> (Store, PathBuf) {
+    static NEXT_FIXTURE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let dir = std::env::temp_dir().join(format!(
-        "tanzakoo-auth-{}-{}",
+        "tanzakoo-auth-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+        NEXT_FIXTURE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let store = Store::open(dir.join("project.db")).unwrap();
@@ -53,8 +50,7 @@ async fn login_check_and_logout_never_send_project_content() {
         ("check", "ready"),
         ("logout", "authRequired"),
     ] {
-        let cancel = runtime.begin().unwrap();
-        let guard = OperationGuard(runtime.clone());
+        let (guard, cancel) = runtime.begin().unwrap();
         let status = probe(store.clone(), "codex".into(), action.into(), cancel).await;
         assert_eq!(status.state, expected, "{status:?}");
         assert!(status.can_login);
@@ -91,8 +87,7 @@ async fn login_check_and_logout_never_send_project_content() {
 async fn cancellation_releases_the_operation_without_creating_a_chat() {
     let (store, _) = fixture(true);
     let runtime = Arc::new(AgentRuntime::default());
-    let cancel = runtime.begin().unwrap();
-    let guard = OperationGuard(runtime.clone());
+    let (guard, cancel) = runtime.begin().unwrap();
     let stop = runtime.clone();
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -137,8 +132,7 @@ async fn claude_check_reports_the_credential_without_sending_project_content() {
     ] {
         let (store, dir) = claude_fixture(mode);
         let runtime = Arc::new(AgentRuntime::default());
-        let cancel = runtime.begin().unwrap();
-        let guard = OperationGuard(runtime.clone());
+        let (guard, cancel) = runtime.begin().unwrap();
         let status = probe(store.clone(), "claude".into(), "check".into(), cancel).await;
         drop(guard);
         assert!(runtime.ensure_idle().is_ok());
@@ -179,8 +173,7 @@ async fn claude_sign_in_and_unbundled_default_never_start_a_process() {
     let (store, dir) = claude_fixture("account");
     let runtime = Arc::new(AgentRuntime::default());
     for action in ["login", "logout"] {
-        let cancel = runtime.begin().unwrap();
-        let guard = OperationGuard(runtime.clone());
+        let (guard, cancel) = runtime.begin().unwrap();
         let status = probe(store.clone(), "claude".into(), action.into(), cancel).await;
         drop(guard);
         assert_eq!(status.state, "unsupported");
@@ -195,8 +188,7 @@ async fn claude_sign_in_and_unbundled_default_never_start_a_process() {
             args: vec![],
         })
         .unwrap();
-    let cancel = runtime.begin().unwrap();
-    let guard = OperationGuard(runtime.clone());
+    let (guard, cancel) = runtime.begin().unwrap();
     let status = probe(store.clone(), "claude".into(), "check".into(), cancel).await;
     drop(guard);
     assert_eq!(status.state, "unsupported");
@@ -220,8 +212,7 @@ async fn real_claude_adapter_reports_signed_out_without_content() {
         .set_agent(tanzakoo_lib::agent::default_config("claude"))
         .unwrap();
     let runtime = Arc::new(AgentRuntime::default());
-    let cancel = runtime.begin().unwrap();
-    let guard = OperationGuard(runtime.clone());
+    let (guard, cancel) = runtime.begin().unwrap();
     let status = probe(store.clone(), "claude".into(), "check".into(), cancel).await;
     drop(guard);
     assert_eq!(status.state, "authRequired", "{status:?}");

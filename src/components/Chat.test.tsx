@@ -62,6 +62,35 @@ const topic: Card = {
   createdAt: 1,
   updatedAt: 2,
 };
+it("keeps an unsent draft and its references when broadening creates the first conversation", async () => {
+  const user = userEvent.setup();
+  const snapshot = {
+    ...emptySnapshot,
+    consents: ["codex"],
+    cards: [topic],
+    conversations: [
+      { id: "new-chat", title: "話題を広げる", agent: "codex", sessionId: null, createdAt: 1 },
+    ],
+  };
+  useWorkspace.setState({ snapshot: { ...snapshot, conversations: [] } });
+  useWorkspace.getState().attach(topic);
+  vi.mocked(api.action).mockResolvedValue(snapshot);
+  vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+  vi.mocked(api.send).mockResolvedValue();
+  render(<Chat />);
+  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "入力途中の考え");
+  await act(async () => {
+    await useWorkspace.getState().broadenTopics();
+  });
+  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("入力途中の考え");
+  expect(screen.getByRole("button", { name: `${topic.title}の参照を外す` })).toBeVisible();
+  expect(api.send).toHaveBeenCalledWith(
+    "new-chat",
+    expect.stringContaining("話題を広げてください"),
+    [],
+    "a",
+  );
+});
 const discussion: Discussion = {
   id: "discussion",
   conversationId: "c",
@@ -235,10 +264,17 @@ it("checks connectivity without sending a prompt and preserves a draft when sign
   });
   render(<Chat />);
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "残しておきたい文章");
+  expect(screen.queryByRole("button", { name: "接続を確認" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Codexの接続はまだ確認していません。")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "接続状況" }));
+  expect(api.connection).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "接続を確認" }));
   expect(await screen.findByRole("button", { name: "ChatGPTでサインイン" })).toBeEnabled();
   expect(api.send).not.toHaveBeenCalled();
   expect(api.action).not.toHaveBeenCalled();
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "接続状況" })).toHaveFocus();
   expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("残しておきたい文章");
   expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
 });
@@ -294,6 +330,7 @@ it("keeps legacy Claude history readable and starts new chats with Codex", async
   expect(screen.queryByRole("button", { name: /サインイン/ })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "新しい会話" }));
   expect(screen.getByText("Codex")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "接続状況" }));
   expect(screen.getByRole("button", { name: "接続を確認" })).toBeEnabled();
   expect(useWorkspace.getState().snapshot.messages[0].text).toBe("過去の検討内容");
   expect(api.connection).not.toHaveBeenCalled();

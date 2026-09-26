@@ -1,5 +1,5 @@
 //! App-owned runtime and credentials. Reading a board never calls this module's probe.
-use crate::{agent::AgentRuntime, model::*, store::Store};
+use crate::{model::*, store::Store};
 use agent_client_protocol::{
     AcpAgent, AcpAgentConfig, Agent, ConnectionTo, UntypedMessage,
     schema::{ProtocolVersion, v1::*},
@@ -265,13 +265,5 @@ pub fn claude_status(auth: Option<&serde_json::Value>) -> ConnectionStatus {
             "ready",
             "接続を確認しました。認証の種類は確認できませんでした。送信時に認証と利用枠が確認されます。".into(),
         ),
-    }
-}
-
-// An RAII guard also releases the slot when a command returns early.
-pub struct OperationGuard(pub Arc<AgentRuntime>);
-impl Drop for OperationGuard {
-    fn drop(&mut self) {
-        self.0.finish();
     }
 }

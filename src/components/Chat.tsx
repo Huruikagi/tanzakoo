@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { ArrowUp, Square, Plus, MessageCircle, X, Paperclip, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,10 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { chatRunning, useWorkspace } from "@/lib/workspace";
-import { agentUnavailable, api, native } from "@/lib/api";
+import { agentLabel, agentUnavailable, api, native } from "@/lib/api";
 import { Markdown } from "./Markdown";
-import { AgentConnection } from "./AgentConnection";
+import { AgentConnection, AgentConnectionDialog } from "./AgentConnection";
 import { DiscussionNotice } from "./DiscussionNotice";
+import { ChatSettings } from "./ChatSettings";
 
 export function Chat() {
   const {
@@ -27,7 +29,20 @@ export function Chat() {
     send,
     answer,
     chatError,
-  } = useWorkspace();
+  } = useWorkspace(
+    useShallow((s) => ({
+      snapshot: s.snapshot,
+      conversation: s.conversation,
+      busy: s.busy,
+      stream: s.stream,
+      activity: s.activity,
+      references: s.references,
+      permissions: s.permissions,
+      send: s.send,
+      answer: s.answer,
+      chatError: s.chatError,
+    })),
+  );
   const agent = "codex";
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const key = `${snapshot.project.id}:${conversation ?? "new"}`;
@@ -41,6 +56,29 @@ export function Chat() {
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);
+  useEffect(
+    () =>
+      useWorkspace.subscribe((state, previous) => {
+        // Preserve the composer when a board action creates the first conversation.
+        if (
+          previous.conversation === null &&
+          state.conversation &&
+          previous.busy?.kind === "chat" &&
+          previous.busy.conversation === null &&
+          previous.snapshot.project.id === state.snapshot.project.id
+        ) {
+          const from = `${state.snapshot.project.id}:new`;
+          const to = `${state.snapshot.project.id}:${state.conversation}`;
+          setDrafts((current) => {
+            if (!current[from] || current[to]) return current;
+            const next = { ...current, [to]: current[from] };
+            delete next[from];
+            return next;
+          });
+        }
+      }),
+    [],
+  );
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, stream, permissions.length]);
@@ -63,6 +101,9 @@ export function Chat() {
       <div className="pane-heading">
         <MessageCircle size={16} />
         <h2>壁打ち</h2>
+        {selectedAgent === "codex" && (
+          <AgentConnectionDialog key={snapshot.project.id} agent={selectedAgent} />
+        )}
         <Button
           size="icon-sm"
           variant="ghost"
@@ -77,7 +118,7 @@ export function Chat() {
           aria-label="新しい会話"
           disabled={!!busy || !native}
           onClick={() => {
-            useWorkspace.setState({ conversation: null, references: [] });
+            useWorkspace.getState().selectConversation(null);
           }}
         >
           <Plus />
@@ -90,7 +131,7 @@ export function Chat() {
             <Select
               value={conversation!}
               disabled={!!busy}
-              onValueChange={(id) => useWorkspace.setState({ conversation: id, references: [] })}
+              onValueChange={(id) => useWorkspace.getState().selectConversation(id)}
             >
               <SelectTrigger size="sm" aria-label="会話履歴">
                 <SelectValue />
@@ -98,7 +139,7 @@ export function Chat() {
               <SelectContent>
                 {[...snapshot.conversations].reverse().map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.agent === "claude" ? "Claude" : "Codex"} · {c.title}
+                    {agentLabel(c.agent)} · {c.title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -113,7 +154,7 @@ export function Chat() {
                 size="sm"
                 variant="ghost"
                 onClick={() =>
-                  useWorkspace.setState({ conversation: snapshot.conversations.at(-1)!.id })
+                  useWorkspace.getState().selectConversation(snapshot.conversations.at(-1)!.id)
                 }
               >
                 履歴へ
@@ -123,7 +164,7 @@ export function Chat() {
         )}
       </div>
       <div className="chat-history" aria-label="会話メッセージ">
-        <AgentConnection agent={selectedAgent} hideWhenReady />
+        {unavailable && <AgentConnection agent={selectedAgent} />}
         {chatError && (
           <p className="chat-error" role="alert">
             {chatError}
@@ -160,9 +201,7 @@ export function Chat() {
                   ? "あなた"
                   : m.role === "error"
                     ? "エラー"
-                    : active?.agent === "claude"
-                      ? "Claude"
-                      : "Codex"}
+                    : agentLabel(active?.agent)}
               </div>
               {m.references.length > 0 && (
                 <div className="message-references">
@@ -192,7 +231,7 @@ export function Chat() {
         {isThisBusy && (
           <article className="message message-assistant">
             <div className="message-label">
-              {active?.agent === "claude" ? "Claude" : "Codex"}
+              {agentLabel(active?.agent)}
               <span className="thinking-dot" />
             </div>
             {stream ? <Markdown>{stream}</Markdown> : <p className="muted">{activity}</p>}
@@ -201,9 +240,7 @@ export function Chat() {
         {isThisBusy &&
           permissions.map((p) => (
             <div className="permission" key={p.id}>
-              <strong>
-                {active?.agent === "claude" ? "Claude" : "Codex"}が操作の許可を求めています
-              </strong>
+              <strong>{agentLabel(active?.agent)}が操作の許可を求めています</strong>
               <p>{p.title}</p>
               <details>
                 <summary>操作の詳細</summary>
@@ -229,6 +266,7 @@ export function Chat() {
         <div ref={end} />
       </div>
       <div className="composer-area">
+        {selectedAgent === "codex" && <ChatSettings />}
         {!unavailable && !consented && (
           <div className="ai-consent">
             <p>
@@ -255,11 +293,7 @@ export function Chat() {
                   </span>
                   <button
                     aria-label={`${r.title}の参照を外す`}
-                    onClick={() =>
-                      useWorkspace.setState({
-                        references: references.filter((_, i) => i !== index),
-                      })
-                    }
+                    onClick={() => useWorkspace.getState().detach(index)}
                   >
                     <X size={12} />
                   </button>

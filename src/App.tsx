@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { X, RefreshCw, MessageCircle } from "lucide-react";
 import { usePanelRef } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -8,12 +9,24 @@ import { CardDetails } from "@/components/CardDetails";
 import { Chat } from "@/components/Chat";
 import { Settings } from "@/components/Settings";
 import { Projects } from "@/components/Projects";
+import { ExportDecisions } from "@/components/ExportDecisions";
 import { useWorkspace } from "@/lib/workspace";
 import { api, native } from "@/lib/api";
 
 export default function App() {
-  const { error, busy, loaded, refresh, snapshot, switching, chatOpen, setChatOpen } =
-    useWorkspace();
+  const { error, busy, loaded, refresh, projectId, switching, chatOpen, setChatOpen } =
+    useWorkspace(
+      useShallow((s) => ({
+        error: s.error,
+        busy: s.busy,
+        loaded: s.loaded,
+        refresh: s.refresh,
+        projectId: s.snapshot.project.id,
+        switching: s.switching,
+        chatOpen: s.chatOpen,
+        setChatOpen: s.setChatOpen,
+      })),
+    );
   const chatPanel = usePanelRef();
   useEffect(() => {
     if (loaded) {
@@ -59,7 +72,8 @@ export default function App() {
         </div>
         <Projects />
         <div className="header-right">
-          <Settings key={snapshot.project.id} />
+          <ExportDecisions key={`export-${projectId}`} />
+          <Settings key={projectId} />
           <Button
             variant="ghost"
             size="sm"
@@ -101,7 +115,7 @@ export default function App() {
         <main className="workspace" inert={switching} aria-busy={switching}>
           <ResizablePanelGroup orientation="horizontal" id="tanzakoo-workspace">
             <ResizablePanel id="board" defaultSize="47%" minSize="30%">
-              <Board key={snapshot.project.id} />
+              <Board key={projectId} />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel id="details" defaultSize="26%" minSize="280px">

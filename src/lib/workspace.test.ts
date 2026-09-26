@@ -23,6 +23,7 @@ vi.mock("./api", () => ({
     switchProject: vi.fn(),
     createProject: vi.fn(),
     connection: vi.fn(),
+    setConsent: vi.fn(),
   },
 }));
 export const card: Card = {
@@ -48,6 +49,7 @@ beforeEach(() => {
     conversation: null,
     references: [],
     drafts: {},
+    projectDrafts: {},
     busy: null,
     stream: "",
     permissions: [],
@@ -57,6 +59,19 @@ beforeEach(() => {
   });
 });
 describe("card references and drafts", () => {
+  it("reconciles drafts when a consent response includes a concurrent column move", async () => {
+    useWorkspace.getState().draft(card.id, { title: card.title, body: "編集中", revision: 1 });
+    vi.mocked(api.setConsent).mockResolvedValue({
+      ...emptySnapshot,
+      cards: [{ ...card, status: "discuss", revision: 2 }],
+    });
+    await useWorkspace.getState().setConsent("codex", true);
+    expect(useWorkspace.getState().drafts[card.id]).toEqual({
+      title: card.title,
+      body: "編集中",
+      revision: 2,
+    });
+  });
   it("keeps a content draft editable when only the card's column changes", async () => {
     useWorkspace
       .getState()
@@ -99,6 +114,80 @@ describe("card references and drafts", () => {
   });
 });
 describe("chat lifecycle", () => {
+  it.each([null, "c1"])(
+    "broadens the board in %s without consuming references or duplicating sends",
+    async (selected) => {
+      const conversation = {
+        id: "c1",
+        title: "new",
+        agent: "codex",
+        sessionId: null,
+        createdAt: 1,
+      };
+      const snapshot = { ...useWorkspace.getState().snapshot, conversations: [conversation] };
+      if (selected) useWorkspace.setState({ snapshot, conversation: selected });
+      useWorkspace.getState().attach(card);
+      const references = useWorkspace.getState().references;
+      useWorkspace.setState({ chatOpen: false });
+      vi.mocked(api.action).mockResolvedValue(snapshot);
+      vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+      let finish!: () => void;
+      vi.mocked(api.send).mockReturnValue(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const first = useWorkspace.getState().broadenTopics();
+      expect(await useWorkspace.getState().broadenTopics()).toBe(false);
+      await vi.waitFor(() => expect(api.send).toHaveBeenCalledOnce());
+      expect(api.send).toHaveBeenCalledWith(
+        "c1",
+        expect.stringContaining("話題を広げてください"),
+        [],
+        "a",
+      );
+      expect(useWorkspace.getState().chatOpen).toBe(true);
+      expect(useWorkspace.getState().references).toEqual(references);
+      expect(useWorkspace.getState().busy).toEqual({ kind: "chat", conversation: "c1" });
+      finish();
+      expect(await first).toBe(true);
+      expect(useWorkspace.getState().references).toEqual(references);
+      expect(useWorkspace.getState().busy).toBeNull();
+      expect(api.action).toHaveBeenCalledTimes(selected ? 0 : 1);
+    },
+  );
+  it("opens consent guidance without sending and leaves references intact on failure", async () => {
+    useWorkspace.getState().attach(card);
+    const references = useWorkspace.getState().references;
+    useWorkspace.setState((s) => ({ snapshot: { ...s.snapshot, consents: [] }, chatOpen: false }));
+    expect(await useWorkspace.getState().broadenTopics()).toBe(false);
+    expect(useWorkspace.getState().chatOpen).toBe(true);
+    expect(useWorkspace.getState().chatError).toContain("同意");
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.action).not.toHaveBeenCalled();
+    const snapshot = {
+      ...useWorkspace.getState().snapshot,
+      consents: ["codex"],
+      conversations: [{ id: "c", title: "new", agent: "codex", sessionId: null, createdAt: 1 }],
+    };
+    useWorkspace.setState({ snapshot, conversation: "c" });
+    vi.mocked(api.send).mockRejectedValue("接続失敗");
+    vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+    expect(await useWorkspace.getState().broadenTopics()).toBe(false);
+    expect(useWorkspace.getState().chatError).toBe("接続失敗");
+    expect(useWorkspace.getState().references).toEqual(references);
+    expect(useWorkspace.getState().busy).toBeNull();
+  });
+  it("clears references on every conversation selection without losing content drafts", () => {
+    useWorkspace.getState().draft(card.id, { title: card.title, body: "編集中", revision: 1 });
+    for (const id of ["history", null]) {
+      useWorkspace.getState().attach(card);
+      useWorkspace.getState().selectConversation(id);
+      expect(useWorkspace.getState().conversation).toBe(id);
+      expect(useWorkspace.getState().references).toEqual([]);
+      expect(useWorkspace.getState().drafts[card.id].body).toBe("編集中");
+    }
+  });
   it("creates one conversation on double submit and sends explicit references", async () => {
     const conversation = { id: "c1", title: "new", agent: "codex", sessionId: null, createdAt: 1 };
     vi.mocked(api.action).mockResolvedValue({ ...emptySnapshot, conversations: [conversation] });
