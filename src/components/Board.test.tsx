@@ -1,12 +1,14 @@
 import { Profiler, type ComponentProps } from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import type { DragDropProvider, DragEndEvent } from "@dnd-kit/react";
 import type { Card } from "@/bindings/Card";
 import type { Snapshot } from "@/bindings/Snapshot";
 import { api, emptySnapshot } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { Board } from "./Board";
+import { ARCHIVE_TARGET } from "./ArchiveShelf";
 
 const drag = vi.hoisted(() => ({ props: {} as ComponentProps<typeof DragDropProvider> }));
 vi.mock("@dnd-kit/react", () => ({
@@ -47,6 +49,9 @@ beforeEach(() => {
     busy: null,
     conversation: null,
     chatOpen: false,
+    archiveNotice: null,
+    archivePending: false,
+    drafts: {},
   });
 });
 
@@ -153,4 +158,69 @@ it("leaves canceled and out-of-board drops unchanged without saving", () => {
   drop(false, null);
   expectPlacement("アイデアの山");
   expect(api.action).not.toHaveBeenCalled();
+});
+
+it("archives a dropped card after saving and undoes using the saved revision", async () => {
+  const archived = { ...card, deleted: true, revision: 2 };
+  vi.mocked(api.action).mockResolvedValue({ ...initial, cards: [archived] });
+  render(<Board />);
+  await act(async () => drop(false, ARCHIVE_TARGET));
+  expect(api.action).toHaveBeenCalledWith(
+    { type: "updateCard", card: { ...card, deleted: true } },
+    initial.project.id,
+  );
+  expect(
+    screen.queryByRole("button", { name: `${card.title} ${card.body}` }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "アーカイブ 1件" })).toBeVisible();
+  expect(screen.getByRole("status")).toHaveTextContent("アーカイブしました");
+  vi.mocked(api.action).mockResolvedValue({ ...initial, cards: [{ ...card, revision: 3 }] });
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "元に戻す" })));
+  expect(api.action).toHaveBeenLastCalledWith(
+    { type: "updateCard", card: { ...archived, deleted: false } },
+    initial.project.id,
+  );
+  expectPlacement("アイデアの山");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
+
+it("keeps failed or canceled archive drops on the board without a success notice", async () => {
+  vi.mocked(api.action).mockRejectedValue(new Error("保存できません"));
+  render(<Board />);
+  await act(async () => drop(true, ARCHIVE_TARGET));
+  expect(api.action).not.toHaveBeenCalled();
+  await act(async () => drop(false, ARCHIVE_TARGET));
+  expectPlacement("アイデアの山");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(useWorkspace.getState().error).toContain("保存できません");
+  expect(useWorkspace.getState().archivePending).toBe(false);
+});
+
+it("archives from the card menu and restores from the footer list", async () => {
+  const user = userEvent.setup();
+  const archived = { ...card, deleted: true, revision: 2 };
+  vi.mocked(api.action).mockResolvedValue({ ...initial, cards: [archived] });
+  render(<Board />);
+  await user.click(screen.getByRole("button", { name: `${card.title}のメニュー` }));
+  await user.click(screen.getByRole("menuitem", { name: "アーカイブ" }));
+  await user.click(screen.getByRole("button", { name: "アーカイブ 1件" }));
+  expect(within(screen.getByRole("dialog")).getByText(card.title)).toBeVisible();
+  vi.mocked(api.action).mockResolvedValue({ ...initial, cards: [{ ...card, revision: 3 }] });
+  await user.click(screen.getByRole("button", { name: `${card.title}を元の列へ戻す` }));
+  expect(useWorkspace.getState().snapshot.cards[0]).toMatchObject({
+    deleted: false,
+    status: "idea",
+  });
+});
+
+it("preserves unsaved edits and refuses an archive drop", async () => {
+  useWorkspace.setState({
+    drafts: { [card.id]: { title: card.title, body: "編集中", revision: 1 } },
+  });
+  render(<Board />);
+  await act(async () => drop(false, ARCHIVE_TARGET));
+  expect(api.action).not.toHaveBeenCalled();
+  expectPlacement("アイデアの山");
+  expect(useWorkspace.getState().drafts[card.id].body).toBe("編集中");
+  expect(useWorkspace.getState().error).toContain("未保存");
 });

@@ -2,7 +2,7 @@ import { useState, type Ref } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { DragDropProvider, DragOverlay, useDroppable, type DragEndEvent } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { GripVertical, Plus, Search, Sparkles, Archive, RotateCcw } from "lucide-react";
+import { GripVertical, Plus, Search, Sparkles, Archive, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,13 @@ import {
 import type { Card } from "@/bindings/Card";
 import { columns, moveCard, useWorkspace } from "@/lib/workspace";
 import { native } from "@/lib/api";
+import { ArchiveShelf, ARCHIVE_TARGET } from "./ArchiveShelf";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 function Topic({ card, index }: { card: Card; index: number }) {
   const { ref, handleRef, isDragging, isDropTarget } = useSortable({
@@ -47,11 +54,41 @@ function TopicView({
   const proposals = useWorkspace(
     (s) => s.snapshot.proposals.filter((p) => p.cardId === card.id && p.state === "pending").length,
   );
+  const archiveDisabled = useWorkspace((s) => {
+    const draft = s.drafts[card.id];
+    return (
+      !native ||
+      s.archivePending ||
+      s.switching ||
+      !!(draft && (draft.title !== card.title || draft.body !== card.body))
+    );
+  });
   return (
     <article ref={ref} className={`topic ${selected ? "selected" : ""} ${className}`}>
       <button ref={handleRef} className="drag-handle" aria-label={`${card.title}を並べ替える`}>
         <GripVertical size={14} />
       </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            className="absolute top-[11px] right-2.5"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`${card.title}のメニュー`}
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            disabled={archiveDisabled}
+            onSelect={() => void useWorkspace.getState().setArchived(card.id, true)}
+          >
+            <Archive />
+            アーカイブ
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <button
         className="topic-open"
         onClick={() => useWorkspace.getState().select(card.id)}
@@ -118,6 +155,8 @@ export function Board() {
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
   const [pendingMove, setPendingMove] = useState<Card | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const archivePending = useWorkspace((s) => s.archivePending);
   // Preview only the placement. The saved snapshot remains authoritative for card content.
   const placedCards = snapshot.cards.map((card) =>
     card.id === pendingMove?.id
@@ -129,11 +168,21 @@ export function Board() {
       !c.deleted &&
       `${c.title}\n${c.body}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
-  const deleted = snapshot.cards.filter((c) => c.deleted);
-  const pending = snapshot.proposals.filter((p) => p.state === "pending").length;
   function onDragEnd(event: DragEndEvent) {
-    if (pendingMove || event.canceled || !event.operation.source || !event.operation.target) return;
+    setDragging(false);
+    if (
+      pendingMove ||
+      archivePending ||
+      event.canceled ||
+      !event.operation.source ||
+      !event.operation.target
+    )
+      return;
     const { source, target } = event.operation;
+    if (target.id === ARCHIVE_TARGET) {
+      void useWorkspace.getState().setArchived(String(source.id), true);
+      return;
+    }
     if (source.id === target.id) return;
     let status: Card["status"] | undefined;
     let index = 0;
@@ -215,44 +264,6 @@ export function Board() {
             </form>
           </DialogContent>
         </Dialog>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`削除したカード ${deleted.length}件`}
-            >
-              <Archive />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>削除したカード</DialogTitle>
-              <DialogDescription>必要になったら、元の列へ戻せます。</DialogDescription>
-            </DialogHeader>
-            <div className="archive-list">
-              {deleted.length === 0 ? (
-                <p className="muted">削除したカードはありません。</p>
-              ) : (
-                deleted.map((c) => (
-                  <div className="archive-row" key={c.id}>
-                    <span>{c.title}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        void act({ type: "updateCard", card: { ...c, deleted: false } })
-                      }
-                    >
-                      <RotateCcw />
-                      戻す
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
       {empty && (
         <div className="board-welcome">
@@ -274,8 +285,9 @@ export function Board() {
       {/* Keep React in charge of DOM order while the asynchronous SQLite save is pending. */}
       <DragDropProvider
         onBeforeDragStart={(event) => {
-          if (pendingMove) event.preventDefault();
+          if (pendingMove || archivePending) event.preventDefault();
         }}
+        onDragStart={() => setDragging(true)}
         onDragOver={(event) => event.preventDefault()}
         onDragEnd={onDragEnd}
       >
@@ -290,6 +302,7 @@ export function Board() {
             />
           ))}
         </div>
+        <ArchiveShelf dragging={dragging} />
         {/* Cross-column moves unmount the source. Never animate toward that stale element. */}
         <DragOverlay dropAnimation={null}>
           {(source) => {
@@ -302,10 +315,6 @@ export function Board() {
           }}
         </DragOverlay>
       </DragDropProvider>
-      <footer className="board-footer">
-        <span>{snapshot.cards.filter((c) => !c.deleted).length}枚のカード</span>
-        {pending > 0 && <span>{pending}件の変更提案</span>}
-      </footer>
     </div>
   );
 }

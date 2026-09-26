@@ -61,6 +61,9 @@ type Workspace = {
   selectConversation: (id: string | null) => void;
   refresh: () => Promise<void>;
   act: (action: BoardAction) => Promise<Snapshot | null>;
+  archivePending: boolean;
+  archiveNotice: { projectId: string; cardId: string; revision: number } | null;
+  setArchived: (id: string, archived: boolean) => Promise<void>;
   newConversation: (agent: string) => Promise<string | null>;
   attach: (card: Card, quote?: string) => void;
   detach: (index: number) => void;
@@ -139,6 +142,7 @@ function snapshotUpdate(state: Workspace, snapshot: Snapshot) {
 function projectView(snapshot: Snapshot, view = restoredView(snapshot)) {
   return {
     ...view,
+    archiveNotice: null,
     references: [],
     stream: "",
     permissions: [],
@@ -271,6 +275,47 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     });
   },
   selected: null,
+  archivePending: false,
+  archiveNotice: null,
+  setArchived: async (id, archived) => {
+    if (get().switching || get().archivePending) return;
+    const projectId = get().snapshot.project.id;
+    set({ archivePending: true });
+    await serialized(async () => {
+      try {
+        const state = get();
+        if (state.snapshot.project.id !== projectId) return;
+        const card = state.snapshot.cards.find((c) => c.id === id);
+        if (!card || card.deleted === archived) return;
+        const draft = state.drafts[id];
+        if (archived && draft && (draft.title !== card.title || draft.body !== card.body)) {
+          set({
+            error: "未保存の編集があります。保存するか取り消してからアーカイブしてください。",
+          });
+          return;
+        }
+        const snapshot = await api.action(
+          { type: "updateCard", card: { ...card, deleted: archived } },
+          projectId,
+        );
+        const saved = snapshot.cards.find((c) => c.id === id);
+        set((current) => ({
+          ...snapshotUpdate(current, snapshot),
+          error: null,
+          archiveNotice:
+            archived && saved
+              ? { projectId, cardId: id, revision: saved.revision }
+              : current.archiveNotice?.cardId === id
+                ? null
+                : current.archiveNotice,
+        }));
+      } catch (error) {
+        set({ error: String(error) });
+      } finally {
+        set({ archivePending: false });
+      }
+    });
+  },
   conversation: null,
   references: [],
   drafts: {},

@@ -57,6 +57,64 @@ beforeEach(() => {
     error: null,
     chatError: null,
     connections: {},
+    archivePending: false,
+    archiveNotice: null,
+  });
+});
+describe("card archive", () => {
+  it("uses the latest saved card after a queued edit and prevents duplicate submissions", async () => {
+    let finish!: (snapshot: typeof emptySnapshot) => void;
+    const updated = {
+      ...card,
+      body: "保存された新しい内容",
+      status: "explore" as const,
+      revision: 2,
+    };
+    vi.mocked(api.action)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      )
+      .mockResolvedValueOnce({
+        ...emptySnapshot,
+        cards: [{ ...updated, deleted: true, revision: 3 }],
+      });
+    const saving = useWorkspace
+      .getState()
+      .act({ type: "updateCard", card: { ...card, body: updated.body } });
+    const archiving = useWorkspace.getState().setArchived(card.id, true);
+    await useWorkspace.getState().setArchived(card.id, true);
+    finish({ ...emptySnapshot, cards: [updated] });
+    await Promise.all([saving, archiving]);
+    expect(api.action).toHaveBeenCalledTimes(2);
+    expect(api.action).toHaveBeenLastCalledWith(
+      { type: "updateCard", card: { ...updated, deleted: true } },
+      "a",
+    );
+    expect(useWorkspace.getState().archiveNotice).toEqual({
+      projectId: "a",
+      cardId: card.id,
+      revision: 3,
+    });
+  });
+  it("keeps a failed restore archived and clears undo when changing projects", async () => {
+    const archived = { ...card, deleted: true, revision: 2 };
+    const notice = { projectId: "a", cardId: card.id, revision: 2 };
+    useWorkspace.setState({
+      snapshot: { ...emptySnapshot, cards: [archived] },
+      archiveNotice: notice,
+    });
+    vi.mocked(api.action).mockRejectedValue(new Error("復元失敗"));
+    await useWorkspace.getState().setArchived(card.id, false);
+    expect(useWorkspace.getState().snapshot.cards[0]).toEqual(archived);
+    expect(useWorkspace.getState().archiveNotice).toEqual(notice);
+    vi.mocked(api.switchProject).mockResolvedValue({
+      ...emptySnapshot,
+      project: { id: "b", name: "B", memory: "", revision: 1 },
+    });
+    await useWorkspace.getState().changeProject("b");
+    expect(useWorkspace.getState().archiveNotice).toBeNull();
   });
 });
 describe("card references and drafts", () => {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { FileText, MessageSquarePlus, Save, Trash2, RotateCcw, Quote } from "lucide-react";
+import { FileText, MessageSquarePlus, Save, Archive, RotateCcw, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,6 +55,7 @@ function Details({ card }: { card: Card }) {
   const [quote, setQuote] = useState("");
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("edit");
+  const archivePending = useWorkspace((s) => s.archivePending);
   const { value, dirty, stale, update, reset } = editDraft(
     { title: card.title, body: card.body, revision: card.revision },
     drafts[card.id],
@@ -76,11 +77,12 @@ function Details({ card }: { card: Card }) {
       <div className="details-scroll">
         {card.deleted && (
           <div className="notice">
-            このカードは削除されています。
+            このカードはアーカイブされています。
             <Button
               size="sm"
               variant="outline"
-              onClick={() => void act({ type: "updateCard", card: { ...card, deleted: false } })}
+              disabled={archivePending}
+              onClick={() => void useWorkspace.getState().setArchived(card.id, false)}
             >
               <RotateCcw />
               戻す
@@ -224,11 +226,12 @@ function Details({ card }: { card: Card }) {
         <Button
           size="icon-sm"
           variant="ghost"
-          disabled={card.deleted || dirty}
-          aria-label="カードを削除"
-          onClick={() => void act({ type: "updateCard", card: { ...card, deleted: true } })}
+          disabled={card.deleted || dirty || archivePending}
+          aria-label="カードをアーカイブ"
+          title="アーカイブ"
+          onClick={() => void useWorkspace.getState().setArchived(card.id, true)}
         >
-          <Trash2 />
+          <Archive />
         </Button>
       </footer>
     </section>
