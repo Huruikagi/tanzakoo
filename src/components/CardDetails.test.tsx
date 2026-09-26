@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CardDetails } from "./CardDetails";
 import { useWorkspace } from "@/lib/workspace";
@@ -86,4 +86,35 @@ it("attaches the saved card and disables proposal apply while there is an unsave
   await user.type(screen.getByLabelText("カード本文"), "の予定");
   expect(screen.getByRole("button", { name: "適用する" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "会話に参照" })).toBeDisabled();
+});
+it("replaces the displayed proposal while keeping the saved card as the comparison base", async () => {
+  const user = userEvent.setup();
+  render(<CardDetails />);
+  const snapshot = useWorkspace.getState().snapshot;
+  const previous = snapshot.proposals[0]!;
+  const latest = { ...previous, id: "latest", body: "平日の毎夕", reason: "曜日も指定" };
+  act(() => {
+    useWorkspace.setState({
+      snapshot: {
+        ...snapshot,
+        proposals: [{ ...previous, state: "superseded" }, latest],
+      },
+    });
+  });
+  expect(screen.queryByText("毎夕")).not.toBeInTheDocument();
+  expect(screen.getByText("平日の毎夕")).toBeInTheDocument();
+  expect(screen.getByLabelText("カード本文")).toHaveValue("毎朝");
+  expect(within(screen.getByRole("article")).getByText("毎朝")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "適用する" })).toHaveLength(1);
+  expect(api.action).not.toHaveBeenCalled();
+  vi.mocked(api.action).mockResolvedValue({
+    ...snapshot,
+    cards: [{ ...card, body: latest.body, revision: 2 }],
+    proposals: [{ ...latest, state: "applied" }],
+  });
+  await user.click(screen.getByRole("button", { name: "適用する" }));
+  expect(api.action).toHaveBeenCalledWith(
+    { type: "resolveProposal", id: "latest", apply: true },
+    "a",
+  );
 });

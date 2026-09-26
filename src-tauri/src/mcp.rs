@@ -99,7 +99,7 @@ impl BoardTools {
         ))
     }
     #[tool(
-        description = "Propose a complete new title/body for an existing card at its current revision. It stays pending until the USER applies it in the UI. This tool never applies the change. Explain the reason."
+        description = "Propose a complete new title/body for an existing card at its current revision. Read get_board first, including the card's pending proposal. Each card has at most one pending proposal: this replaces the previous one. Preserve still-relevant changes from that proposal in the complete replacement; do not send only the latest incremental edit. It stays pending until the USER applies it in the UI. This tool never applies the change. Explain the reason."
     )]
     fn propose_card_change(&self, Parameters(p): Parameters<EditProposal>) -> CallToolResult {
         response(

@@ -16,6 +16,7 @@ impl Prompt {
         let context = serde_json::json!({
             "project": snapshot.project,
             "cards": snapshot.cards.iter().filter(|c| !c.deleted).collect::<Vec<_>>(),
+            "proposals": snapshot.proposals.iter().filter(|p| p.state == "pending").collect::<Vec<_>>(),
             "references": references,
             "discussionActivity": snapshot.discussions.iter()
                 .filter(|d| d.conversation_id == conversation_id).collect::<Vec<_>>(),
@@ -40,7 +41,8 @@ impl Prompt {
         let instructions = format!(
             "{instructions}\nプロジェクトの名前とメモリは上記projectにあります。メモリは会話をまたぐ前提・進め方として参照し、過去の会話より現在の内容を優先してください。プロジェクトメモリの更新はget_boardで現行revisionを確認してpropose_memory_changeで提案してください。承認前に適用済みと言わないでください。個別の論点・結論はカードに残し、依頼なくメモリへ全履歴を重複保存しないでください。"
         );
-        let instructions = format!("{instructions}\n{DISCUSSION_INSTRUCTIONS}");
+        let instructions =
+            format!("{instructions}\n{PROPOSAL_INSTRUCTIONS}\n{DISCUSSION_INSTRUCTIONS}");
         Ok(Self {
             instructions,
             history,
@@ -58,6 +60,8 @@ impl Prompt {
         }
     }
 }
+const PROPOSAL_INSTRUCTIONS: &str = "同じカードの未適用の変更提案は1件までです。propose_card_changeは既存の未適用提案を置き換えます。提案前にget_boardで保存済みカード・現行revision・未適用提案を読み、既存提案の変更意図で引き続き必要なものを含めたタイトル・本文の完成形を渡してください。直近の追加変更だけを渡して以前の提案内容を落とさないでください。ユーザーが取り消し・変更した意図は最新の指示に合わせます。差分の基準は保存済みカードです。未適用提案は検討中の案であり、承認済みの内容として扱いません。";
+
 const DISCUSSION_INSTRUCTIONS: &str = "会話で実際に掘り下げ始めた論点はreport_discussionで報告してください。『このカードを詰めたい』などの明示指定、または特定のカードに一意に対応する具体的な希望・疑問がユーザーの発言にある場合に限りsuggest_only=falseとします。カードの参照添付や名前の言及だけ、比較・背景資料としての参照、AIが一方的に挙げた話題では呼びません。ユーザーが『移動しない』『元のカードは変更しない』『参照だけ』『ツールは使わない』と指定した場合も呼びません。対象が曖昧なら少数の候補をsuggest_only=trueで案内し、移動済みとは言わないでください。まずget_boardで現行のカードとrevisionを確認します。候補（idea/explore）のみ自動で『話し合う』へ移動し、decidedは必ずUIでユーザーが再検討を選びます。移動は採用・本文変更の承認ではありません。ツール結果に従い、取り消し・手動整理で拒否されたら同じ会話で再試行・再提案しません。話題変更や会話終了だけでカードを戻す操作はありません。移動後に本文変更を提案する場合は、新しいrevisionを使ってpropose_card_changeを呼びます。";
 
 const CANDIDATE_INSTRUCTIONS: &str = "会話では質問攻めにせず、重要な問いを一つずつ話します。ただし、質問の数と候補カードの数は別です。作りたいものが示された初期段階では、回答を待たず、利用場面・利用者・使い方・制約など異なる切り口の論点を3〜5枚ほど、tanzakooのcreate_candidateで積極的に起票してください。その後も会話から独立した新しい論点が出たら、あとで拾える候補として残します。まずget_boardで現在のカードとプロジェクトメモリを確認し、既存の論点は再利用してください。1枚につき1つの論点とし、短いタイトルと検討したい点を本文に書き、推測を決定事項にしないでください。新しい切り口が足りなければ枚数を無理に埋めず、前提が分からなければ一つだけ質問します。ユーザーが枚数を指定したり、追加不要・ツールを使わないと指示した場合は必ずそれを優先します。特定のカードを詰めているときは、関連の薄い候補を増やさないでください。候補を追加しただけで全カードへの回答を求めたり、『話し合う』へ移したりしないでください。";
@@ -72,7 +76,15 @@ mod tests {
      {
         let mut snapshot: Snapshot = serde_json::from_value(serde_json::json!({
             "project": {"id":"p", "name":"Project", "memory":"CURRENT_MEMORY", "revision":1},
-            "projects":[], "memoryProposals":[], "proposals":[], "conversations":[],
+            "projects":[], "memoryProposals":[], "conversations":[],
+            "proposals":[
+                {"id":"p1", "cardId":"live", "baseRevision":1, "beforeTitle":"CURRENT_CARD",
+                 "beforeBody":"", "title":"CURRENT_CARD", "body":"PENDING_CHANGE", "reason":"理由",
+                 "state":"pending", "createdAt":1},
+                {"id":"p2", "cardId":"live", "baseRevision":1, "beforeTitle":"CURRENT_CARD",
+                 "beforeBody":"", "title":"CURRENT_CARD", "body":"SUPERSEDED_CHANGE", "reason":"理由",
+                 "state":"superseded", "createdAt":1}
+            ],
             "messages":[], "discussions":[], "agents":[], "consents":[],
             "chatSettings":{"model":null, "reasoningEffort":null},
             "cards":[
@@ -116,6 +128,7 @@ mod tests {
                 "CURRENT_CARD",
                 "EXPLICIT_QUOTE",
                 "CURRENT_QUESTION",
+                "PENDING_CHANGE",
             ] {
                 assert!(input.contains(text), "missing {text}");
             }
@@ -125,6 +138,7 @@ mod tests {
                 "HISTORY_00",
                 "HISTORY_01",
                 "HISTORY_22",
+                "SUPERSEDED_CHANGE",
             ] {
                 assert!(!input.contains(text), "unexpected {text}");
             }
