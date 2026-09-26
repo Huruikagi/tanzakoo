@@ -83,7 +83,7 @@ Codexの認証・セッションはアプリ保存先の `agents/codex` に保�
 
 バックアップする場合はアプリとエージェントを終了してから、一覧DBを含む保存先のフォルダー全体をコピーしてください。プロジェクト全体のインポート・復元機能はまだありません。
 
-Mac版の対象はApple Silicon・macOS 26 Tahoe以上です。ストア向けの保存・ファイル権限の設定と、署名後に必要な検証は [ストア配布の保存設計](notes/store-storage.md) を参照してください。Microsoft Storeの配布形式は未決定です。
+Mac版の対象はApple Silicon・macOS 26 Tahoe以上です。Windowsの正式配布はMSIXによるMicrosoft Store公開を予定しています（パッケージ作成・配布は未実装）。ストア向けの保存・ファイル権限の設定と、署名後に必要な検証は [ストア配布の保存設計](notes/store-storage.md) を参照してください。
 
 ## 決めたことを開発に渡す
 

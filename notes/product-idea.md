@@ -26,7 +26,7 @@
 - DB・認証・エージェント作業領域はOSが提供するユーザー単位のアプリデータ領域に置き、インストール先の同梱ランタイムと分離する。WindowsはLocal AppData、MacはFoundationから取得するApplication Supportを使い、App Sandboxではコンテナ内に保存する。
 - 未リリースのため、保存先の変更に伴う旧配置の検出・コピー・移行処理は不要。旧データは自動で移動・削除しない。開発用の保存先指定 `TANZAKOO_DATA_DIR` は維持する。
 - 外部への書き込みは、ユーザーが毎回ネイティブダイアログで選ぶエクスポート先を使う。外部フォルダーへの永続アクセスや全ディスクアクセスは求めない。
-- Microsoft StoreのEXE/MSI・MSIXの配布形式は別途決める。MSIXのパッケージIDやコンテナパスは推測・固定しない。署名したMac Sandbox版および採用するWindows配布形式での実機検証は別途必要。
+- Windowsの正式配布形式はMSIXとし、Microsoft Store公開を前提にする。TauriのWin32デスクトップアプリをfull trust（標準ユーザー権限）でパッケージ化し、同梱Node・Codexも含めてStoreから更新する。MSIXのパッケージIDやコンテナパスは推測・固定しない。署名したMac Sandbox版およびWindows MSIXでの実機検証は別途必要。
 
 ### カードのアーカイブ（2026-09-26実装依頼）
 

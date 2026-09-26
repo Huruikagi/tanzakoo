@@ -2,7 +2,7 @@
 
 ## 今回の対応範囲
 
-Mac版はApple Silicon（`aarch64-apple-darwin`）・macOS 26 Tahoe以上。将来のMicrosoft Store配布を考慮して保存と同梱ランタイムを分離する。ストア登録・署名・インストーラー作成やAIのSandbox対応完了を意味しない。
+Mac版はApple Silicon（`aarch64-apple-darwin`）・macOS 26 Tahoe以上。Windowsの正式配布はMSIXによるMicrosoft Store公開とする。保存と同梱ランタイムは分離する。ストア登録・署名・パッケージ作成やAIのSandbox対応完了を意味しない。
 
 | 種類                                   | 保存先・アクセス方法                                                                                                                                                  |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,9 +29,17 @@ Macでは `HOME` の連結や `~/Library/Containers/<ID>` の固定パスを使�
 
 ## Microsoft Store
 
-Tauri公式にはEXE/MSIインストーラー経由のStore配布がある。Store配布を理由にUWPのAppContainerを前提とせず、現段階では通常のデスクトップアプリとしてユーザーのLocal AppDataとネイティブダイアログを使う。
+2026-09-26合意：正式配布形式をMSIXに決定。TauriのWin32デスクトップアプリをfull trust（`mediumIL`、標準ユーザー権限）でパッケージ化する。UWP化やAppContainerへの移行は行わず、同梱Node・Codex・MCP子プロセスの構成を維持する。full trustは管理者権限を要求する意味ではない。
 
-MSIXを選ぶ場合はパッケージID、ストレージのリダイレクト、更新・リセット・アンインストール時のデータの扱いを実パッケージで確認する。必要に応じて `storage::data_dir` のWindows実装をパッケージ向けAPIに差し替える。Package Family Nameや `WindowsApps` のパスをコードに埋め込まない。Macのファイル権限をWindowsにそのまま移植しない。
+Tauri標準のEXE/MSI生成とは別に、MSIXマニフェスト・パッケージ化・署名の工程を追加する。ストア登録で取得するIdentity/Publisherと必要な権限宣言を設定する。これらは未実装で、値を仮定して固定しない。
+
+- アプリ本体とNode・Codex・ACPアダプターはパッケージへ同梱し、Store経由のパッケージ更新で置き換える。インストール先への書き込みや同梱バイナリーの自己更新を行わない。
+- DB・認証・作業領域はユーザー単位のアプリデータ領域に置く。現在のコードは未パッケージの開発実行用にTauriのLocal AppData APIを使っている。MSIX実装時にはパッケージのデータ領域を取得するAPIの採用を含めて `storage::data_dir` を整え、リダイレクトと子プロセスからの見え方を実パッケージで確認する。Package Family Nameや `WindowsApps` のパスは埋め込まない。
+- 通常の更新ではデータを保持する。リセット・アンインストールではアプリ管理データが消える前提で、公開前にバックアップ・復元の扱いと案内を整える。既存の決定事項Markdownエクスポートは、会話や未決定カードを含む完全バックアップではない。
+- ユーザーが選んだ外部フォルダーへのエクスポートは維持し、アプリ管理データの消去対象に含めない。
+- WebView2の依存解決と、標準ユーザー環境での初回起動・ブラウザ認証・子プロセス起動を検証する。Macのファイル権限をWindowsにそのまま移植しない。
+
+正式配布をMSIXに絞っても、開発用の未パッケージ実行と `TANZAKOO_DATA_DIR` は維持する。未リリースのため保存先変更の移行処理は追加しない。
 
 ## 検証
 
@@ -44,7 +52,7 @@ MSIXを選ぶ場合はパッケージID、ストレージのリダイレクト�
 3. 再起動後は出力先を選び直し、保存済みの文字列パスだけで外部へ書き込まない。
 4. 同梱ランタイムを読み取り専用にした配布状態でも、DB・認証・作業領域が動作する。AIの認証・通信・子プロセス検証は対応する署名と権限を整えてから行う。
 
-Windowsは採用した配布形式で、標準ユーザーによる起動・保存・エクスポートとアプリ更新後のデータ保持を確認する。Mac Sandbox実機とWindows Storeパッケージでの通し確認は未実施。
+WindowsはMSIXで、標準ユーザーによる初回起動・保存・エクスポート・Codex認証・子プロセス起動、アプリ更新後のデータ保持、リセット・アンインストール時のデータ消去と外部出力の保持を確認する。Mac Sandbox実機とWindows MSIXでの通し確認は未実施。
 
 ## 根拠
 
@@ -53,3 +61,4 @@ Windowsは採用した配布形式で、標準ユーザーによる起動・保�
 - [Tauri: Mac App Storeへの配布](https://v2.tauri.app/distribute/app-store/)
 - [Tauri: Microsoft Storeへの配布](https://v2.tauri.app/distribute/microsoft-store/)
 - [Microsoft: パッケージ化の選択と保存先の違い](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/packaging/)
+- [Microsoft: パッケージ化したデスクトップアプリの権限・ファイル配置・削除](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes)
