@@ -17,7 +17,6 @@ import { Markdown } from "./Markdown";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { ProposalCard, Proposals } from "./Proposals";
 import { editDraft } from "@/lib/draft";
-import { agentLabel } from "@/lib/api";
 
 export function CardDetails() {
   const selected = useWorkspace((s) => s.selected);
@@ -107,7 +106,6 @@ function Details({ card }: { card: Card }) {
               ))}
             </SelectContent>
           </Select>
-          {card.source !== "user" && <span>{agentLabel(card.source)}が起票</span>}
         </div>
         <label className="field-label" htmlFor="card-title">
           タイトル

@@ -312,6 +312,7 @@ summary:focus-visible {
   white-space: pre-line;
 }
 .topic {
+  position: relative;
   background: #fffefa;
   border: 1px solid #e1e6d8;
   border-radius: 8px;
@@ -328,20 +329,15 @@ summary:focus-visible {
 .topic.dragging {
   opacity: 0.7;
 }
-.topic-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 5px;
-}
-.topic-source {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 9px;
-  color: #9aa18e;
-}
 .drag-handle {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   color: #aeb6a3;
   border: 0;
   background: transparent;
@@ -352,21 +348,22 @@ summary:focus-visible {
   width: 100%;
   border: 0;
   background: transparent;
-  padding: 9px 0 12px;
+  padding: 0;
   text-align: left;
 }
 .topic h3 {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.7;
-  margin: 0 0 8px;
+  margin: 0;
+  padding-right: 28px;
   overflow-wrap: anywhere;
 }
 .topic p {
   font-size: 10px;
   line-height: 1.8;
   color: #8b9480;
-  margin: 0;
+  margin: 8px 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -379,6 +376,7 @@ summary:focus-visible {
   font-size: 9px;
   color: #a5ad99;
   border-top: 1px solid #eff0e9;
+  margin-top: 12px;
   padding-top: 10px;
 }
 .proposal-dot {
@@ -472,10 +470,6 @@ summary:focus-visible {
   gap: 8px;
   justify-content: space-between;
   margin-bottom: 24px;
-}
-.detail-meta > span {
-  font-size: 9px;
-  color: #9ca690;
 }
 .field-label {
   display: block;

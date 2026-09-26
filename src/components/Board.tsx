@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Card } from "@/bindings/Card";
 import { columns, moveCard, useWorkspace } from "@/lib/workspace";
-import { agentLabel, native } from "@/lib/api";
+import { native } from "@/lib/api";
 
 function Topic({ card, index }: { card: Card; index: number }) {
   const { ref, handleRef, isDragging, isDropTarget } = useSortable({
@@ -49,19 +49,9 @@ function TopicView({
   );
   return (
     <article ref={ref} className={`topic ${selected ? "selected" : ""} ${className}`}>
-      <div className="topic-top">
-        <span className="topic-source">
-          {card.source !== "user" && (
-            <>
-              <Sparkles size={11} />
-              {agentLabel(card.source)}
-            </>
-          )}
-        </span>
-        <button ref={handleRef} className="drag-handle" aria-label={`${card.title}を並べ替える`}>
-          <GripVertical size={14} />
-        </button>
-      </div>
+      <button ref={handleRef} className="drag-handle" aria-label={`${card.title}を並べ替える`}>
+        <GripVertical size={14} />
+      </button>
       <button
         className="topic-open"
         onClick={() => useWorkspace.getState().select(card.id)}
