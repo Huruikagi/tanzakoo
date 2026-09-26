@@ -319,6 +319,16 @@ mod tests {
     fn deletes_project_files_and_keeps_other_projects_after_reopen() {
         let (root, mut projects) = deletion_fixture("isolated");
         let a = projects.snapshot().unwrap().project.id;
+        let reference = root.join("product.md");
+        std::fs::write(&reference, "external source").unwrap();
+        projects
+            .active_store()
+            .unwrap()
+            .add_materials(
+                std::slice::from_ref(&reference),
+                crate::model::MaterialKind::File,
+            )
+            .unwrap();
         projects
             .active_store()
             .unwrap()
@@ -328,6 +338,15 @@ mod tests {
             .create("削除対象".into(), "Bの前提".into())
             .unwrap();
         let b = projects.snapshot().unwrap().project.id;
+        assert!(projects.snapshot().unwrap().materials.is_empty());
+        projects
+            .active_store()
+            .unwrap()
+            .add_materials(
+                std::slice::from_ref(&reference),
+                crate::model::MaterialKind::File,
+            )
+            .unwrap();
         let folder = projects
             .active_store()
             .unwrap()
@@ -344,6 +363,11 @@ mod tests {
         assert_eq!(snapshot.project.id, a);
         assert_eq!(snapshot.projects.len(), 1);
         assert_eq!(snapshot.cards[0].title, "残す");
+        assert_eq!(snapshot.materials.len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(reference).unwrap(),
+            "external source"
+        );
         assert!(projects.store(&b).is_err());
         std::fs::remove_dir_all(root).unwrap();
     }

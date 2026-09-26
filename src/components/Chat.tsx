@@ -272,7 +272,7 @@ export function Chat() {
         {!unavailable && !consented && (
           <div className="ai-consent">
             <p>
-              話しかけると、そのプロジェクトのボード・メモリ・会話がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。
+              話しかけると、そのプロジェクトのボード・メモリ・会話と、登録した参照資料のうちAIが読む箇所がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。
             </p>
             <Button
               size="sm"

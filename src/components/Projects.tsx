@@ -27,6 +27,7 @@ import { MarkdownEditor } from "./MarkdownEditor";
 import { Markdown } from "./Markdown";
 import { ProposalCard, Proposals } from "./Proposals";
 import { editDraft } from "@/lib/draft";
+import { ReferenceMaterials } from "./ReferenceMaterials";
 
 export function Projects() {
   const { snapshot, busy, switching, loaded, changeProject } = useWorkspace(
@@ -84,6 +85,7 @@ export function Projects() {
           <CreateProject onCreated={() => setCreating(false)} />
         </DialogContent>
       </Dialog>
+      <ReferenceMaterials key={`materials-${snapshot.project.id}`} />
       <Dialog key={snapshot.project.id}>
         <DialogTrigger asChild>
           <Button

@@ -1,0 +1,24 @@
+{
+  "cli_auth_credentials_store": "file",
+  "agents": { "max_threads": 1 },
+  "tools": { "view_image": false },
+  "features": {
+    "shell_tool": false,
+    "unified_exec": false,
+    "shell_snapshot": false,
+    "code_mode": false,
+    "code_mode_host": true,
+    "multi_agent": false,
+    "multi_agent_v2": false,
+    "apps": false,
+    "plugins": false,
+    "browser_use": false,
+    "computer_use": false,
+    "image_generation": false,
+    "view_image": false,
+    "hooks": false,
+    "memories": false,
+    "workspace_dependencies": false,
+    "skill_mcp_dependency_install": false
+  }
+}

@@ -10,6 +10,76 @@ struct Fixture {
 static NEXT_FIXTURE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[tokio::test]
+async fn mcp_reference_tools_are_scoped_live_read_only_and_revocable() {
+    let f = Fixture::new();
+    std::fs::create_dir(f.dir.join("source")).unwrap();
+    let file = f.dir.join("source/README.md");
+    std::fs::write(&file, "# Product\nImprove settings\n").unwrap();
+    f.store
+        .add_materials(&[f.dir.join("source")], MaterialKind::Folder)
+        .unwrap();
+    let id = f.store.materials().unwrap()[0].id.clone();
+    let mut mcp = Mcp::start(&f.store, None).await;
+    let tools = mcp
+        .request(json!({"jsonrpc":"2.0", "id":2, "method":"tools/list"}))
+        .await;
+    let names: Vec<_> = tools["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect();
+    for name in [
+        "list_reference_materials",
+        "list_reference_files",
+        "read_reference_file",
+        "search_reference_files",
+    ] {
+        assert!(names.contains(&name));
+    }
+    assert!(!names.iter().any(|name| name.contains("add_material")
+        || name.contains("write")
+        || name.contains("remove_material")));
+    let call = |number, name, arguments| json!({"jsonrpc":"2.0", "id":number, "method":"tools/call", "params":{"name":name,"arguments":arguments}});
+    let result = mcp
+        .request(call(3, "list_reference_files", json!({"material_id":id})))
+        .await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
+    assert!(result.to_string().contains("README.md"));
+    let result = mcp
+        .request(call(
+            4,
+            "search_reference_files",
+            json!({"material_id":id, "query":"settings"}),
+        ))
+        .await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
+    assert!(result.to_string().contains("Improve settings"));
+    std::fs::write(&file, "Updated\n").unwrap();
+    let read = call(
+        5,
+        "read_reference_file",
+        json!({"material_id":id, "path":"README.md", "start_line":1, "line_count":1}),
+    );
+    let result = mcp.request(read.clone()).await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
+    assert!(result.to_string().contains("Updated"));
+    let result = mcp
+        .request(call(
+            6,
+            "read_reference_file",
+            json!({"material_id":id, "path":"../board.db"}),
+        ))
+        .await;
+    assert_eq!(result["result"]["isError"], true, "{result}");
+    f.store.remove_material(&id).unwrap();
+    let result = mcp.request(read).await;
+    assert_eq!(result["result"]["isError"], true, "{result}");
+    assert_eq!(std::fs::read_to_string(file).unwrap(), "Updated\n");
+    mcp.stop().await;
+}
+
+#[tokio::test]
 async fn mcp_presents_a_persisted_question_but_cannot_answer_it() {
     let f = Fixture::new();
     let c = f.store.create_conversation("codex").unwrap();

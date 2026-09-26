@@ -43,6 +43,7 @@ export type Workspace = {
   changeProject: (id: string) => Promise<boolean>;
   createProject: (name: string, memory: string) => Promise<boolean>;
   deleteProject: (id: string) => Promise<boolean>;
+  updateMaterials: (change: { kind: "file" | "folder" } | { remove: string }) => Promise<boolean>;
   selected: string | null;
   conversation: string | null;
   references: CardReference[];

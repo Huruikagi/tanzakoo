@@ -24,6 +24,7 @@ export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
   agent !== "codex" ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);
 export const emptySnapshot: Snapshot = {
+  materials: [],
   project: { id: "", name: "マイプロジェクト", memory: "", revision: 1 },
   projects: [],
   memoryProposals: [],
@@ -38,6 +39,10 @@ export const emptySnapshot: Snapshot = {
   consents: [],
 };
 export const api = {
+  addMaterials: (projectId: string, kind: "file" | "folder") =>
+    invoke<Snapshot>("add_reference_materials", { projectId, kind }),
+  removeMaterial: (projectId: string, materialId: string) =>
+    invoke<Snapshot>("remove_reference_material", { projectId, materialId }),
   exportDecisions: (projectId: string) =>
     invoke<ExportResult | null>("export_decisions", { projectId }),
   snapshot: () => (native ? invoke<Snapshot>("get_snapshot") : Promise.resolve(emptySnapshot)),

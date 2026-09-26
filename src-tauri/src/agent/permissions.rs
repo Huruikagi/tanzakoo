@@ -17,6 +17,10 @@ pub(super) fn is_board_tool(agent: &str, call: &serde_json::Value) -> bool {
         "report_discussion",
         "present_question",
         "present_questions",
+        "list_reference_materials",
+        "list_reference_files",
+        "read_reference_file",
+        "search_reference_files",
     ];
     if agent == "codex" {
         call["_meta"]["is_mcp_tool_call"] == true
@@ -58,6 +62,11 @@ pub(super) async fn respond(
         return RequestPermissionResponse::new(RequestPermissionOutcome::Selected(
             SelectedPermissionOutcome::new(option.option_id.clone()),
         ));
+    }
+    // Codex has only app-owned board/reference operations. Do not offer an escape
+    // hatch for shell, file writes, permission escalation, or other MCP servers.
+    if agent == "codex" {
+        return RequestPermissionResponse::new(RequestPermissionOutcome::Cancelled);
     }
     let key = runtime.next_id.fetch_add(1, Ordering::SeqCst).to_string();
     let (tx, rx) = oneshot::channel();
@@ -134,10 +143,28 @@ mod tests {
                     )
                     .unwrap();
             });
-            let response = respond(&runtime, "codex", &calls, request(), "c", &emit).await;
+            let response = respond(&runtime, "claude", &calls, request(), "c", &emit).await;
             assert_eq!(
                 serde_json::to_value(response).unwrap()["outcome"]["outcome"],
                 expected
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn codex_rejects_tools_outside_the_app_without_a_permission_escape_hatch() {
+        let runtime = Arc::new(AgentRuntime::default());
+        let emit: Emit = Arc::new(|_| panic!("must not offer permission escalation"));
+        for call in [
+            serde_json::json!({"title":"Run command", "kind":"execute"}),
+            serde_json::json!({"title":"apply_patch", "kind":"edit"}),
+            serde_json::json!({"_meta":{"is_mcp_tool_call":true}, "rawInput":{"server":"other", "tool":"read_reference_file"}}),
+        ] {
+            let calls = Mutex::new(HashMap::from([("call".into(), call)]));
+            let response = respond(&runtime, "codex", &calls, request(), "c", &emit).await;
+            assert_eq!(
+                serde_json::to_value(response).unwrap()["outcome"]["outcome"],
+                "cancelled"
             );
         }
     }

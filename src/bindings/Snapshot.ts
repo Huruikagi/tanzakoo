@@ -10,8 +10,9 @@ import type { Message } from "./Message";
 import type { Project } from "./Project";
 import type { ProjectSummary } from "./ProjectSummary";
 import type { Proposal } from "./Proposal";
+import type { ReferenceMaterial } from "./ReferenceMaterial";
 
-export type Snapshot = { project: Project, projects: Array<ProjectSummary>, memoryProposals: Array<MemoryProposal>, cards: Array<Card>, proposals: Array<Proposal>, conversations: Array<Conversation>, messages: Array<Message>, discussions: Array<Discussion>, questions: Array<ChoiceQuestion>, agents: Array<AgentConfig>, chatSettings: ChatSettings,
+export type Snapshot = { project: Project, materials: Array<ReferenceMaterial>, projects: Array<ProjectSummary>, memoryProposals: Array<MemoryProposal>, cards: Array<Card>, proposals: Array<Proposal>, conversations: Array<Conversation>, messages: Array<Message>, discussions: Array<Discussion>, questions: Array<ChoiceQuestion>, agents: Array<AgentConfig>, chatSettings: ChatSettings,
 /**
  * Agents the user has agreed to send project content to. App-wide, not per project.
  */

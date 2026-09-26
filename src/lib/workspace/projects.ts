@@ -9,9 +9,30 @@ export const createProjectsSlice: WorkspaceSlice<
   | "createProject"
   | "deleteProject"
   | "draftProject"
+  | "updateMaterials"
 > = (set, get) => ({
   switching: false,
   projectDrafts: {},
+  updateMaterials: async (change) => {
+    if (get().busy || get().switching) return false;
+    const projectId = get().snapshot.project.id;
+    set({ switching: true, error: null });
+    return serialized(async () => {
+      try {
+        const snapshot =
+          "remove" in change
+            ? await api.removeMaterial(projectId, change.remove)
+            : await api.addMaterials(projectId, change.kind);
+        set((state) => snapshotUpdate(state, snapshot));
+        return true;
+      } catch (error) {
+        set({ error: String(error) });
+        return false;
+      } finally {
+        set({ switching: false });
+      }
+    });
+  },
   changeProject: async (id) => {
     if (get().busy || get().switching) return false;
     set({ switching: true });

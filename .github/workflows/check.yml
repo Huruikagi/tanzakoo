@@ -18,6 +18,8 @@ jobs:
         run: mise exec -- pnpm install --frozen-lockfile
       - name: Build frontend
         run: mise exec -- pnpm build
+      - name: Reference runtime policy (offline)
+        run: mise exec -- pnpm test:runtime
       - name: Test on Apple Silicon
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin
       - name: Rust lint
@@ -35,6 +37,8 @@ jobs:
         run: mise exec -- pnpm install --frozen-lockfile
       - name: Frontend checks
         run: mise exec -- pnpm check
+      - name: Reference runtime policy (offline)
+        run: mise exec -- pnpm test:runtime
       - name: Rust format
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Rust tests and generated types

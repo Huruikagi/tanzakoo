@@ -4,6 +4,7 @@
   "private": true,
   "files": [
     "codex.mjs",
+    "reference-policy.json",
     "licenses"
   ],
   "type": "module",

@@ -1,5 +1,6 @@
 // The managed runtime uses app-owned credentials and its pinned Codex dependency.
 // Do not silently inherit another application's API key, gateway or executable.
+import referencePolicy from "./reference-policy.json" with { type: "json" };
 for (const key of [
   "CODEX_API_KEY",
   "OPENAI_API_KEY",
@@ -16,5 +17,5 @@ for (const key of [
 ])
   delete process.env[key];
 if (!process.env.CODEX_HOME) throw new Error("Tanzakoo must provide CODEX_HOME");
-process.env.CODEX_CONFIG = JSON.stringify({ cli_auth_credentials_store: "file" });
+process.env.CODEX_CONFIG = JSON.stringify(referencePolicy);
 await import("@agentclientprotocol/codex-acp");

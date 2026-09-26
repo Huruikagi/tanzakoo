@@ -2,6 +2,7 @@ use crate::model::*;
 mod cards;
 mod conversations;
 mod discussion;
+mod materials;
 mod project;
 mod proposals;
 mod questions;
@@ -106,6 +107,7 @@ impl Store {
         let tx = db.transaction()?;
         let snapshot = Snapshot {
             project: get(&tx, "project", "current")?,
+            materials: list(&tx, "material")?,
             projects: vec![],
             memory_proposals: list(&tx, "memoryProposal")?,
             cards: list(&tx, "card")?,

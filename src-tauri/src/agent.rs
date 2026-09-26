@@ -374,6 +374,10 @@ mod tests {
             "report_discussion",
             "present_question",
             "present_questions",
+            "list_reference_materials",
+            "list_reference_files",
+            "read_reference_file",
+            "search_reference_files",
         ] {
             assert!(is_board_tool(
                 "codex",

@@ -239,6 +239,8 @@ pub struct MemoryProposal {
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct Snapshot {
     pub project: Project,
+    #[serde(default)]
+    pub materials: Vec<ReferenceMaterial>,
     pub projects: Vec<ProjectSummary>,
     pub memory_proposals: Vec<MemoryProposal>,
     pub cards: Vec<Card>,
@@ -252,6 +254,23 @@ pub struct Snapshot {
     pub chat_settings: ChatSettings,
     /// Agents the user has agreed to send project content to. App-wide, not per project.
     pub consents: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum MaterialKind {
+    File,
+    Folder,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ReferenceMaterial {
+    pub id: String,
+    pub path: String,
+    pub kind: MaterialKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

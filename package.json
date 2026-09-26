@@ -14,6 +14,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "test": "vitest run",
+    "test:runtime": "node --test scripts/reference-runtime.test.mjs",
     "check": "pnpm lint && pnpm fmt:check && pnpm test && pnpm build"
   },
   "dependencies": {

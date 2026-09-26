@@ -82,6 +82,10 @@ pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, Stri
         launch = launch.env("NODE_OPTIONS", "");
     }
     if config.id == "codex" {
+        launch = launch.env(
+            "CODEX_CONFIG",
+            include_str!("../../packages/agent-runtime/reference-policy.json"),
+        );
         let data = PATHS
             .get()
             .map(|p| p.1.clone())

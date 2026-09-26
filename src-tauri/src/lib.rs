@@ -2,6 +2,7 @@ pub mod agent;
 pub mod agent_setup;
 pub mod chat_settings;
 pub mod export;
+pub mod materials;
 pub mod mcp;
 pub mod model;
 pub mod projects;
@@ -47,6 +48,70 @@ async fn with_projects(
 #[tauri::command]
 async fn get_snapshot(state: State<'_, AppState>) -> Result<Snapshot, String> {
     with_projects(&state, |_| Ok(())).await
+}
+
+#[tauri::command]
+async fn add_reference_materials(
+    project_id: String,
+    kind: MaterialKind,
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+) -> Result<Snapshot, String> {
+    let projects = state.projects.clone();
+    let runtime = state.runtime.clone();
+    tokio::task::spawn_blocking(move || {
+        // Reserve the same slot as an AI turn. A picker must not outlive a project switch.
+        let (_guard, _cancel) = {
+            let projects = projects.lock().map_err(|e| e.to_string())?;
+            projects
+                .require_active(&project_id)
+                .map_err(|e| e.to_string())?;
+            runtime.begin()?
+        };
+        let picker = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("AIが読み取れる参照資料を選択");
+        let paths = match kind {
+            MaterialKind::File => picker.blocking_pick_files(),
+            MaterialKind::Folder => picker.blocking_pick_folders(),
+        };
+        let projects = projects.lock().map_err(|e| e.to_string())?;
+        let store = projects
+            .require_active(&project_id)
+            .map_err(|e| e.to_string())?;
+        if let Some(paths) = paths {
+            let paths = paths
+                .into_iter()
+                .map(|p| p.into_path().map_err(|e| e.to_string()))
+                .collect::<Result<Vec<_>, _>>()?;
+            store
+                .add_materials(&paths, kind)
+                .map_err(|e| e.to_string())?;
+        }
+        snapshot(&projects)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn remove_reference_material(
+    project_id: String,
+    material_id: String,
+    state: State<'_, AppState>,
+) -> Result<Snapshot, String> {
+    let runtime = state.runtime.clone();
+    with_projects(&state, move |projects| {
+        runtime.ensure_idle()?;
+        projects
+            .require_active(&project_id)
+            .map_err(|e| e.to_string())?
+            .remove_material(&material_id)
+            .map_err(|e| e.to_string())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -317,6 +382,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
+            add_reference_materials,
+            remove_reference_material,
             export_decisions,
             board_action,
             switch_project,
