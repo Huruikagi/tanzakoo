@@ -6,6 +6,7 @@ import type { Card } from "@/bindings/Card";
 import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import type { ChatOption } from "@/bindings/ChatOption";
+import { proposalBlockReason } from "./proposals";
 
 export const columns = [
   { id: "idea", title: "アイデアの山", number: "01" },
@@ -346,6 +347,24 @@ export const useWorkspace = create<Workspace>((set, get) => ({
     const projectId = get().snapshot.project.id;
     return serialized(async () => {
       try {
+        if (action.type === "applyProposals") {
+          const state = get();
+          if (state.snapshot.project.id !== projectId)
+            throw new Error("プロジェクトが変わっています。");
+          for (const id of action.ids) {
+            const proposal = state.snapshot.proposals.find(
+              (p) => p.id === id && p.state === "pending",
+            );
+            if (!proposal)
+              throw new Error("提案が更新されています。最新の提案を確認してください。");
+            const reason = proposalBlockReason(
+              proposal,
+              state.snapshot.cards.find((c) => c.id === proposal.cardId),
+              state.drafts[proposal.cardId],
+            );
+            if (reason) throw new Error(reason);
+          }
+        }
         const snapshot = await api.action(action, projectId);
         set((state) => ({
           ...snapshotUpdate(state, snapshot),
@@ -370,6 +389,16 @@ export const useWorkspace = create<Workspace>((set, get) => ({
         return snapshot;
       } catch (error) {
         set({ error: String(error) });
+        if (action.type === "applyProposals") {
+          // A proposal may have been replaced by the agent since it was displayed.
+          try {
+            const snapshot = await api.snapshot();
+            if (snapshot.project.id === get().snapshot.project.id)
+              set((state) => snapshotUpdate(state, snapshot));
+          } catch {
+            // Keep the approval error visible if refreshing also fails.
+          }
+        }
         return null;
       }
     });

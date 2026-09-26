@@ -313,30 +313,21 @@ impl Store {
     pub fn resolve(&self, id: &str, apply: bool) -> Result<()> {
         let mut db = self.connect()?;
         let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let mut p: Proposal = get(&tx, "proposal", id)?;
-        if p.state == "superseded" {
-            return Err(invalid(
-                "この提案は新しい提案に置き換わっています。最新の提案を確認してください。",
-            ));
+        resolve_proposal(&tx, id, apply)?;
+        tx.commit()?;
+        Ok(())
+    }
+    /// Apply exactly the proposals the user saw, atomically. A replaced or stale proposal
+    /// rolls back the entire batch, including cards processed earlier in the request.
+    pub fn apply_proposals(&self, ids: &[String]) -> Result<()> {
+        if ids.is_empty() {
+            return Err(invalid("承認する提案を指定してください。"));
         }
-        if p.state != "pending" {
-            return Err(invalid("この提案は処理済みです。"));
+        let mut db = self.connect()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        for id in ids {
+            resolve_proposal(&tx, id, true)?;
         }
-        if apply {
-            let mut card: Card = get(&tx, "card", &p.card_id)?;
-            if card.deleted || card.revision != p.base_revision {
-                return Err(invalid(
-                    "提案後にカードが変わっています。再提案を依頼してください。",
-                ));
-            }
-            card.title = p.title.clone();
-            card.body = p.body.clone();
-            card.revision += 1;
-            card.updated_at = now();
-            put(&tx, "card", &card.id, &card)?;
-        }
-        p.state = if apply { "applied" } else { "rejected" }.into();
-        put(&tx, "proposal", id, &p)?;
         tx.commit()?;
         Ok(())
     }
@@ -411,6 +402,34 @@ impl Store {
         }
         put(&self.connect()?, "chatSettings", "codex", &settings)
     }
+}
+
+fn resolve_proposal(tx: &rusqlite::Transaction<'_>, id: &str, apply: bool) -> Result<()> {
+    let mut p: Proposal = get(tx, "proposal", id)?;
+    if p.state == "superseded" {
+        return Err(invalid(
+            "この提案は新しい提案に置き換わっています。最新の提案を確認してください。",
+        ));
+    }
+    if p.state != "pending" {
+        return Err(invalid("この提案は処理済みです。"));
+    }
+    if apply {
+        let mut card: Card = get(tx, "card", &p.card_id)?;
+        if card.deleted || card.revision != p.base_revision {
+            return Err(invalid(
+                "提案後にカードが変わっています。再提案を依頼してください。",
+            ));
+        }
+        card.title = p.title.clone();
+        card.body = p.body.clone();
+        card.revision += 1;
+        card.updated_at = now();
+        put(tx, "card", &card.id, &card)?;
+    }
+    p.state = if apply { "applied" } else { "rejected" }.into();
+    put(tx, "proposal", id, &p)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -721,6 +740,110 @@ mod tests {
                 .state,
             DiscussionState::Moved
         );
+    }
+    #[test]
+    fn batch_approval_is_atomic_and_survives_reopen() {
+        for conflict in [
+            "none",
+            "outdated",
+            "archived",
+            "replaced",
+            "resolved",
+            "missing",
+            "duplicate",
+        ] {
+            let f = Fixture::new();
+            let first = f
+                .store
+                .create_card("通知".into(), "元の本文".into(), "user")
+                .unwrap();
+            let second = f
+                .store
+                .create_card("表示".into(), "元の本文".into(), "user")
+                .unwrap();
+            let a = f
+                .store
+                .propose(
+                    &first.id,
+                    1,
+                    "通知案".into(),
+                    "変更後".into(),
+                    "理由".into(),
+                )
+                .unwrap();
+            let b = f
+                .store
+                .propose(
+                    &second.id,
+                    1,
+                    "表示案".into(),
+                    "変更後".into(),
+                    "理由".into(),
+                )
+                .unwrap();
+            let mut ids = vec![a.id.clone(), b.id.clone()];
+            match conflict {
+                "outdated" => {
+                    f.store
+                        .update_card(Card {
+                            body: "手動編集".into(),
+                            ..second
+                        })
+                        .unwrap();
+                }
+                "archived" => {
+                    f.store
+                        .update_card(Card {
+                            deleted: true,
+                            ..second
+                        })
+                        .unwrap();
+                }
+                "replaced" => {
+                    f.store
+                        .propose(
+                            &second.id,
+                            1,
+                            "最新の案".into(),
+                            "新しい本文".into(),
+                            "理由".into(),
+                        )
+                        .unwrap();
+                }
+                "resolved" => {
+                    f.store.resolve(&b.id, false).unwrap();
+                }
+                "missing" => {
+                    ids[1] = "missing".into();
+                }
+                "duplicate" => {
+                    ids[1] = a.id.clone();
+                }
+                _ => {}
+            }
+            let before = serde_json::to_value(f.store.snapshot().unwrap()).unwrap();
+            let result = f.store.apply_proposals(&ids);
+            let reopened = Store::open(f.store.path()).unwrap();
+            let snapshot = reopened.snapshot().unwrap();
+            if conflict == "none" {
+                result.unwrap();
+                assert!(
+                    snapshot
+                        .cards
+                        .iter()
+                        .all(|c| c.body == "変更後" && c.revision == 2)
+                );
+                assert!(snapshot.proposals.iter().all(|p| p.state == "applied"));
+            } else {
+                assert!(result.is_err(), "{conflict}");
+                assert_eq!(
+                    before,
+                    serde_json::to_value(snapshot).unwrap(),
+                    "{conflict}"
+                );
+            }
+            assert!(reopened.apply_proposals(&[]).is_err());
+        }
     }
     #[test]
     fn proposal_requires_apply_and_survives_reopen() {

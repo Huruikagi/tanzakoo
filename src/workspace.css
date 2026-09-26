@@ -873,6 +873,43 @@ summary:focus-visible {
 .composer-area {
   padding: 14px 16px 12px;
 }
+.pending-proposals {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+}
+.pending-proposals-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.pending-proposals-list {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  max-height: 160px;
+  overflow: auto;
+}
+.pending-proposals-list li + li {
+  border-top: 1px solid var(--border);
+}
+.pending-proposals-list button {
+  width: 100%;
+  justify-content: space-between;
+}
+.pending-proposals-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pending-proposals-list p {
+  margin: 0 8px 6px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
 .composer {
   border: 1px solid #d9e2ce;
   border-radius: 10px;

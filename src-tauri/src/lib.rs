@@ -103,6 +103,7 @@ async fn board_action(
             }
             BoardAction::UpdateCard { card } => store.update_card(card).map(|_| ()),
             BoardAction::ResolveProposal { id, apply } => store.resolve(&id, apply),
+            BoardAction::ApplyProposals { ids } => store.apply_proposals(&ids),
             BoardAction::ResolveDiscussion { id, action } => store.resolve_discussion(&id, action),
             BoardAction::NewConversation { agent } => store.create_conversation(&agent).map(|_| ()),
             BoardAction::ConfigureAgent { config } => {

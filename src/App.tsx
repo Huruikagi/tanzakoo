@@ -28,6 +28,9 @@ export default function App() {
       })),
     );
   const chatPanel = usePanelRef();
+  const pendingCount = useWorkspace(
+    (s) => s.snapshot.proposals.filter((p) => p.state === "pending").length,
+  );
   useEffect(() => {
     if (loaded) {
       if (chatOpen) chatPanel.current?.expand();
@@ -82,6 +85,7 @@ export default function App() {
           >
             <MessageCircle />
             AIと考える{busy ? " · 実行中" : ""}
+            {pendingCount > 0 && <span className="proposal-count">未承認 {pendingCount}</span>}
           </Button>
         </div>
       </header>

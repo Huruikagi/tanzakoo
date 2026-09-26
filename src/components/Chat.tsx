@@ -16,6 +16,7 @@ import { Markdown } from "./Markdown";
 import { AgentConnection, AgentConnectionDialog } from "./AgentConnection";
 import { DiscussionNotice } from "./DiscussionNotice";
 import { ChatSettings } from "./ChatSettings";
+import { PendingProposals } from "./PendingProposals";
 
 export function Chat() {
   const {
@@ -277,6 +278,7 @@ export function Chat() {
           ))}
         <div ref={end} />
       </div>
+      <PendingProposals key={snapshot.project.id} />
       <div className="composer-area">
         {selectedAgent === "codex" && <ChatSettings />}
         {!unavailable && !consented && (

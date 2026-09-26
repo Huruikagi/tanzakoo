@@ -47,6 +47,7 @@ beforeEach(() => {
     connections: {},
     selected: null,
     switching: false,
+    drafts: {},
   });
 });
 
@@ -62,6 +63,113 @@ const topic: Card = {
   createdAt: 1,
   updatedAt: 2,
 };
+function proposalSnapshot() {
+  const cards = [topic, { ...topic, id: "second", title: "表示方法" }];
+  return {
+    ...emptySnapshot,
+    cards,
+    proposals: cards.map((card) => ({
+      id: `p-${card.id}`,
+      cardId: card.id,
+      baseRevision: card.revision,
+      beforeTitle: card.title,
+      beforeBody: card.body,
+      title: card.title,
+      body: "提案された本文",
+      reason: "会話を反映",
+      state: "pending",
+      createdAt: 1,
+    })),
+  };
+}
+it("lists project proposals across conversations and approves the displayed IDs without losing the composer", async () => {
+  const user = userEvent.setup();
+  const snapshot = proposalSnapshot();
+  useWorkspace.setState({ snapshot });
+  useWorkspace.getState().attach(topic);
+  render(<Chat />);
+  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "考え途中");
+  vi.mocked(Element.prototype.scrollIntoView).mockClear();
+  act(() => useWorkspace.setState({ conversation: "another" }));
+  expect(screen.getByRole("button", { name: topic.title })).toBeVisible();
+  act(() => useWorkspace.setState({ conversation: null }));
+  await user.click(screen.getByRole("button", { name: topic.title }));
+  expect(useWorkspace.getState().selected).toBe(topic.id);
+  expect(api.action).not.toHaveBeenCalled();
+  let finish!: (value: typeof snapshot) => void;
+  vi.mocked(api.action).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await user.click(screen.getByRole("button", { name: "まとめて承認 (2)" }));
+  expect(screen.getByRole("button", { name: "承認中…" })).toBeDisabled();
+  expect(api.action).toHaveBeenCalledExactlyOnceWith(
+    { type: "applyProposals", ids: ["p-topic", "p-second"] },
+    "a",
+  );
+  await act(async () =>
+    finish({
+      ...snapshot,
+      proposals: [
+        ...snapshot.proposals.map((p) => ({ ...p, state: "applied" })),
+        { ...snapshot.proposals[0]!, id: "arrived-later", state: "pending" },
+      ],
+    }),
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("2件の変更を承認しました");
+  expect(screen.getByRole("button", { name: "まとめて承認 (1)" })).toBeEnabled();
+  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("考え途中");
+  expect(screen.getByRole("button", { name: `${topic.title}の参照を外す` })).toBeVisible();
+  expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+});
+it("excludes drafts, archived and outdated cards, and replaces the list when switching projects", async () => {
+  const user = userEvent.setup();
+  const snapshot = proposalSnapshot();
+  const stale = { ...topic, id: "stale", title: "更新済み", revision: 3 };
+  const archived = { ...topic, id: "archived", title: "保管済み", deleted: true };
+  const blocked = [stale, archived];
+  useWorkspace.setState({
+    snapshot: {
+      ...snapshot,
+      cards: [...snapshot.cards, ...blocked],
+      proposals: [
+        ...snapshot.proposals,
+        ...blocked.map((c) => ({ ...snapshot.proposals[0]!, id: `p-${c.id}`, cardId: c.id })),
+      ],
+    },
+    drafts: { [topic.id]: { title: topic.title, body: "編集中", revision: 2 } },
+  });
+  vi.mocked(api.action).mockResolvedValue(snapshot);
+  render(<Chat />);
+  expect(screen.getByText("未保存の編集があります")).toBeVisible();
+  expect(screen.getByText("カードが更新されています")).toBeVisible();
+  expect(screen.getByText("アーカイブ済み")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "まとめて承認 (1)" }));
+  expect(api.action).toHaveBeenCalledWith({ type: "applyProposals", ids: ["p-second"] }, "a");
+  act(() =>
+    useWorkspace.setState({
+      snapshot: { ...emptySnapshot, project: { ...emptySnapshot.project, id: "b" } },
+    }),
+  );
+  expect(screen.queryByRole("region", { name: "未承認のカード変更" })).not.toBeInTheDocument();
+});
+it("refreshes a failed batch and keeps its replacement pending", async () => {
+  const user = userEvent.setup();
+  const snapshot = proposalSnapshot();
+  useWorkspace.setState({ snapshot });
+  vi.mocked(api.action).mockRejectedValue(new Error("提案が置き換わっています"));
+  vi.mocked(api.snapshot).mockResolvedValue({
+    ...snapshot,
+    proposals: [{ ...snapshot.proposals[0]!, id: "replacement", reason: "最新の変更" }],
+  });
+  render(<Chat />);
+  await user.click(screen.getByRole("button", { name: "まとめて承認 (2)" }));
+  expect(await screen.findByText("最新の変更")).toBeVisible();
+  expect(screen.getByRole("status")).toHaveTextContent("承認できませんでした");
+  expect(api.action).toHaveBeenCalledTimes(1);
+});
 it("keeps an unsent draft and its references when broadening creates the first conversation", async () => {
   const user = userEvent.setup();
   const snapshot = {

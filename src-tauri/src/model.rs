@@ -231,6 +231,9 @@ pub enum BoardAction {
         id: String,
         apply: bool,
     },
+    ApplyProposals {
+        ids: Vec<String>,
+    },
     ResolveDiscussion {
         id: String,
         action: DiscussionResolution,

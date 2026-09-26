@@ -61,6 +61,42 @@ beforeEach(() => {
     archiveNotice: null,
   });
 });
+it("rechecks unsaved edits when a queued batch starts", async () => {
+  const proposal = {
+    id: "p",
+    cardId: card.id,
+    baseRevision: card.revision,
+    beforeTitle: card.title,
+    beforeBody: card.body,
+    title: card.title,
+    body: "提案",
+    reason: "会話を反映",
+    state: "pending",
+    createdAt: 1,
+  };
+  const snapshot = { ...emptySnapshot, cards: [card], proposals: [proposal] };
+  useWorkspace.setState({ snapshot });
+  let finish!: (snapshot: typeof emptySnapshot) => void;
+  vi.mocked(api.snapshot)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    )
+    .mockResolvedValue(snapshot);
+  const refreshing = useWorkspace.getState().refresh();
+  const approving = useWorkspace.getState().act({ type: "applyProposals", ids: [proposal.id] });
+  useWorkspace.getState().draft(card.id, { title: card.title, body: "編集中", revision: 1 });
+  await Promise.resolve();
+  finish(snapshot);
+  await refreshing;
+  expect(await approving).toBeNull();
+  expect(api.action).not.toHaveBeenCalled();
+  expect(useWorkspace.getState().drafts[card.id]?.body).toBe("編集中");
+  expect(useWorkspace.getState().error).toContain("未保存の編集があります");
+});
+
 describe("card archive", () => {
   it("uses the latest saved card after a queued edit and prevents duplicate submissions", async () => {
     let finish!: (snapshot: typeof emptySnapshot) => void;
