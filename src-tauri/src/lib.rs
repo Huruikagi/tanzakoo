@@ -5,6 +5,7 @@ pub mod export;
 pub mod mcp;
 pub mod model;
 pub mod projects;
+pub mod storage;
 pub mod store;
 
 use model::*;
@@ -74,6 +75,8 @@ async fn export_decisions(
             return Ok(None);
         };
         let path = parent.into_path().map_err(|e| e.to_string())?;
+        // Use the native panel's grant immediately. Do not persist this path for
+        // later writes: reopening a sandboxed app requires a new user selection.
         bundle.write_to(&path).map(Some)
     })
     .await
@@ -297,12 +300,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let dir = if let Some(path) = std::env::var_os("TANZAKOO_DATA_DIR") {
-                std::path::PathBuf::from(path)
-            } else {
-                app.path().app_data_dir()?
-            };
-            std::fs::create_dir_all(&dir)?;
+            let dir = storage::data_dir(app)?;
             agent_setup::initialize(app.path().resource_dir()?, dir.clone());
             app.manage(AppState {
                 projects: Arc::new(Mutex::new(projects::Projects::open(dir)?)),

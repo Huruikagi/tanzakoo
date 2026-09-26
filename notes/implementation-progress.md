@@ -1,5 +1,14 @@
 # 初版の実装・検証
 
+## 2026-09-26：ストア配布に向けた保存先とファイル権限
+
+- DB・認証・作業領域の保存先を `storage` モジュールに集約。WindowsはLocal AppData、MacはFoundationから取得するApplication Supportを使う。Mac Sandboxではコンテナ内に解決する設計で、同梱ランタイムの配置とは分離する。
+- 未リリースのためRoaming領域からの自動移行や旧配置の検出は行わない。開発用 `TANZAKOO_DATA_DIR` は維持し、空の指定を拒否、相対指定は絶対パスへ解決する。Macでは認証ディレクトリーを所有者のみアクセス可能にする。
+- macOS 26.0以上の設定と、Sandbox・ユーザーが選んだフォルダーへの読み書き権限を追加。毎回ネイティブダイアログで選んだ場所へ出力する既存方式を維持する。今回のSandbox設定はファイル保存の検証用で、通信・子プロセス署名・App Store提出用の設定は含まない。
+- 将来のMicrosoft Store向けにEXE/MSIとMSIXの違いを整理。MSIXのパッケージIDは固定せず、配布形式決定後に保存・更新・リセットの実パッケージ検証を行う。詳細は [ストア配布の保存設計](store-storage.md)。
+- Windowsで `mise.exe exec -- pnpm check`（80テスト・lint・整形・型検査・ビルド）、`cargo test --locked`（単体54件・結合9件通過、既存実Claudeテスト1件ignore）、Clippy、Rust整形、設定JSON/XMLの構文確認が通過。既存のビルドのチャンクサイズ警告は残る。
+- macOS 26 / ARM64のRustテスト・ClippyをCIに追加したが、この作業中には実行していない。Foundation API・Unix権限のMac上の実行、署名したMac Sandbox版、Windows Store配布物での通し確認は未実施。
+
 ## 2026-09-26：未承認のカード変更一覧と一括承認
 
 - チャット入力欄の上に、プロジェクト全体の未承認カード変更を一覧表示。折りたたみ・詳細への移動・承認可能な件数を示した一括承認に対応し、チャットを開くボタンにも未承認件数を表示する。

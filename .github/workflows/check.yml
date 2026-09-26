@@ -6,6 +6,24 @@ on:
 permissions:
   contents: read
 jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "26.0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4
+      - name: Install dependencies
+        run: mise exec -- pnpm install --frozen-lockfile
+      - name: Build frontend
+        run: mise exec -- pnpm build
+      - name: Test on Apple Silicon
+        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin
+      - name: Rust lint
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked --target aarch64-apple-darwin -- -D warnings
+      - name: Check generated types are current
+        run: git diff --exit-code -- src/bindings
   windows:
     runs-on: windows-latest
     timeout-minutes: 30

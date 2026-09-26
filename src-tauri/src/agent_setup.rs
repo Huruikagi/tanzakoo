@@ -86,8 +86,7 @@ pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, Stri
             .get()
             .map(|p| p.1.clone())
             .unwrap_or_else(|| store.path().parent().unwrap().to_owned());
-        let home = data.join("agents/codex");
-        std::fs::create_dir_all(&home).map_err(|e| e.to_string())?;
+        let home = crate::storage::credential_dir(&data).map_err(|e| e.to_string())?;
         launch = launch.env("CODEX_HOME", home.to_string_lossy());
     }
     Ok(launch)

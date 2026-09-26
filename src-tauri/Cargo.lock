@@ -3534,6 +3534,7 @@ name = "tanzakoo"
 version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
+ "objc2-foundation",
  "rmcp",
  "rusqlite",
  "serde",

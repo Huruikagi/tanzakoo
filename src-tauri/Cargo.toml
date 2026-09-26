@@ -32,3 +32,11 @@ thiserror = "2"
 tracing = "0.1"
 ts-rs = { version = "12", features = ["serde-compat"] }
 tauri-plugin-dialog = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSString",
+  "NSPathUtilities",
+] }
