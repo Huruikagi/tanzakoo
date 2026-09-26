@@ -67,19 +67,39 @@ APIキー方式への切り替え、独自のクラウド中継は未合意の�
 - 実装上の課題：アプリ起動中に外部プロセスがDBへ書いた変更を画面へ反映する仕組み、プロジェクトの指定方法、MCPツールの自動許可の案内。
 - 採用するかはプロダクト判断が必要。
 
+## 問い合わせの経過
+
+### ヘルプのAIチャット（2026-09-27）
+
+短縮版の質問を送り、次の回答を得た。**AIサポートの回答であり、Anthropicの正式な判断・承認ではない。実装の根拠にしない。**
+
+- 第三者開発者が他の利用者向けの製品を作る場合、Claude ConsoleまたはクラウドプロバイダーのAPIキー認証が推奨される。
+- サブスクリプションの制限に対して第三者のトラフィックをルーティングしようとするアプリケーション、Anthropicのサーバーに対して身元を偽るアプリケーションは禁止。
+- 未改変のClaude Codeバイナリを使い、各利用者が自分のアカウントでログインする構成が、Agent SDKの規約のどちらに該当するかは、このチャットの情報では判断できない。
+
+整理すると、前段の「サブスクリプションの利用枠に第三者アプリのトラフィックを流す」という表現は、Tanzakooの構成に当てはまりうる。一方、Tanzakooは身元を偽らず、認証情報も扱わない。判断できないという回答である以上、結論は変わらず未解決のまま。人間の担当者による書面での回答が必要。
+
+その後、同じチャットで人間の担当者へ引き継がれ、メールで回答予定となった（2026-09-27時点で待ち）。サポートの会話IDは公開リポジトリに残さず、ユーザーの手元とサポートからのメールで管理する。回答が届いたら、日付・回答者・内容をここに追記し、実装方針を見直す。
+
 ## Anthropicへの問い合わせ文（未送信）
 
-送信先の候補：Legal and complianceの案内にある[営業窓口](https://www.anthropic.com/contact-sales)。送信はユーザーが判断する。
+送信先の候補：Legal and complianceの案内にある[営業窓口](https://claude.com/contact-sales)（`anthropic.com/contact-sales` から移転）。送信はユーザーが判断する。名前・連絡先はフォーム側に入力するため本文には書かない。回答は入力したメールアドレスに届く想定で、承認が必要な場合は文面で残す。
 
 ```text
 Subject: Claude subscription sign-in for a local desktop app built on the Agent SDK via ACP
 
 Hello,
 
-I am the developer of Tanzakoo, a local desktop app (Tauri, Windows/macOS) that helps people
-turn vague product ideas into implementable requirements using a card board. AI is optional;
-the app is fully usable without it. We would like to confirm which authentication methods are
-permitted before we distribute Claude support.
+Tanzakoo is a local desktop app (Tauri, Windows and macOS) that helps people turn vague
+product ideas into implementable requirements using a card board. AI is optional: the app is
+fully usable without it. It is not released yet, and we would like to confirm which
+authentication methods are permitted before we ship Claude support.
+
+Distribution plan
+- Free of charge, with no paid tier, no ads and no resale of Claude usage.
+- We plan to publish it on the Microsoft Store for Windows first, and possibly on the Mac App
+  Store later. Direct downloads may also be offered.
+- Claude support would ship in the app itself, so every end user would see it.
 
 Current architecture
 - Our own chat UI and instructions -> Agent Client Protocol (ACP) ->
@@ -106,8 +126,10 @@ Questions
    unmodified?
 5. Alternative: the user runs their own Claude Code and adds our local MCP server, with no
    sign-in offered by our app. Is that treated as ordinary Claude Code usage?
-6. Are there extra requirements for Mac App Store distribution (sandboxed app launching the
-   bundled binary)?
+6. Are there extra requirements for distributing through app stores (the Microsoft Store, or a
+   sandboxed app on the Mac App Store) when the bundled binary is launched by the app?
+7. Does anything change because the app is free and aimed at individual users rather than sold
+   to organizations?
 
 Thank you.
 ```
