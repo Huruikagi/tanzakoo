@@ -23,7 +23,8 @@ jobs:
       - name: Rust lint
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked --target aarch64-apple-darwin -- -D warnings
       - name: Check generated types are current
-        run: git diff --exit-code -- src/bindings
+        # ts-rs can emit trailing spaces before field documentation.
+        run: git diff --ignore-space-at-eol --exit-code -- src/bindings
   windows:
     runs-on: windows-latest
     timeout-minutes: 30
@@ -39,7 +40,8 @@ jobs:
       - name: Rust tests and generated types
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
       - name: Check generated types are current
-        run: git diff --exit-code -- src/bindings
+        # ts-rs can emit trailing spaces before field documentation.
+        run: git diff --ignore-space-at-eol --exit-code -- src/bindings
       - name: Rust lint
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - name: Stage bundled runtime

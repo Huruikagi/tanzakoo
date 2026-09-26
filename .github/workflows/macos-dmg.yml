@@ -33,7 +33,8 @@ jobs:
       - name: Rust tests
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin
       - name: Check generated types are current
-        run: git diff --exit-code -- src/bindings
+        # ts-rs can emit trailing spaces before field documentation.
+        run: git diff --ignore-space-at-eol --exit-code -- src/bindings
       - name: Stage bundled runtime
         run: mise exec -- pnpm runtime:stage
       - name: Build application bundle
