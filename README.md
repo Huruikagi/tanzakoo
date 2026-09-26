@@ -44,7 +44,7 @@ mise exec -- pnpm build:desktop
 
 Windowsでは出力された実行ファイルと、その隣の `agent-runtime` フォルダーを一緒に配置します。開発用Node・CodexをPATHから外した条件で起動確認済みです。MSIX・ストア申請はまだ提供していません。
 
-Mac版はApple Silicon・macOS 26 Tahoe以上を対象に、署名・公証済みDMGで直接配布します。GitHub Actionsの手動実行ワークフロー `macOS signed DMG` で生成し、公証と検証が成功したDMGだけを成果物に保存します。初回のActions実行とMacでの操作確認は別途必要です。Secrets・実行手順・検証範囲は [Macの署名・公証とDMG作成](notes/macos-distribution.md) を参照してください。
+Mac版はApple Silicon・macOS 26 Tahoe以上を対象に、署名・公証済みDMGで直接配布します。GitHub Actionsの手動実行ワークフロー `macOS signed DMG` で生成し、公証と検証が成功したDMGだけを成果物に保存します。2026-09-26に初回の署名・公証・DMG内ランタイム検証が成功しました。Finderからの起動やブラウザ認証などの操作確認は別途必要です。Secrets・実行手順・検証範囲は [Macの署名・公証とDMG作成](notes/macos-distribution.md) を参照してください。
 
 ## 使い方
 
