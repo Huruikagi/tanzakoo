@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tanzakoo Dependabot取り込み"
+  short_description: "Dependabot PRの互換性とCIを確認し、検証後に順次マージ"
+  default_prompt: "$tanzakoo-merge-dependabot でDependabotのPRを確認し、検証が通ったものを順にマージしてください。"

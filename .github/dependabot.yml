@@ -1,0 +1,61 @@
+version: 2
+
+updates:
+  # pnpm workspace: packages/* shares the root lockfile.
+  # Confirm updater support for the pnpm version pinned in mise.toml.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-tooling:
+        dependency-type: development
+        # Keep app/runtime dependencies and React types with the app group.
+        exclude-patterns:
+          - "@agentclientprotocol/*"
+          - "@tauri-apps/*"
+          - "@types/react"
+          - "@types/react-dom"
+        update-types: [minor, patch]
+      npm-app:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 2
+    groups:
+      rust-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      rust-dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 2
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      actions:
+        patterns: ["*"]
+        update-types: [minor, patch]

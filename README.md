@@ -134,6 +134,22 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test age
 公開済みの配布物はまだありません。ソースから起動するか、Macの署名・公証ワークフローの検証済み成果物を使用してください。
 詳細な検証結果と残りの確認は [実装・検証メモ](notes/implementation-progress.md) を参照してください。
 
+## 依存関係の更新
+
+[Dependabot設定](.github/dependabot.yml)で、npm（pnpm workspace）・Rust・GitHub Actionsを毎週月曜9時（日本時間）に確認します。minor / patchはnpmの開発ツール、npmの画面・実行時、Rust、Actionsの4グループにまとめます。Reactの型、Tauri CLI、ACPアダプターはnpmの画面・実行時グループに含めます。
+
+major更新は個別PRとし、通常更新の同時オープン数はnpm 3件・Rust 2件・Actions 2件（合計最大7件）に制限します。セキュリティ更新はecosystemごとの別グループで、この上限とは別枠です。セキュリティPRにはGitHub側のDependabot alerts / security updatesの有効化も必要です。
+
+取り込みはプロジェクト用Skill [tanzakoo-merge-dependabot](.agents/skills/tanzakoo-merge-dependabot/SKILL.md)に依頼できます。
+
+```text
+$tanzakoo-merge-dependabot DependabotのPRを確認して、検証が通ったものを順にマージして。
+```
+
+Skillは変更内容・互換性・最新コミットのCIを確認し、1件ずつマージして次のPRを再確認します。「確認だけ」と依頼した場合はマージしません。
+
+2026-09-27時点の[GitHub公式対応表](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories)にはpnpm 7〜10が記載され、本プロジェクトのpnpm 12は記載されていません。設定をデフォルトブランチに反映後、Dependabotの更新ログと最初のnpm PRでworkspace・ロックファイルの更新可否を確認してください。対応不足の場合はエラーを記録して手動更新を検討し、Dependabotに合わせてpnpmを自動的にダウングレードしません。`mise.toml` のNode / pnpm更新はこの設定の監視対象外です。
+
 ## 構成
 
 | 場所                        | 役割                                                   |
