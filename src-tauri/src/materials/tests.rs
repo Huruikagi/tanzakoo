@@ -1,5 +1,9 @@
 use super::*;
-use std::sync::atomic::{AtomicU64, Ordering};
+use super::{access::MAX_FILE_BYTES, policy::excluded};
+use std::{
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+};
 static NEXT: AtomicU64 = AtomicU64::new(0);
 struct Fixture {
     dir: PathBuf,
