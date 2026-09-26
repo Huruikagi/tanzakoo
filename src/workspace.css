@@ -176,26 +176,6 @@ summary:focus-visible {
 .project-save > span {
   margin-right: auto;
 }
-.memory-proposals {
-  border-top: 1px solid var(--border);
-  margin-top: 20px;
-  padding-top: 16px;
-}
-.memory-proposals h3 {
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-.memory-proposal {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
-  margin-top: 12px;
-}
-.memory-proposal > p,
-.memory-proposal details,
-.memory-proposal h4 {
-  margin-bottom: 12px;
-}
 .workspace {
   flex: 1;
   min-height: 0;
@@ -603,6 +583,10 @@ summary:focus-visible {
 .proposal-after h4 {
   font-size: 12px;
   margin: 7px 0;
+}
+.proposal-note,
+.proposal .inline-error {
+  margin: 0 13px 10px;
 }
 .proposal-actions {
   display: flex;

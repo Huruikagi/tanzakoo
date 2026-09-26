@@ -1,15 +1,5 @@
 import { useState } from "react";
-import {
-  FileText,
-  MessageSquarePlus,
-  Save,
-  Trash2,
-  RotateCcw,
-  Check,
-  X,
-  Sparkles,
-  Quote,
-} from "lucide-react";
+import { FileText, MessageSquarePlus, Save, Trash2, RotateCcw, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +14,8 @@ import { columns, useWorkspace } from "@/lib/workspace";
 import type { Card } from "@/bindings/Card";
 import { Markdown } from "./Markdown";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { ProposalCard, Proposals } from "./Proposals";
+import { editDraft } from "@/lib/draft";
 
 export function CardDetails() {
   const selected = useWorkspace((s) => s.selected);
@@ -54,15 +46,16 @@ function Details({ card }: { card: Card }) {
   const [quote, setQuote] = useState("");
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("edit");
-  const value = drafts[card.id] ?? { title: card.title, body: card.body, revision: card.revision };
-  const dirty = value.title !== card.title || value.body !== card.body;
-  const stale = dirty && value.revision !== card.revision;
+  const { value, dirty, stale, update, reset } = editDraft(
+    { title: card.title, body: card.body, revision: card.revision },
+    drafts[card.id],
+    (next) => draft(card.id, next),
+  );
   const proposals = snapshot.proposals.filter((p) => p.cardId === card.id && p.state === "pending");
-  const update = (fields: Partial<typeof value>) => draft(card.id, { ...value, ...fields });
   async function save() {
     setSaving(true);
     const result = await act({ type: "updateCard", card: { ...card, ...value } });
-    if (result) draft(card.id, null);
+    if (result) reset();
     setSaving(false);
   }
   return (
@@ -154,7 +147,7 @@ function Details({ card }: { card: Card }) {
             variant="ghost"
             disabled={!dirty || saving}
             onClick={() => {
-              draft(card.id, null);
+              reset();
               setQuote("");
             }}
           >
@@ -192,56 +185,33 @@ function Details({ card }: { card: Card }) {
             </Button>
           )}
         </div>
-        {proposals.length > 0 && (
-          <section className="proposals">
-            <div className="section-label">
-              <Sparkles size={14} />
-              <h3>AIの変更提案</h3>
-              <span>{proposals.length}</span>
-            </div>
-            {proposals.map((p) => {
-              const conflict = card.deleted || p.baseRevision !== card.revision;
-              return (
-                <article className="proposal" key={p.id}>
-                  <p className="proposal-reason">{p.reason}</p>
-                  <details>
-                    <summary>変更前</summary>
-                    <div className="proposal-before">
-                      <strong>{p.beforeTitle}</strong>
-                      <Markdown>{p.beforeBody}</Markdown>
-                    </div>
-                  </details>
-                  <div className="proposal-after">
-                    <span className="small-label">変更案</span>
-                    <h4>{p.title}</h4>
-                    <Markdown>{p.body}</Markdown>
-                  </div>
-                  {conflict && (
-                    <p className="inline-error">提案後にカードが変わったため適用できません。</p>
-                  )}
-                  <div className="proposal-actions">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void act({ type: "resolveProposal", id: p.id, apply: false })}
-                    >
-                      <X />
-                      却下
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={conflict || dirty}
-                      onClick={() => void act({ type: "resolveProposal", id: p.id, apply: true })}
-                    >
-                      <Check />
-                      適用する
-                    </Button>
-                  </div>
-                </article>
-              );
-            })}
-          </section>
-        )}
+        <Proposals count={proposals.length}>
+          {proposals.map((p) => (
+            <ProposalCard
+              key={p.id}
+              reason={p.reason}
+              before={
+                <>
+                  <strong>{p.beforeTitle}</strong>
+                  <Markdown>{p.beforeBody}</Markdown>
+                </>
+              }
+              after={
+                <>
+                  <h4>{p.title}</h4>
+                  <Markdown>{p.body}</Markdown>
+                </>
+              }
+              outdated={
+                card.deleted || p.baseRevision !== card.revision
+                  ? "提案後にカードが変わったため適用できません。"
+                  : null
+              }
+              dirty={dirty}
+              onResolve={(apply) => void act({ type: "resolveProposal", id: p.id, apply })}
+            />
+          ))}
+        </Proposals>
       </div>
       <footer className="details-footer">
         <span className="muted">{new Date(card.updatedAt).toLocaleDateString("ja-JP")} 更新</span>

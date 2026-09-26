@@ -23,6 +23,8 @@ import { useWorkspace } from "@/lib/workspace";
 import { native } from "@/lib/api";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { Markdown } from "./Markdown";
+import { ProposalCard, Proposals } from "./Proposals";
+import { editDraft } from "@/lib/draft";
 
 export function Projects() {
   const { snapshot, busy, switching, loaded, changeProject } = useWorkspace();
@@ -143,31 +145,22 @@ function CreateProject({ onCreated }: { onCreated: () => void }) {
 function ProjectMemory() {
   const { snapshot, projectDrafts, act } = useWorkspace();
   const project = snapshot.project;
-  const value = projectDrafts[project.id] ?? project;
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const dirty = value.name !== project.name || value.memory !== project.memory;
-  const stale = dirty && value.revision !== project.revision;
-  const proposals = snapshot.memoryProposals.filter((p) => p.state === "pending");
-  function update(fields: Partial<typeof value>) {
-    const next = { ...value, ...fields };
-    if (next.name === project.name && next.memory === project.memory) {
-      reset();
+  const { value, dirty, stale, update, reset } = editDraft(
+    { name: project.name, memory: project.memory, revision: project.revision },
+    projectDrafts[project.id],
+    (next) => {
+      useWorkspace.setState((s) => {
+        const drafts = { ...s.projectDrafts };
+        if (next) drafts[project.id] = next;
+        else delete drafts[project.id];
+        return { projectDrafts: drafts };
+      });
       setMessage("");
-      return;
-    }
-    useWorkspace.setState((s) => ({
-      projectDrafts: { ...s.projectDrafts, [project.id]: next },
-    }));
-    setMessage("");
-  }
-  function reset() {
-    useWorkspace.setState((s) => {
-      const next = { ...s.projectDrafts };
-      delete next[project.id];
-      return { projectDrafts: next };
-    });
-  }
+    },
+  );
+  const proposals = snapshot.memoryProposals.filter((p) => p.state === "pending");
   async function save() {
     setSaving(true);
     const result = await act({
@@ -244,45 +237,24 @@ function ProjectMemory() {
         )}
       </div>
       <output aria-live="polite">{message}</output>
-      {proposals.length > 0 && (
-        <section className="memory-proposals">
-          <h3>AIの変更提案 · {proposals.length}</h3>
-          {proposals.map((p) => (
-            <article key={p.id} className="memory-proposal">
-              <p>{p.reason}</p>
-              <details>
-                <summary>変更前</summary>
-                <Markdown>{p.beforeMemory || "（空）"}</Markdown>
-              </details>
-              <h4>変更案</h4>
-              <Markdown>{p.memory || "（空）"}</Markdown>
-              {p.baseRevision !== project.revision && (
-                <p className="hint">提案後にメモリが変わったため適用できません。</p>
-              )}
-              {dirty && (
-                <p className="hint">適用する前に、下書きを保存するか取り消してください。</p>
-              )}
-              <div className="project-save">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={saving}
-                  onClick={() => void resolve(p.id, false)}
-                >
-                  却下
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={saving || dirty || p.baseRevision !== project.revision}
-                  onClick={() => void resolve(p.id, true)}
-                >
-                  適用する
-                </Button>
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
+      <Proposals count={proposals.length}>
+        {proposals.map((p) => (
+          <ProposalCard
+            key={p.id}
+            reason={p.reason}
+            before={<Markdown>{p.beforeMemory || "（空）"}</Markdown>}
+            after={<Markdown>{p.memory || "（空）"}</Markdown>}
+            outdated={
+              p.baseRevision !== project.revision
+                ? "提案後にメモリが変わったため適用できません。"
+                : null
+            }
+            dirty={dirty}
+            disabled={saving}
+            onResolve={(apply) => void resolve(p.id, apply)}
+          />
+        ))}
+      </Proposals>
     </div>
   );
 }
