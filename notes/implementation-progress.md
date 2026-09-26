@@ -1,5 +1,13 @@
 # 初版の実装・検証
 
+## 2026-09-26：MacのDMG直接配布と署名・公証ワークフロー
+
+- Mac初版をMac App StoreからDeveloper ID署名・公証済みDMGの直接配布に変更。Apple Silicon・macOS 26以上、WindowsのMSIX方針、ユーザー自身のCodex接続を維持する。審査用のAPIキー・デモ・中継サーバーは追加しない。
+- `macOS signed DMG` を手動実行のGitHub Actionsとして追加。固定依存のビルド、同梱Mach-Oの署名、Node専用のJIT権限、公証、DMGへのチケット添付、Gatekeeper、読み取り専用DMG内のランタイム確認を行い、成功したDMGとSHA-256だけをArtifactへ保存する。自動公開・タグ・自動更新は含めない。
+- 登録済みの5つのSecretを署名工程だけに渡し、一時キーチェーンと `.p8` を終了時に削除する。公証失敗・30分の待ち時間超過は成功扱いにせず、申請IDと取得できたJSONログを診断用Artifactへ保存する。
+- ローカルでActionlint、ShellCheck、Bash構文、Oxlint、Oxfmt、Tauri設定スキーマ・plist・差分を検証。既存のWindows同梱Node 24.21.0 / Codex 0.153.4でJIT・Codex起動・未ログインACP初期化・後片付けを確認した。アプリ本体のロジックは変更していない。
+- Macでの署名・公証・DMGマウント検証は初回Actions実行待ち。GUI・ブラウザ認証・会話・MCP操作はMacで別途確認する。手順と検証範囲は [Macの署名・公証とDMG作成](macos-distribution.md) を参照。
+
 ## 2026-09-26：複数質問の一括回答と質問ごとの自由入力
 
 - `present_questions` で独立した質問を1〜4個まとめて提示。1問ずつ切り替え、選択肢または質問ごとの自由入力で回答する。進捗・戻る・質問番号からの移動を提供し、全問がそろってから「まとめて送信」でAIとの会話を再開する。

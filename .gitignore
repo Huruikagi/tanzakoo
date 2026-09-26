@@ -14,3 +14,7 @@ playwright-report/
 .env
 .env.*
 !.env.example
+*.p12
+*.p8
+*.key.pem
+*.certSigningRequest

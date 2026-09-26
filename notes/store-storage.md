@@ -2,7 +2,7 @@
 
 ## 今回の対応範囲
 
-Mac版はApple Silicon（`aarch64-apple-darwin`）・macOS 26 Tahoe以上。Windowsの正式配布はMSIXによるMicrosoft Store公開とする。保存と同梱ランタイムは分離する。ストア登録・署名・パッケージ作成やAIのSandbox対応完了を意味しない。
+Mac版はApple Silicon（`aarch64-apple-darwin`）・macOS 26 Tahoe以上。初版はMac App Storeから署名・公証済みDMGの直接配布に変更した。Windowsの正式配布はMSIXによるMicrosoft Store公開とする。保存と同梱ランタイムは分離する。[Macの署名・公証ワークフロー](macos-distribution.md)の実装は、実行成功や実機検証の完了を意味しない。
 
 | 種類                                   | 保存先・アクセス方法                                                                                                                                                  |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -19,7 +19,9 @@ Macでは `HOME` の連結や `~/Library/Containers/<ID>` の固定パスを使�
 
 `src-tauri/tauri.macos.conf.json` で最低OSを26.0に設定する。CPUはビルド時に `--target aarch64-apple-darwin` を指定する。
 
-`src-tauri/tauri.sandbox.conf.json` は **ファイル保存の検証用** の設定で、`Entitlements.sandbox.plist` を参照する。
+DMG版ではApp Sandboxを有効にせず、通常のユーザー領域のApplication Supportへ保存する。Hardened Runtimeを使い、NodeにだけJIT権限を付けて署名する。ファイル選択・同梱ランタイムとデータの分離は維持する。
+
+`src-tauri/tauri.sandbox.conf.json` は将来の **ファイル保存の検証用** として残す設定で、DMGワークフローでは使用しない。`Entitlements.sandbox.plist` を参照する。
 
 - `com.apple.security.app-sandbox`: アプリのSandboxを有効化する。
 - `com.apple.security.files.user-selected.read-write`: ダイアログで選ばれたフォルダーへエクスポートする。
@@ -45,14 +47,14 @@ Tauri標準のEXE/MSI生成とは別に、MSIXマニフェスト・パッケー�
 
 共通のRustテストで保存・再起動、認証領域、相対パス、空の指定、保存先エラーを確認する。既存のエクスポートテストで出力内容・上書き防止・失敗時の後片付けを確認する。macOS 26のARM64 CIではFoundationの保存先取得・Unix権限を含めてテストするが、CI設定の追加は実行成功の証拠ではない。
 
-署名したMac Sandbox版では次を実機で確認する必要がある。
+署名・公証したMac DMG版では次を実機で確認する必要がある。
 
-1. Finderから起動し、データがコンテナ内に作られ、再起動してもカード・会話・プロジェクトが残る。
+1. DMGからApplicationsへコピーしてFinderから起動し、データがApplication Support内に作られ、再起動してもカード・会話・プロジェクトが残る。
 2. Desktop・Documents・外部ボリュームから選んだ保存先へエクスポートできる。キャンセル・権限拒否・読み取り専用・容量不足は既存データを壊さず扱える。
 3. 再起動後は出力先を選び直し、保存済みの文字列パスだけで外部へ書き込まない。
-4. 同梱ランタイムを読み取り専用にした配布状態でも、DB・認証・作業領域が動作する。AIの認証・通信・子プロセス検証は対応する署名と権限を整えてから行う。
+4. 同梱ランタイムを読み取り専用にした配布状態でも、DB・認証・作業領域が動作する。ブラウザからのChatGPTサインイン・会話・MCP操作・サインアウトを確認する。CIのACP初期化は、この実機確認を代替しない。
 
-WindowsはMSIXで、標準ユーザーによる初回起動・保存・エクスポート・Codex認証・子プロセス起動、アプリ更新後のデータ保持、リセット・アンインストール時のデータ消去と外部出力の保持を確認する。Mac Sandbox実機とWindows MSIXでの通し確認は未実施。
+WindowsはMSIXで、標準ユーザーによる初回起動・保存・エクスポート・Codex認証・子プロセス起動、アプリ更新後のデータ保持、リセット・アンインストール時のデータ消去と外部出力の保持を確認する。Mac DMG実機とWindows MSIXでの通し確認は未実施。
 
 ## 根拠
 
