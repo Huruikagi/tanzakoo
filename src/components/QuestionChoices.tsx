@@ -1,22 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Check, CheckCircle2, MessageCircleQuestion, ChevronRight } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { Check, MessageCircleQuestion } from "lucide-react";
 import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
-import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useWorkspace } from "@/lib/workspace";
-import type { QuestionDraft } from "@/lib/workspace/types";
-
-const emptyDraft: QuestionDraft = { mode: "option", optionIndex: null, text: "" };
-function complete(draft: QuestionDraft | undefined) {
-  return (
-    !!draft &&
-    (draft.mode === "option"
-      ? draft.optionIndex !== null
-      : !!draft.text.trim() && [...draft.text].length <= 2000)
-  );
-}
+import { useQuestionAnswers } from "@/lib/use-question-answers";
+import { QuestionHistory } from "./QuestionHistory";
 
 export function QuestionChoices({
   questions,
@@ -27,9 +16,20 @@ export function QuestionChoices({
   disabled: boolean;
   running?: boolean;
 }) {
-  const projectId = useWorkspace((s) => s.snapshot.project.id);
-  const drafts = useWorkspace((s) => s.questionDrafts[projectId]);
-  const [step, setStep] = useState(0);
+  const {
+    step,
+    setStep,
+    pending,
+    question,
+    draft,
+    answeredCount,
+    currentAnswered,
+    isAnswered,
+    update,
+    submit,
+    advanceOrSubmit,
+  } = useQuestionAnswers(questions, disabled);
+  const multiple = questions.length > 1;
   const title = useRef<HTMLParagraphElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -47,86 +47,7 @@ export function QuestionChoices({
     composing.current = false;
     previousStep.current = step;
   }, [step]);
-  const pending = questions.every((q) => q.state === "pending");
-  const question = questions[Math.min(step, questions.length - 1)]!;
-  const draft = drafts?.[question.id] ?? emptyDraft;
-  const answeredCount = questions.filter((q) => complete(drafts?.[q.id])).length;
-  const multiple = questions.length > 1;
-  function update(value: QuestionDraft) {
-    if (disabled || !pending) return;
-    useWorkspace.setState((state) => ({
-      questionDrafts: {
-        ...state.questionDrafts,
-        [projectId]: { ...state.questionDrafts[projectId], [question.id]: value },
-      },
-    }));
-  }
-  function submit() {
-    const state = useWorkspace.getState();
-    if (
-      disabled ||
-      !pending ||
-      state.snapshot.project.id !== projectId ||
-      state.conversation !== question.conversationId
-    )
-      return;
-    const current = state.questionDrafts[projectId];
-    if (!questions.every((q) => complete(current?.[q.id]))) return;
-    const answers: QuestionAnswer[] = questions.map((q) => {
-      const value = current![q.id]!;
-      return {
-        questionId: q.id,
-        optionIndex: value.mode === "option" ? value.optionIndex : null,
-        text: value.mode === "text" ? value.text.trim() : null,
-      };
-    });
-    void state.send("質問への回答", "codex", { useReferences: false, questionAnswers: answers });
-  }
-  function advanceOrSubmit() {
-    if (disabled || !pending || !complete(draft)) return;
-    if (answeredCount === questions.length) {
-      submit();
-      return;
-    }
-    // Return to an earlier unanswered question when the user skipped ahead.
-    const next = questions.findIndex((q, index) => index > step && !complete(drafts?.[q.id]));
-    setStep(next >= 0 ? next : questions.findIndex((q) => !complete(drafts?.[q.id])));
-  }
-  if (!pending) {
-    return (
-      <details className="chat-question-history">
-        <summary>
-          {questions[0]?.state === "answered" ? (
-            <CheckCircle2 size={14} />
-          ) : (
-            <MessageCircleQuestion size={14} />
-          )}
-          <span>
-            {questions[0]?.state === "answered"
-              ? "回答済み"
-              : questions[0]?.state === "cancelled"
-                ? "この質問は取り消されました"
-                : "会話を続けました"}
-          </span>
-          <span>{questions.length}問</span>
-          <ChevronRight size={14} className="question-history-chevron" />
-        </summary>
-        <div className="chat-question-history-content">
-          {questions.map((q) => (
-            <div key={q.id} className="chat-question-result">
-              <p className="chat-question-title">{q.question}</p>
-              {q.state === "answered" ? (
-                <p className="chat-question-answer">
-                  {q.answerText ??
-                    (q.selectedOption !== null ? q.options[q.selectedOption]?.label : "")}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </details>
-    );
-  }
+  if (!pending) return <QuestionHistory questions={questions} />;
   return (
     <section
       className="chat-question chat-question-active"
@@ -150,13 +71,13 @@ export function QuestionChoices({
               key={q.id}
               size="sm"
               variant={step === index ? "default" : "ghost"}
-              aria-label={`質問${index + 1}${complete(drafts?.[q.id]) ? " 回答入力済み" : " 未回答"}`}
+              aria-label={`質問${index + 1}${isAnswered(q.id) ? " 回答入力済み" : " 未回答"}`}
               aria-current={step === index ? "step" : undefined}
               disabled={disabled}
               onClick={() => setStep(index)}
             >
               {index + 1}
-              {complete(drafts?.[q.id]) && <Check size={12} />}
+              {isAnswered(q.id) && <Check size={12} />}
             </Button>
           ))}
         </div>
@@ -247,7 +168,7 @@ export function QuestionChoices({
             <Button
               variant="secondary"
               size="sm"
-              disabled={disabled || !complete(draft)}
+              disabled={disabled || !currentAnswered}
               onClick={() => setStep(step + 1)}
             >
               次の質問
