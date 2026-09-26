@@ -2,7 +2,7 @@ import { useState, type Ref } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { DragDropProvider, DragOverlay, useDroppable, type DragEndEvent } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { GripVertical, Plus, Search, Sparkles, Archive, MoreHorizontal } from "lucide-react";
+import { GripVertical, Plus, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,12 +17,6 @@ import type { Card } from "@/bindings/Card";
 import { columns, moveCard, useWorkspace } from "@/lib/workspace";
 import { native } from "@/lib/api";
 import { ArchiveShelf, ARCHIVE_TARGET } from "./ArchiveShelf";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 
 function Topic({ card, index }: { card: Card; index: number }) {
   const { ref, handleRef, isDragging, isDropTarget } = useSortable({
@@ -54,41 +48,11 @@ function TopicView({
   const proposals = useWorkspace(
     (s) => s.snapshot.proposals.filter((p) => p.cardId === card.id && p.state === "pending").length,
   );
-  const archiveDisabled = useWorkspace((s) => {
-    const draft = s.drafts[card.id];
-    return (
-      !native ||
-      s.archivePending ||
-      s.switching ||
-      !!(draft && (draft.title !== card.title || draft.body !== card.body))
-    );
-  });
   return (
     <article ref={ref} className={`topic ${selected ? "selected" : ""} ${className}`}>
       <button ref={handleRef} className="drag-handle" aria-label={`${card.title}を並べ替える`}>
         <GripVertical size={14} />
       </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            className="absolute top-[11px] right-2.5"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={`${card.title}のメニュー`}
-          >
-            <MoreHorizontal />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            disabled={archiveDisabled}
-            onSelect={() => void useWorkspace.getState().setArchived(card.id, true)}
-          >
-            <Archive />
-            アーカイブ
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
       <button
         className="topic-open"
         onClick={() => useWorkspace.getState().select(card.id)}

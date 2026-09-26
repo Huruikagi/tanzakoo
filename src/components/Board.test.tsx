@@ -196,13 +196,12 @@ it("keeps failed or canceled archive drops on the board without a success notice
   expect(useWorkspace.getState().archivePending).toBe(false);
 });
 
-it("archives from the card menu and restores from the footer list", async () => {
+it("archives by dragging and restores from the footer list", async () => {
   const user = userEvent.setup();
   const archived = { ...card, deleted: true, revision: 2 };
   vi.mocked(api.action).mockResolvedValue({ ...initial, cards: [archived] });
   render(<Board />);
-  await user.click(screen.getByRole("button", { name: `${card.title}のメニュー` }));
-  await user.click(screen.getByRole("menuitem", { name: "アーカイブ" }));
+  await act(async () => drop(false, ARCHIVE_TARGET));
   await user.click(screen.getByRole("button", { name: "アーカイブ 1件" }));
   expect(within(screen.getByRole("dialog")).getByText(card.title)).toBeVisible();
   vi.mocked(api.action).mockResolvedValue({ ...initial, cards: [{ ...card, revision: 3 }] });
