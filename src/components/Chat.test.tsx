@@ -199,6 +199,59 @@ it("keeps an unsent draft and its references when broadening creates the first c
     "a",
   );
 });
+it("restores a failed first message in the created conversation without overwriting new input", async () => {
+  const user = userEvent.setup();
+  const snapshot = {
+    ...emptySnapshot,
+    consents: ["codex"],
+    conversations: [
+      { id: "new-chat", title: "会話", agent: "codex", sessionId: null, createdAt: 1 },
+    ],
+  };
+  useWorkspace.setState({ snapshot: { ...snapshot, conversations: [] } });
+  vi.mocked(api.action).mockResolvedValue(snapshot);
+  vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+  vi.mocked(api.send).mockRejectedValueOnce(new Error("接続失敗"));
+  render(<Chat />);
+  const input = screen.getByLabelText("エージェントへのメッセージ");
+  await user.type(input, "送信する文章");
+  await user.click(screen.getByRole("button", { name: "メッセージを送信" }));
+  expect(await screen.findByText(/接続失敗/)).toBeVisible();
+  expect(input).toHaveValue("送信する文章");
+  expect(useWorkspace.getState().conversation).toBe("new-chat");
+
+  let fail!: (error: Error) => void;
+  vi.mocked(api.send).mockImplementationOnce(
+    () =>
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+  );
+  await user.click(screen.getByRole("button", { name: "メッセージを送信" }));
+  await user.type(input, "次の考え");
+  await act(async () => fail(new Error("再接続失敗")));
+  expect(input).toHaveValue("次の考え");
+});
+
+it("preserves drafts across projects and clears only a removed project's drafts", async () => {
+  const user = userEvent.setup();
+  const a = { id: "a", name: "A", memory: "", revision: 1 };
+  const b = { ...a, id: "b", name: "B" };
+  const snapshot = { ...emptySnapshot, project: a, projects: [a, b] };
+  useWorkspace.setState({ snapshot });
+  render(<Chat />);
+  const input = screen.getByLabelText("エージェントへのメッセージ");
+  await user.type(input, "Aの下書き");
+  act(() => useWorkspace.setState({ snapshot: { ...snapshot, project: b } }));
+  expect(input).toHaveValue("");
+  await user.type(input, "Bの下書き");
+  act(() => useWorkspace.setState({ snapshot }));
+  expect(input).toHaveValue("Aの下書き");
+  act(() => useWorkspace.setState({ snapshot: { ...snapshot, project: b, projects: [b] } }));
+  expect(input).toHaveValue("Bの下書き");
+  act(() => useWorkspace.setState({ snapshot }));
+  expect(input).toHaveValue("");
+});
 const discussion: Discussion = {
   id: "discussion",
   conversationId: "c",

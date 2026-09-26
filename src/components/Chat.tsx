@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ArrowUp, Square, Plus, MessageCircle, X, Paperclip, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { AgentConnection, AgentConnectionDialog } from "./AgentConnection";
 import { DiscussionNotice } from "./DiscussionNotice";
 import { ChatSettings } from "./ChatSettings";
 import { PendingProposals } from "./PendingProposals";
+import { useChatDraft } from "@/lib/use-chat-draft";
 
 export function Chat() {
   const {
@@ -27,7 +28,6 @@ export function Chat() {
     activity,
     references,
     permissions,
-    send,
     answer,
     chatError,
   } = useWorkspace(
@@ -39,16 +39,12 @@ export function Chat() {
       activity: s.activity,
       references: s.references,
       permissions: s.permissions,
-      send: s.send,
       answer: s.answer,
       chatError: s.chatError,
     })),
   );
   const agent = "codex";
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const key = `${snapshot.project.id}:${conversation ?? "new"}`;
-  const text = drafts[key] ?? "";
-  const setText = (value: string) => setDrafts((previous) => ({ ...previous, [key]: value }));
+  const { text, setText, sendDraft } = useChatDraft(snapshot.project.id, conversation);
   const end = useRef<HTMLDivElement>(null);
   const composing = useRef(false);
   const active = snapshot.conversations.find((c) => c.id === conversation);
@@ -57,57 +53,12 @@ export function Chat() {
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);
-  useEffect(
-    () =>
-      useWorkspace.subscribe((state, previous) => {
-        const removed = previous.snapshot.projects.filter(
-          (project) => !state.snapshot.projects.some((current) => current.id === project.id),
-        );
-        if (removed.length) {
-          setDrafts((current) =>
-            Object.fromEntries(
-              Object.entries(current).filter(
-                ([key]) => !removed.some((project) => key.startsWith(`${project.id}:`)),
-              ),
-            ),
-          );
-        }
-        // Preserve the composer when a board action creates the first conversation.
-        if (
-          previous.conversation === null &&
-          state.conversation &&
-          previous.busy?.kind === "chat" &&
-          previous.busy.conversation === null &&
-          previous.snapshot.project.id === state.snapshot.project.id
-        ) {
-          const from = `${state.snapshot.project.id}:new`;
-          const to = `${state.snapshot.project.id}:${state.conversation}`;
-          setDrafts((current) => {
-            if (!current[from] || current[to]) return current;
-            const next = { ...current, [to]: current[from] };
-            delete next[from];
-            return next;
-          });
-        }
-      }),
-    [],
-  );
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, stream, permissions.length]);
   function submit() {
     if (!text.trim() || busy || !native || unavailable || !consented) return;
-    const pending = text;
-    setText("");
-    void send(pending, agent).then((ok) => {
-      if (!ok)
-        setDrafts((previous) => ({
-          ...previous,
-          [`${snapshot.project.id}:${useWorkspace.getState().conversation ?? "new"}`]:
-            previous[`${snapshot.project.id}:${useWorkspace.getState().conversation ?? "new"}`] ||
-            pending,
-        }));
-    });
+    sendDraft(agent);
   }
   return (
     <section className="chat-pane">
