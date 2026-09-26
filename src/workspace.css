@@ -878,6 +878,10 @@ summary:focus-visible {
   border-top: 1px solid var(--border);
   padding: 8px 12px;
 }
+.pending-proposals[data-compact="true"] {
+  max-height: 96px;
+  overflow: auto;
+}
 .pending-proposals-heading {
   display: flex;
   flex-wrap: wrap;
@@ -1154,4 +1158,92 @@ summary:focus-visible {
 .chat-question-answer {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.chat-pane[data-answering="true"] .chat-history {
+  flex: 1 1 80px;
+  padding-bottom: 8px;
+}
+.chat-pane[data-answering="true"] .composer-area {
+  flex-shrink: 0;
+  padding-top: 8px;
+}
+.chat-pane[data-answering="true"] .composer [data-slot="textarea"] {
+  min-height: 38px;
+}
+.chat-question-active {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 240px;
+  max-height: 55%;
+  margin: 8px 12px 0;
+  padding: 0;
+  overflow: hidden;
+  border-color: #a7bc98;
+  border-left: 4px solid var(--primary);
+  background: #f2f6ec;
+}
+.chat-question-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  flex-shrink: 0;
+}
+.chat-question-heading > span:last-child {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.chat-question-active .chat-question-progress {
+  flex-shrink: 0;
+  padding: 0 12px 8px;
+  margin: 0;
+  border-bottom: 1px solid #dbe5d1;
+}
+.chat-question-body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+}
+.chat-question-footer {
+  flex-shrink: 0;
+  padding: 8px 12px 10px;
+  border-top: 1px solid #dbe5d1;
+}
+.chat-question-footer .chat-question-navigation {
+  margin: 0;
+}
+.chat-question-footer .chat-question-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+}
+.chat-question-history {
+  margin: 12px 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.chat-question-history > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  padding: 6px 0;
+}
+.chat-question-history > summary::-webkit-details-marker {
+  display: none;
+}
+.chat-question-history > summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.chat-question-history[open] .question-history-chevron {
+  transform: rotate(90deg);
+}
+.chat-question-history-content {
+  padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--border);
 }

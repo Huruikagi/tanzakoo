@@ -55,7 +55,12 @@ export function Chat() {
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);
   const questionCount = snapshot.questions.filter((q) => q.conversationId === conversation).length;
-  // Place each structured question after the last response in its originating turn.
+  const latestTurn = [...messages].reverse().find((m) => m.role === "user")?.id;
+  const activeQuestions = snapshot.questions.filter(
+    (q) => q.conversationId === conversation && q.messageId === latestTurn && q.state === "pending",
+  );
+  const questionTurn = activeQuestions[0]?.messageId;
+  // Keep completed question batches next to their originating turn in history.
   const questionsByMessage = new Map<string, typeof snapshot.questions>();
   let turnId: string | undefined;
   messages.forEach((message, index) => {
@@ -64,7 +69,8 @@ export function Chat() {
       questionsByMessage.set(
         message.id,
         snapshot.questions.filter(
-          (q) => q.conversationId === conversation && q.messageId === turnId,
+          (q) =>
+            q.conversationId === conversation && q.messageId === turnId && q.state !== "pending",
         ),
       );
     }
@@ -77,7 +83,7 @@ export function Chat() {
     sendDraft(agent);
   }
   return (
-    <section className="chat-pane">
+    <section className="chat-pane" data-answering={!!questionTurn}>
       <div className="pane-heading">
         <MessageCircle size={16} />
         <h2>壁打ち</h2>
@@ -252,7 +258,15 @@ export function Chat() {
           ))}
         <div ref={end} />
       </div>
-      <PendingProposals key={snapshot.project.id} />
+      <PendingProposals key={snapshot.project.id} questionTurn={questionTurn} />
+      {questionTurn && (
+        <QuestionChoices
+          key={`${snapshot.project.id}:${questionTurn}`}
+          questions={activeQuestions}
+          disabled={!!busy || !native || unavailable || !consented}
+          running={!!busy}
+        />
+      )}
       <div className="composer-area">
         {selectedAgent === "codex" && <ChatSettings />}
         {!unavailable && !consented && (

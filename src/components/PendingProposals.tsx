@@ -5,11 +5,13 @@ import { native } from "@/lib/api";
 import { proposalBlockReason } from "@/lib/proposals";
 import { useWorkspace } from "@/lib/workspace";
 
-export function PendingProposals() {
+export function PendingProposals({ questionTurn }: { questionTurn?: string }) {
   const snapshot = useWorkspace((s) => s.snapshot);
   const drafts = useWorkspace((s) => s.drafts);
   const switching = useWorkspace((s) => s.switching);
-  const [expanded, setExpanded] = useState(true);
+  const [normallyExpanded, setNormallyExpanded] = useState(true);
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
+  const expanded = questionTurn ? expandedQuestion === questionTurn : normallyExpanded;
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState("");
   const listId = useId();
@@ -41,7 +43,11 @@ export function PendingProposals() {
   }
   if (!pending.length && !result) return null;
   return (
-    <section className="pending-proposals" aria-label="未承認のカード変更">
+    <section
+      className="pending-proposals"
+      aria-label="未承認のカード変更"
+      data-compact={!!questionTurn}
+    >
       {pending.length > 0 && (
         <>
           <div className="pending-proposals-heading">
@@ -50,20 +56,26 @@ export function PendingProposals() {
               size="sm"
               aria-expanded={expanded}
               aria-controls={listId}
-              onClick={() => setExpanded(!expanded)}
+              onClick={() =>
+                questionTurn
+                  ? setExpandedQuestion(expanded ? null : questionTurn)
+                  : setNormallyExpanded(!expanded)
+              }
             >
               {expanded ? <ChevronDown /> : <ChevronRight />}
               未承認の変更 <span className="proposal-count">{pending.length}</span>
             </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!native || switching || applying || !eligible.length}
-              onClick={() => void approve()}
-            >
-              <Check />
-              {applying ? "承認中…" : `まとめて承認 (${eligible.length})`}
-            </Button>
+            {(!questionTurn || expanded) && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!native || switching || applying || !eligible.length}
+                onClick={() => void approve()}
+              >
+                <Check />
+                {applying ? "承認中…" : `まとめて承認 (${eligible.length})`}
+              </Button>
+            )}
           </div>
           <div id={listId} hidden={!expanded}>
             <p className="hint muted">このプロジェクト全体 · カードを開いて差分を確認</p>

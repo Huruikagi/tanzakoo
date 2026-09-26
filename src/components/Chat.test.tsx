@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Chat } from "./Chat";
 import { useWorkspace } from "@/lib/workspace";
@@ -130,6 +130,7 @@ it("sends a choice once while preserving the draft and attached references", asy
   await act(async () => finish());
   expect(screen.getByText("回答済み")).toBeVisible();
   expect(screen.queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
+  await user.click(screen.getByText("回答済み"));
   expect(screen.getByText("自分用")).toBeVisible();
   expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("考え途中");
   expect(screen.getByRole("button", { name: `${topic.title}の参照を外す` })).toBeVisible();
@@ -214,6 +215,7 @@ it("stacks questions, preserves per-question free text across navigation, and se
     { questionId: "q2", optionIndex: 0, text: null },
   ]);
   expect(screen.getByText("回答済み")).toBeVisible();
+  await user.click(screen.getByText("回答済み"));
   expect(screen.getByText("家族で使う")).toBeVisible();
   expect(screen.getByText("朝", { exact: true })).toBeVisible();
   expect(useWorkspace.getState().questionDrafts.a).toEqual({});
@@ -240,6 +242,78 @@ it("retains batch answers after a pre-send failure and refuses blank or oversize
   expect(screen.getByRole("alert")).toHaveTextContent("送信できませんでした");
   expect(input).toHaveValue("まだ決められない");
   expect(screen.getByRole("button", { name: "まとめて送信" })).toBeEnabled();
+});
+it("keeps pending questions outside history and folds proposals without stealing the draft or focus", async () => {
+  const user = userEvent.setup();
+  const snapshot = {
+    ...proposalSnapshot(),
+    ...questionSnapshot(),
+    cards: proposalSnapshot().cards,
+    proposals: proposalSnapshot().proposals,
+  };
+  useWorkspace.setState({ snapshot: { ...snapshot, questions: [] }, conversation: "c" });
+  useWorkspace.getState().attach(topic);
+  render(<Chat />);
+  const composer = screen.getByLabelText("エージェントへのメッセージ");
+  await user.type(composer, "考え途中");
+  act(() => useWorkspace.setState({ snapshot }));
+  expect(composer).toHaveFocus();
+  expect(composer).toHaveValue("考え途中");
+  const history = screen.getByLabelText("会話メッセージ");
+  const question = screen.getByRole("region", { name: "質問にまとめて回答" });
+  expect(history).not.toContainElement(question);
+  expect(screen.getByText("回答待ち")).toBeVisible();
+  const proposals = screen.getByRole("button", { name: "未承認の変更 2" });
+  expect(proposals).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("button", { name: "まとめて承認 (2)" })).not.toBeInTheDocument();
+  await user.click(within(question).getByRole("button", { name: "自分で回答する" }));
+  const input = screen.getByLabelText("誰が使いますか？への自由入力");
+  await user.type(input, "家族で使う");
+  expect(screen.getByText("送信待ち")).toBeVisible();
+  expect(within(question).getByRole("status")).toHaveTextContent("回答がそろいました");
+  await user.click(proposals);
+  expect(screen.getByRole("button", { name: "まとめて承認 (2)" })).toBeEnabled();
+  act(() => useWorkspace.setState({ snapshot: { ...snapshot } }));
+  expect(proposals).toHaveAttribute("aria-expanded", "true");
+  await user.click(proposals);
+  expect(input).toHaveValue("家族で使う");
+  expect(composer).toHaveValue("考え途中");
+  expect(screen.getByRole("button", { name: `${topic.title}の参照を外す` })).toBeVisible();
+  expect(api.send).not.toHaveBeenCalled();
+  expect(api.action).not.toHaveBeenCalled();
+});
+it("shows completed answers as folded history and only the current conversation's pending questions in the dock", async () => {
+  const user = userEvent.setup();
+  const snapshot = questionSnapshot();
+  const oldQuestion: ChoiceQuestion = {
+    ...choiceQuestion,
+    id: "old-q",
+    messageId: "old-m",
+    state: "answered",
+    selectedOption: 1,
+  };
+  useWorkspace.setState({
+    conversation: "c",
+    snapshot: {
+      ...snapshot,
+      messages: [{ ...snapshot.messages[0]!, id: "old-m", text: "前の相談" }, ...snapshot.messages],
+      questions: [
+        oldQuestion,
+        choiceQuestion,
+        { ...choiceQuestion, id: "elsewhere", conversationId: "other" },
+      ],
+    },
+  });
+  render(<Chat />);
+  const history = screen.getByLabelText("会話メッセージ");
+  const summary = within(history).getByText("回答済み");
+  expect(summary.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getAllByRole("region", { name: "質問にまとめて回答" })).toHaveLength(1);
+  await user.click(summary);
+  expect(within(history).getByText("チーム用")).toBeVisible();
+  expect(within(history).queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
+  act(() => useWorkspace.getState().selectConversation(null));
+  expect(screen.queryByRole("region", { name: "質問にまとめて回答" })).not.toBeInTheDocument();
 });
 function proposalSnapshot() {
   const cards = [topic, { ...topic, id: "second", title: "表示方法" }];
