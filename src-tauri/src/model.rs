@@ -93,6 +93,12 @@ pub struct QuestionOption {
     pub description: String,
 }
 
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct QuestionInput {
+    pub question: String,
+    pub options: Vec<QuestionOption>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -114,6 +120,8 @@ pub struct ChoiceQuestion {
     pub options: Vec<QuestionOption>,
     pub state: QuestionState,
     pub selected_option: Option<u32>,
+    #[serde(default)]
+    pub answer_text: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -121,7 +129,8 @@ pub struct ChoiceQuestion {
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct QuestionAnswer {
     pub question_id: String,
-    pub option_index: u32,
+    pub option_index: Option<u32>,
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]

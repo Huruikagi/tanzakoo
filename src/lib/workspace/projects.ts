@@ -59,7 +59,16 @@ export const createProjectsSlice: WorkspaceSlice<
           for (const card of previous.cards) delete drafts[card.id];
           const projectDrafts = { ...state.projectDrafts };
           delete projectDrafts[id];
-          return { snapshot, ...projectView(snapshot), drafts, projectDrafts, error: warning };
+          const questionDrafts = { ...state.questionDrafts };
+          delete questionDrafts[id];
+          return {
+            snapshot,
+            ...projectView(snapshot),
+            drafts,
+            projectDrafts,
+            questionDrafts,
+            error: warning,
+          };
         });
         try {
           localStorage.removeItem(`tanzakoo-view-${id}`);

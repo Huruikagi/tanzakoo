@@ -40,6 +40,10 @@ pub struct PresentQuestion {
     pub question: String,
     pub options: Vec<crate::model::QuestionOption>,
 }
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PresentQuestions {
+    pub questions: Vec<crate::model::QuestionInput>,
+}
 #[derive(Clone)]
 pub struct BoardTools {
     store: Store,
@@ -97,6 +101,20 @@ impl BoardTools {
         response(
             self.store
                 .present_question(conversation_id, message_id, p.question, p.options),
+        )
+    }
+    #[tool(
+        description = "Present a batch of 1-4 independent questions in the chat. Each question has question text and 2-4 options, each with a label and description. The user answers each by choosing an option OR writing their own text, can go back and revise, then submits all answers together. Present the complete batch in ONE call per turn. Ask dependent follow-up questions in a later turn. Use only for preferences and clarification, never approval of changes or privileged actions. This tool only confirms presentation, NOT answers. After success end the turn and wait for the user's message; do not repeat the questions in prose or assume an answer."
+    )]
+    fn present_questions(&self, Parameters(p): Parameters<PresentQuestions>) -> CallToolResult {
+        let Some((conversation_id, message_id)) = &self.turn else {
+            return CallToolResult::error(vec![ContentBlock::text(
+                "現在の会話に紐づいた操作ではありません。",
+            )]);
+        };
+        response(
+            self.store
+                .present_questions(conversation_id, message_id, p.questions),
         )
     }
     #[tool(

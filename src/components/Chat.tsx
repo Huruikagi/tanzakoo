@@ -206,13 +206,13 @@ export function Chat() {
               .map((d) => (
                 <DiscussionNotice key={d.id} discussion={d} />
               ))}
-            {questionsByMessage.get(m.id)?.map((q) => (
+            {!!questionsByMessage.get(m.id)?.length && (
               <QuestionChoices
-                key={q.id}
-                question={q}
+                key={`${snapshot.project.id}:${questionsByMessage.get(m.id)![0]!.messageId}`}
+                questions={questionsByMessage.get(m.id)!}
                 disabled={!!busy || !native || unavailable || !consented}
               />
-            ))}
+            )}
           </Fragment>
         ))}
         {isThisBusy && (

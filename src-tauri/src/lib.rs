@@ -179,7 +179,7 @@ async fn send_prompt(
     conversation_id: String,
     text: String,
     references: Vec<CardReference>,
-    question_answer: Option<QuestionAnswer>,
+    question_answers: Option<Vec<QuestionAnswer>>,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
@@ -211,7 +211,7 @@ async fn send_prompt(
             "user",
             text,
             references.clone(),
-            question_answer,
+            question_answers,
         )
         .map_err(|error| error.to_string())?;
     let emit: agent::Emit = Arc::new(move |event| {

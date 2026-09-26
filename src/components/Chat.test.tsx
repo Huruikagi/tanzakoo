@@ -50,6 +50,7 @@ beforeEach(() => {
     selected: null,
     switching: false,
     drafts: {},
+    questionDrafts: {},
   });
 });
 
@@ -76,6 +77,7 @@ const choiceQuestion: ChoiceQuestion = {
   ],
   state: "pending",
   selectedOption: null,
+  answerText: null,
 };
 function questionSnapshot() {
   return {
@@ -114,15 +116,21 @@ it("sends a choice once while preserving the draft and attached references", asy
   render(<Chat />);
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "考え途中");
   const option = screen.getByRole("button", { name: "自分用" });
-  await user.dblClick(option);
-  expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "自分用", [], "a", {
-    questionId: "q",
-    optionIndex: 0,
-  });
+  await user.click(option);
+  expect(api.send).not.toHaveBeenCalled();
+  await user.dblClick(screen.getByRole("button", { name: "まとめて送信" }));
+  expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "質問への回答", [], "a", [
+    {
+      questionId: "q",
+      optionIndex: 0,
+      text: null,
+    },
+  ]);
   expect(option).toBeDisabled();
   await act(async () => finish());
   expect(screen.getByText("回答済み")).toBeVisible();
-  expect(screen.getByRole("button", { name: "自分用" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
+  expect(screen.getByText("自分用")).toBeVisible();
   expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("考え途中");
   expect(screen.getByRole("button", { name: `${topic.title}の参照を外す` })).toBeVisible();
   expect(api.action).not.toHaveBeenCalled();
@@ -140,7 +148,7 @@ it("keeps free-text replies available and isolates questions between conversatio
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "家族で使う");
   await user.click(screen.getByRole("button", { name: "メッセージを送信" }));
   expect(api.send).toHaveBeenCalledWith("c", "家族で使う", [], "a");
-  expect(screen.getByRole("button", { name: "チーム用" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
   act(() => useWorkspace.getState().selectConversation(null));
   expect(screen.queryByRole("region", { name: "誰が使いますか？" })).not.toBeInTheDocument();
 });
@@ -156,9 +164,82 @@ it("shows errors and refreshes stale choices without clearing the draft", async 
   render(<Chat />);
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "補足");
   await user.click(screen.getByRole("button", { name: "自分用" }));
+  await user.click(screen.getByRole("button", { name: "まとめて送信" }));
   expect(screen.getByRole("alert")).toHaveTextContent("回答受付は終了しています");
   expect(screen.getByText("この質問は取り消されました")).toBeVisible();
   expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("補足");
+});
+it("stacks questions, preserves per-question free text across navigation, and sends one complete batch", async () => {
+  const user = userEvent.setup();
+  const second: ChoiceQuestion = {
+    ...choiceQuestion,
+    id: "q2",
+    question: "いつ使いますか？",
+    options: [
+      { label: "朝", description: "一日の始まり" },
+      { label: "夜", description: "一日の終わり" },
+    ],
+  };
+  const snapshot = { ...questionSnapshot(), questions: [choiceQuestion, second] };
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  vi.mocked(api.send).mockResolvedValue();
+  vi.mocked(api.snapshot).mockResolvedValue({
+    ...snapshot,
+    questions: [
+      { ...choiceQuestion, state: "answered", answerText: "家族で使う" },
+      { ...second, state: "answered", selectedOption: 0 },
+    ],
+  });
+  const rendered = render(<Chat />);
+  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  expect(screen.getByRole("button", { name: "次の質問" })).toBeDisabled();
+  await user.type(screen.getByLabelText("誰が使いますか？への自由入力"), "家族で使う");
+  await user.click(screen.getByRole("button", { name: "次の質問" }));
+  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "朝" }));
+  expect(api.send).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "戻る" }));
+  expect(screen.getByLabelText("誰が使いますか？への自由入力")).toHaveValue("家族で使う");
+  await user.click(screen.getByRole("button", { name: "自分用" }));
+  await user.click(screen.getByRole("button", { name: "戻る" }));
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  expect(screen.getByLabelText("誰が使いますか？への自由入力")).toHaveValue("家族で使う");
+  rendered.unmount();
+  render(<Chat />);
+  expect(screen.getByLabelText("誰が使いますか？への自由入力")).toHaveValue("家族で使う");
+  await user.click(screen.getByRole("button", { name: "まとめて送信" }));
+  expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "質問への回答", [], "a", [
+    { questionId: "q", optionIndex: null, text: "家族で使う" },
+    { questionId: "q2", optionIndex: 0, text: null },
+  ]);
+  expect(screen.getByText("回答済み")).toBeVisible();
+  expect(screen.getByText("家族で使う")).toBeVisible();
+  expect(screen.getByText("朝", { exact: true })).toBeVisible();
+  expect(useWorkspace.getState().questionDrafts.a).toEqual({});
+});
+it("retains batch answers after a pre-send failure and refuses blank or oversized free text", async () => {
+  const user = userEvent.setup();
+  const snapshot = questionSnapshot();
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  vi.mocked(api.send).mockRejectedValueOnce(new Error("送信できませんでした"));
+  vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+  render(<Chat />);
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  const input = screen.getByLabelText("誰が使いますか？への自由入力");
+  await user.type(input, "   ");
+  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeDisabled();
+  await user.clear(input);
+  await user.click(input);
+  await user.paste("長".repeat(2001));
+  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeDisabled();
+  expect(screen.getByRole("alert")).toHaveTextContent("2000文字以内");
+  await user.clear(input);
+  await user.type(input, "まだ決められない");
+  await user.click(screen.getByRole("button", { name: "まとめて送信" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("送信できませんでした");
+  expect(input).toHaveValue("まだ決められない");
+  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeEnabled();
 });
 function proposalSnapshot() {
   const cards = [topic, { ...topic, id: "second", title: "表示方法" }];

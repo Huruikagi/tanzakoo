@@ -40,6 +40,7 @@ export const useWorkspace = create<Workspace>((...args) => {
       }
     },
     snapshot: emptySnapshot,
+    questionDrafts: {},
     loaded: false,
     error: null,
     refresh: () =>

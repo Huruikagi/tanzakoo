@@ -1131,3 +1131,27 @@ summary:focus-visible {
   margin: 10px 0 0;
   font-size: 12px;
 }
+.chat-question-progress,
+.chat-question-navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.chat-question-progress > span {
+  font-size: 11px;
+}
+.chat-question-navigation {
+  margin: 12px 0 0;
+}
+.chat-question-free-text {
+  margin-top: 10px;
+}
+.chat-question-result + .chat-question-result {
+  margin-top: 14px;
+}
+.chat-question-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

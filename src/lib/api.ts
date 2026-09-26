@@ -53,8 +53,9 @@ export const api = {
     text: string,
     references: CardReference[],
     projectId: string,
-    questionAnswer?: QuestionAnswer,
-  ) => invoke<void>("send_prompt", { conversationId, text, references, projectId, questionAnswer }),
+    questionAnswers?: QuestionAnswer[],
+  ) =>
+    invoke<void>("send_prompt", { conversationId, text, references, projectId, questionAnswers }),
   setConsent: (agent: string, granted: boolean) =>
     invoke<Snapshot>("set_consent", { agent, granted }),
   connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>

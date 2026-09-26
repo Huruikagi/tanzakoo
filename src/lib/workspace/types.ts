@@ -25,7 +25,9 @@ export type Busy =
  */
 type Connection = { status: ConnectionStatus; launch: string };
 export type ProjectDraft = { name: string; memory: string; revision: number };
+export type QuestionDraft = { mode: "option" | "text"; optionIndex: number | null; text: string };
 export type Workspace = {
+  questionDrafts: Record<string, Record<string, QuestionDraft>>;
   chatOpen: boolean;
   setChatOpen: (open: boolean) => void;
   chatError: string | null;
@@ -65,7 +67,7 @@ export type Workspace = {
   send: (
     text: string,
     agent: string,
-    options?: { useReferences?: boolean; questionAnswer?: QuestionAnswer },
+    options?: { useReferences?: boolean; questionAnswers?: QuestionAnswer[] },
   ) => Promise<boolean>;
   broadenTopics: () => Promise<boolean>;
   event: (event: AgentEvent) => void;

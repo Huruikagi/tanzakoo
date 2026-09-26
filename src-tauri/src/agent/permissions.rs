@@ -16,6 +16,7 @@ pub(super) fn is_board_tool(agent: &str, call: &serde_json::Value) -> bool {
         "propose_memory_change",
         "report_discussion",
         "present_question",
+        "present_questions",
     ];
     if agent == "codex" {
         call["_meta"]["is_mcp_tool_call"] == true

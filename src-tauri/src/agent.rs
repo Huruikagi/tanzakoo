@@ -373,6 +373,7 @@ mod tests {
             "propose_memory_change",
             "report_discussion",
             "present_question",
+            "present_questions",
         ] {
             assert!(is_board_tool(
                 "codex",

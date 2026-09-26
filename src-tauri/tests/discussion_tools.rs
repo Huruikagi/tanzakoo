@@ -48,6 +48,34 @@ async fn mcp_presents_a_persisted_question_but_cannot_answer_it() {
     assert_eq!(f.store.snapshot().unwrap().questions.len(), 1);
     unbound.stop().await;
 }
+#[tokio::test]
+async fn mcp_presents_the_entire_question_batch_once() {
+    let f = Fixture::new();
+    let c = f.store.create_conversation("codex").unwrap();
+    let m = f
+        .store
+        .append_message(&c.id, "user", "まとめて確認して".into(), vec![])
+        .unwrap();
+    let mut mcp = Mcp::start(&f.store, Some((&c.id, &m.id))).await;
+    let request = json!({"jsonrpc":"2.0", "id":2, "method":"tools/call", "params":{
+        "name":"present_questions", "arguments":{"questions":[
+            {"question":"誰が使いますか？", "options":[{"label":"自分", "description":"一人で使う"}, {"label":"家族", "description":"共有する"}]},
+            {"question":"通知は必要ですか？", "options":[{"label":"必要", "description":"時刻を決める"}, {"label":"不要", "description":"自分で確認する"}]}
+        ]}
+    }});
+    let result = mcp.request(request.clone()).await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
+    assert_eq!(f.store.snapshot().unwrap().questions.len(), 2);
+    let result = mcp.request(request.clone()).await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
+    assert_eq!(f.store.snapshot().unwrap().questions.len(), 2);
+    mcp.stop().await;
+    let mut unbound = Mcp::start(&f.store, None).await;
+    let result = unbound.request(request).await;
+    assert_eq!(result["result"]["isError"], true);
+    unbound.stop().await;
+}
+
 impl Fixture {
     fn new() -> Self {
         let dir = std::env::temp_dir().join(format!(

@@ -41,7 +41,7 @@ impl Store {
         role: &str,
         mut text: String,
         references: Vec<CardReference>,
-        answer: Option<QuestionAnswer>,
+        answer: Option<Vec<QuestionAnswer>>,
     ) -> Result<Message> {
         if !["user", "assistant", "error"].contains(&role) || text.len() > 1_000_000 {
             return Err(invalid("メッセージが不正です。"));

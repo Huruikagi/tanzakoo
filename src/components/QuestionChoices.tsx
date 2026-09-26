@@ -1,39 +1,137 @@
+import { useEffect, useRef, useState } from "react";
 import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
+import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "@/lib/workspace";
+import type { QuestionDraft } from "@/lib/workspace/types";
+
+const emptyDraft: QuestionDraft = { mode: "option", optionIndex: null, text: "" };
+function complete(draft: QuestionDraft | undefined) {
+  return (
+    !!draft &&
+    (draft.mode === "option"
+      ? draft.optionIndex !== null
+      : !!draft.text.trim() && [...draft.text].length <= 2000)
+  );
+}
 
 export function QuestionChoices({
-  question,
+  questions,
   disabled,
 }: {
-  question: ChoiceQuestion;
+  questions: ChoiceQuestion[];
   disabled: boolean;
 }) {
-  const pending = question.state === "pending";
+  const projectId = useWorkspace((s) => s.snapshot.project.id);
+  const drafts = useWorkspace((s) => s.questionDrafts[projectId]);
+  const [step, setStep] = useState(0);
+  const title = useRef<HTMLParagraphElement>(null);
+  const previousStep = useRef(step);
+  useEffect(() => {
+    if (previousStep.current !== step) title.current?.focus({ preventScroll: true });
+    previousStep.current = step;
+  }, [step]);
+  const pending = questions.every((q) => q.state === "pending");
+  const question = questions[Math.min(step, questions.length - 1)]!;
+  const draft = drafts?.[question.id] ?? emptyDraft;
+  const answeredCount = questions.filter((q) => complete(drafts?.[q.id])).length;
+  function update(value: QuestionDraft) {
+    if (disabled || !pending) return;
+    useWorkspace.setState((state) => ({
+      questionDrafts: {
+        ...state.questionDrafts,
+        [projectId]: { ...state.questionDrafts[projectId], [question.id]: value },
+      },
+    }));
+  }
+  function submit() {
+    const state = useWorkspace.getState();
+    if (
+      disabled ||
+      !pending ||
+      state.snapshot.project.id !== projectId ||
+      state.conversation !== question.conversationId
+    )
+      return;
+    const current = state.questionDrafts[projectId];
+    if (!questions.every((q) => complete(current?.[q.id]))) return;
+    const answers: QuestionAnswer[] = questions.map((q) => {
+      const value = current![q.id]!;
+      return {
+        questionId: q.id,
+        optionIndex: value.mode === "option" ? value.optionIndex : null,
+        text: value.mode === "text" ? value.text.trim() : null,
+      };
+    });
+    void state.send("質問への回答", "codex", { useReferences: false, questionAnswers: answers });
+  }
+  if (!pending) {
+    return (
+      <section className="chat-question" aria-label="質問への回答">
+        {questions.map((q) => (
+          <div key={q.id} className="chat-question-result">
+            <p className="chat-question-title">{q.question}</p>
+            {q.state === "answered" ? (
+              <p className="chat-question-answer">
+                {q.answerText ??
+                  (q.selectedOption !== null ? q.options[q.selectedOption]?.label : "")}
+              </p>
+            ) : null}
+          </div>
+        ))}
+        <p className="muted chat-question-hint">
+          {questions[0]?.state === "answered"
+            ? "回答済み"
+            : questions[0]?.state === "cancelled"
+              ? "この質問は取り消されました"
+              : "会話を続けました"}
+        </p>
+      </section>
+    );
+  }
   return (
-    <section className="chat-question" aria-label={question.question}>
-      <p className="chat-question-title">{question.question}</p>
+    <section className="chat-question" aria-label="質問にまとめて回答">
+      <div className="chat-question-progress" aria-label="質問の切り替え">
+        {questions.map((q, index) => (
+          <Button
+            key={q.id}
+            size="icon-sm"
+            variant={step === index ? "secondary" : "ghost"}
+            aria-label={`質問${index + 1}${complete(drafts?.[q.id]) ? " 回答入力済み" : " 未回答"}`}
+            aria-current={step === index ? "step" : undefined}
+            disabled={disabled}
+            onClick={() => setStep(index)}
+          >
+            {complete(drafts?.[q.id]) ? "✓" : index + 1}
+          </Button>
+        ))}
+        <span className="muted">
+          {answeredCount} / {questions.length} 回答入力済み
+        </span>
+      </div>
+      <p ref={title} tabIndex={-1} className="chat-question-title">
+        {question.question}
+      </p>
       <div className="chat-question-options">
         {question.options.map((option, index) => (
           <Button
             key={index}
-            variant={question.selectedOption === index ? "secondary" : "outline"}
+            variant={
+              draft.mode === "option" && draft.optionIndex === index ? "secondary" : "outline"
+            }
             size="choice"
-            disabled={disabled || !pending}
+            disabled={disabled}
             aria-label={option.label}
             aria-describedby={option.description ? `${question.id}-option-${index}` : undefined}
-            aria-pressed={question.selectedOption === index}
+            aria-pressed={draft.mode === "option" && draft.optionIndex === index}
             onClick={() => {
-              const state = useWorkspace.getState();
-              if (state.conversation !== question.conversationId) return;
-              void state.send(option.label, "codex", {
-                useReferences: false,
-                questionAnswer: { questionId: question.id, optionIndex: index },
-              });
+              update({ ...draft, mode: "option", optionIndex: index });
+              if (step < questions.length - 1) setStep(step + 1);
             }}
           >
             <span>
-              {question.selectedOption === index ? "✓ " : ""}
+              {draft.mode === "option" && draft.optionIndex === index ? "✓ " : ""}
               {option.label}
             </span>
             {option.description && (
@@ -43,15 +141,55 @@ export function QuestionChoices({
             )}
           </Button>
         ))}
+        <Button
+          variant={draft.mode === "text" ? "secondary" : "outline"}
+          size="sm"
+          disabled={disabled}
+          aria-pressed={draft.mode === "text"}
+          onClick={() => update({ ...draft, mode: "text" })}
+        >
+          自分で回答する
+        </Button>
+      </div>
+      {draft.mode === "text" && (
+        <div className="chat-question-free-text">
+          <Textarea
+            aria-label={`${question.question}への自由入力`}
+            value={draft.text}
+            disabled={disabled}
+            placeholder="希望や条件を書いてください。「まだ決められない」でも大丈夫です。"
+            onChange={(event) => update({ ...draft, text: event.target.value })}
+          />
+          <p className="muted chat-question-hint">{[...draft.text].length} / 2000文字</p>
+          {[...draft.text].length > 2000 && <p role="alert">2000文字以内にしてください。</p>}
+        </div>
+      )}
+      <div className="chat-question-navigation">
+        {step > 0 && (
+          <Button variant="ghost" size="sm" disabled={disabled} onClick={() => setStep(step - 1)}>
+            戻る
+          </Button>
+        )}
+        {step < questions.length - 1 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={disabled || !complete(draft)}
+            onClick={() => setStep(step + 1)}
+          >
+            次の質問
+          </Button>
+        )}
+        <Button
+          size="sm"
+          disabled={disabled || answeredCount !== questions.length}
+          onClick={submit}
+        >
+          まとめて送信
+        </Button>
       </div>
       <p className="muted chat-question-hint">
-        {pending
-          ? "選ぶと送信します。下の入力欄から自由に返答することもできます。"
-          : question.state === "answered"
-            ? "回答済み"
-            : question.state === "cancelled"
-              ? "この質問は取り消されました"
-              : "会話を続けました"}
+        全問に回答してから送信します。戻って回答を直すこともできます。
       </p>
     </section>
   );

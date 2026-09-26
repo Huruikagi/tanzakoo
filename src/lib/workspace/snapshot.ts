@@ -46,7 +46,18 @@ function syncedDrafts(previous: Snapshot, snapshot: Snapshot, drafts: Record<str
 }
 /** All saved-board responses reconcile content drafts using the same revision rules. */
 export function snapshotUpdate(state: Workspace, snapshot: Snapshot) {
-  return { snapshot, drafts: syncedDrafts(state.snapshot, snapshot, state.drafts) };
+  const pendingIds = new Set(
+    snapshot.questions.filter((q) => q.state === "pending").map((q) => q.id),
+  );
+  const questionDrafts = {
+    ...state.questionDrafts,
+    [snapshot.project.id]: Object.fromEntries(
+      Object.entries(state.questionDrafts[snapshot.project.id] ?? {}).filter(([id]) =>
+        pendingIds.has(id),
+      ),
+    ),
+  };
+  return { snapshot, drafts: syncedDrafts(state.snapshot, snapshot, state.drafts), questionDrafts };
 }
 export function projectView(snapshot: Snapshot, view = restoredView(snapshot)) {
   return {

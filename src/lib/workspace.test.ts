@@ -351,6 +351,10 @@ describe("connection status", () => {
 describe("project isolation", () => {
   it("deletes only the active project's drafts and restores the remaining project's selection", async () => {
     useWorkspace.setState({
+      questionDrafts: {
+        a: { q: { mode: "text", optionIndex: null, text: "Aの回答" } },
+        b: { q: { mode: "text", optionIndex: null, text: "Bの回答" } },
+      },
       projectDrafts: {
         a: { name: "A", memory: "A draft", revision: 1 },
         b: { name: "B", memory: "B draft", revision: 1 },
@@ -381,6 +385,8 @@ describe("project isolation", () => {
     expect(useWorkspace.getState().references).toEqual([]);
     expect(Object.keys(useWorkspace.getState().drafts)).toEqual(["other"]);
     expect(Object.keys(useWorkspace.getState().projectDrafts)).toEqual(["b"]);
+    expect(Object.keys(useWorkspace.getState().questionDrafts)).toEqual(["b"]);
+    expect(useWorkspace.getState().questionDrafts.b?.q?.text).toBe("Bの回答");
     expect(localStorage.getItem("tanzakoo-view-a")).toBeNull();
     expect(useWorkspace.getState().error).toContain("再試行");
   });

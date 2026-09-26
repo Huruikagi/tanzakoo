@@ -2,4 +2,4 @@
 import type { QuestionOption } from "./QuestionOption";
 import type { QuestionState } from "./QuestionState";
 
-export type ChoiceQuestion = { id: string, conversationId: string, messageId: string, question: string, options: Array<QuestionOption>, state: QuestionState, selectedOption: number | null, };
+export type ChoiceQuestion = { id: string, conversationId: string, messageId: string, question: string, options: Array<QuestionOption>, state: QuestionState, selectedOption: number | null, answerText: string | null, };
