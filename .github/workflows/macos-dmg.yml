@@ -28,6 +28,15 @@ jobs:
         run: test "$(uname -m)" = arm64
       - name: Install dependencies
         run: mise exec -- pnpm install --frozen-lockfile
+      - name: Identify Rust toolchain
+        id: rust-version
+        run: echo "fingerprint=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Restore unsigned Rust build cache
+        id: rust-cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: src-tauri/target
+          key: dmg-macos-26-arm64-${{ steps.rust-version.outputs.fingerprint }}-${{ hashFiles('src-tauri/Cargo.lock', 'src-tauri/Cargo.toml', 'src-tauri/build.rs', 'src-tauri/src/**/*.rs') }}
       - name: Frontend checks
         run: mise exec -- pnpm check
       - name: Rust tests
@@ -43,6 +52,13 @@ jobs:
           --target aarch64-apple-darwin --bundles app
           --config src-tauri/tauri.runtime.conf.json
           --config src-tauri/tauri.dmg.conf.json -- --locked
+      # Save before any signing credentials or signed files enter the job.
+      - name: Save unsigned Rust build cache
+        if: steps.rust-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: src-tauri/target
+          key: ${{ steps.rust-cache.outputs.cache-primary-key }}
       - name: Sign, notarize and verify DMG
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

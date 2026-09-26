@@ -47,6 +47,12 @@ keychain_password=$(openssl rand -hex 32)
 security create-keychain -p "$keychain_password" "$keychain"
 security set-keychain-settings -lut 7200 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
+# codesign's private-key lookup also needs the user search list, even with --keychain.
+keychains=("$keychain")
+while IFS= read -r existing_keychain; do
+  if [[ $existing_keychain != "$keychain" ]]; then keychains+=("$existing_keychain"); fi
+done < <(security list-keychains -d user | sed -E 's/^[[:space:]]*"(.*)"[[:space:]]*$/\1/')
+security list-keychains -d user -s "${keychains[@]}"
 security import "$work/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null
 # Include Apple's public G2 intermediate even when the runner has never signed before.
 curl --fail --silent --show-error --location --output "$work/DeveloperIDG2CA.cer" \
@@ -55,6 +61,7 @@ security import "$work/DeveloperIDG2CA.cer" -k "$keychain" >/dev/null
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
 identity=$(security find-identity -v -p codesigning "$keychain" | awk '/"Developer ID Application:/ {print $2}')
 [[ $identity =~ ^[A-Fa-f0-9]{40}$ ]] || { echo 'Expected exactly one valid Developer ID Application identity' >&2; exit 1; }
+echo 'Developer ID keychain is ready.'
 unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_KEY_CONTENT APPLE_API_KEY APPLE_API_ISSUER keychain_password
 umask 022
 
@@ -87,6 +94,7 @@ done < <(find "$app/Contents" -type f -print0)
 codesign --force --timestamp --options runtime --entitlements "$work/empty.plist" \
   --sign "$identity" --keychain "$keychain" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
+echo "Signed and verified $count Mach-O files and the application bundle."
 
 # Test the signed runtimes before paying the cost of notarization. No developer PATH,
 # inherited AI credentials, login, model request or project content is used.
@@ -104,6 +112,7 @@ codesign --verify --strict "$dmg"
 
 # Submit once. A timeout or Invalid result must never reach the DMG upload step.
 notary_exit=0
+echo 'Submitting signed DMG for notarization (up to 30 minutes).'
 xcrun notarytool submit "$dmg" "${notary_auth[@]}" --wait --timeout 30m \
   --output-format json > "$output/notarization.json" || notary_exit=$?
 submission_id=$(/usr/bin/plutil -extract id raw -o - "$output/notarization.json" 2>/dev/null || true)
