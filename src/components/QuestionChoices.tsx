@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, CheckCircle2, MessageCircleQuestion, ChevronRight } from "lucide-react";
 import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
@@ -31,15 +31,27 @@ export function QuestionChoices({
   const drafts = useWorkspace((s) => s.questionDrafts[projectId]);
   const [step, setStep] = useState(0);
   const title = useRef<HTMLParagraphElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const revealInput = useRef(false);
+  const composing = useRef(false);
   const previousStep = useRef(step);
+  useLayoutEffect(() => {
+    if (!revealInput.current) return;
+    revealInput.current = false;
+    input.current?.focus({ preventScroll: true });
+    if (body.current) body.current.scrollTop = body.current.scrollHeight;
+  });
   useEffect(() => {
     if (previousStep.current !== step) title.current?.focus({ preventScroll: true });
+    composing.current = false;
     previousStep.current = step;
   }, [step]);
   const pending = questions.every((q) => q.state === "pending");
   const question = questions[Math.min(step, questions.length - 1)]!;
   const draft = drafts?.[question.id] ?? emptyDraft;
   const answeredCount = questions.filter((q) => complete(drafts?.[q.id])).length;
+  const multiple = questions.length > 1;
   function update(value: QuestionDraft) {
     if (disabled || !pending) return;
     useWorkspace.setState((state) => ({
@@ -69,6 +81,16 @@ export function QuestionChoices({
       };
     });
     void state.send("質問への回答", "codex", { useReferences: false, questionAnswers: answers });
+  }
+  function advanceOrSubmit() {
+    if (disabled || !pending || !complete(draft)) return;
+    if (answeredCount === questions.length) {
+      submit();
+      return;
+    }
+    // Return to an earlier unanswered question when the user skipped ahead.
+    const next = questions.findIndex((q, index) => index > step && !complete(drafts?.[q.id]));
+    setStep(next >= 0 ? next : questions.findIndex((q) => !complete(drafts?.[q.id])));
   }
   if (!pending) {
     return (
@@ -106,33 +128,40 @@ export function QuestionChoices({
     );
   }
   return (
-    <section className="chat-question chat-question-active" aria-label="質問にまとめて回答">
+    <section
+      className="chat-question chat-question-active"
+      aria-label={multiple ? "質問にまとめて回答" : "質問に回答"}
+    >
       <div className="chat-question-heading">
         <Badge>
           <MessageCircleQuestion />
           {running ? "AI応答中" : answeredCount === questions.length ? "送信待ち" : "回答待ち"}
         </Badge>
-        <span>
-          質問 {step + 1} / {questions.length}
-        </span>
+        {multiple && (
+          <span className="chat-question-counter">
+            質問 {step + 1} / {questions.length}
+          </span>
+        )}
       </div>
-      <div className="chat-question-progress" aria-label="質問の切り替え">
-        {questions.map((q, index) => (
-          <Button
-            key={q.id}
-            size="sm"
-            variant={step === index ? "default" : "ghost"}
-            aria-label={`質問${index + 1}${complete(drafts?.[q.id]) ? " 回答入力済み" : " 未回答"}`}
-            aria-current={step === index ? "step" : undefined}
-            disabled={disabled}
-            onClick={() => setStep(index)}
-          >
-            {index + 1}
-            {complete(drafts?.[q.id]) && <Check size={12} />}
-          </Button>
-        ))}
-      </div>
-      <div className="chat-question-body" key={question.id}>
+      {multiple && (
+        <div className="chat-question-progress" aria-label="質問の切り替え">
+          {questions.map((q, index) => (
+            <Button
+              key={q.id}
+              size="sm"
+              variant={step === index ? "default" : "ghost"}
+              aria-label={`質問${index + 1}${complete(drafts?.[q.id]) ? " 回答入力済み" : " 未回答"}`}
+              aria-current={step === index ? "step" : undefined}
+              disabled={disabled}
+              onClick={() => setStep(index)}
+            >
+              {index + 1}
+              {complete(drafts?.[q.id]) && <Check size={12} />}
+            </Button>
+          ))}
+        </div>
+      )}
+      <div className="chat-question-body" key={question.id} ref={body}>
         <p ref={title} tabIndex={-1} className="chat-question-title">
           {question.question}
         </p>
@@ -169,7 +198,10 @@ export function QuestionChoices({
             size="sm"
             disabled={disabled}
             aria-pressed={draft.mode === "text"}
-            onClick={() => update({ ...draft, mode: "text" })}
+            onClick={() => {
+              revealInput.current = true;
+              update({ ...draft, mode: "text" });
+            }}
           >
             自分で回答する
           </Button>
@@ -177,13 +209,29 @@ export function QuestionChoices({
         {draft.mode === "text" && (
           <div className="chat-question-free-text">
             <Textarea
+              ref={input}
               aria-label={`${question.question}への自由入力`}
               value={draft.text}
               disabled={disabled}
               placeholder="希望や条件を書いてください。「まだ決められない」でも大丈夫です。"
               onChange={(event) => update({ ...draft, text: event.target.value })}
+              onCompositionStart={() => {
+                composing.current = true;
+              }}
+              onCompositionEnd={() => {
+                composing.current = false;
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
+                if (event.nativeEvent.isComposing || composing.current) return;
+                event.preventDefault();
+                if (!event.repeat) advanceOrSubmit();
+              }}
             />
-            <p className="muted chat-question-hint">{[...draft.text].length} / 2000文字</p>
+            <p className="muted chat-question-hint">
+              {[...draft.text].length} / 2000文字 · Ctrl + Enter で
+              {multiple && answeredCount !== questions.length ? "次の質問" : "送信"}
+            </p>
             {[...draft.text].length > 2000 && <p role="alert">2000文字以内にしてください。</p>}
           </div>
         )}
@@ -210,16 +258,18 @@ export function QuestionChoices({
             disabled={disabled || answeredCount !== questions.length}
             onClick={submit}
           >
-            まとめて送信
+            {multiple ? "まとめて送信" : "回答を送信"}
           </Button>
         </div>
-        <output className="muted chat-question-hint">
-          {running
-            ? "AIの応答が終わると回答できます。"
-            : answeredCount === questions.length
-              ? "回答がそろいました。「まとめて送信」で会話を続けます。"
-              : `あと${questions.length - answeredCount}問に回答してください。`}
-        </output>
+        {(multiple || running) && (
+          <output className="muted chat-question-hint">
+            {running
+              ? "AIの応答が終わると回答できます。"
+              : answeredCount === questions.length
+                ? "回答がそろいました。「まとめて送信」で会話を続けます。"
+                : `あと${questions.length - answeredCount}問に回答してください。`}
+          </output>
+        )}
       </div>
     </section>
   );

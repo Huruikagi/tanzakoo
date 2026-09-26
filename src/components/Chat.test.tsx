@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Chat } from "./Chat";
 import { useWorkspace } from "@/lib/workspace";
@@ -118,7 +118,7 @@ it("sends a choice once while preserving the draft and attached references", asy
   const option = screen.getByRole("button", { name: "自分用" });
   await user.click(option);
   expect(api.send).not.toHaveBeenCalled();
-  await user.dblClick(screen.getByRole("button", { name: "まとめて送信" }));
+  await user.dblClick(screen.getByRole("button", { name: "回答を送信" }));
   expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "質問への回答", [], "a", [
     {
       questionId: "q",
@@ -129,7 +129,7 @@ it("sends a choice once while preserving the draft and attached references", asy
   expect(option).toBeDisabled();
   await act(async () => finish());
   expect(screen.getByText("回答済み")).toBeVisible();
-  expect(screen.queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "回答を送信" })).not.toBeInTheDocument();
   await user.click(screen.getByText("回答済み"));
   expect(screen.getByText("自分用")).toBeVisible();
   expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("考え途中");
@@ -149,7 +149,7 @@ it("keeps free-text replies available and isolates questions between conversatio
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "家族で使う");
   await user.click(screen.getByRole("button", { name: "メッセージを送信" }));
   expect(api.send).toHaveBeenCalledWith("c", "家族で使う", [], "a");
-  expect(screen.queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "回答を送信" })).not.toBeInTheDocument();
   act(() => useWorkspace.getState().selectConversation(null));
   expect(screen.queryByRole("region", { name: "誰が使いますか？" })).not.toBeInTheDocument();
 });
@@ -165,7 +165,7 @@ it("shows errors and refreshes stale choices without clearing the draft", async 
   render(<Chat />);
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "補足");
   await user.click(screen.getByRole("button", { name: "自分用" }));
-  await user.click(screen.getByRole("button", { name: "まとめて送信" }));
+  await user.click(screen.getByRole("button", { name: "回答を送信" }));
   expect(screen.getByRole("alert")).toHaveTextContent("回答受付は終了しています");
   expect(screen.getByText("この質問は取り消されました")).toBeVisible();
   expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("補足");
@@ -230,18 +230,18 @@ it("retains batch answers after a pre-send failure and refuses blank or oversize
   await user.click(screen.getByRole("button", { name: "自分で回答する" }));
   const input = screen.getByLabelText("誰が使いますか？への自由入力");
   await user.type(input, "   ");
-  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "回答を送信" })).toBeDisabled();
   await user.clear(input);
   await user.click(input);
   await user.paste("長".repeat(2001));
-  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "回答を送信" })).toBeDisabled();
   expect(screen.getByRole("alert")).toHaveTextContent("2000文字以内");
   await user.clear(input);
   await user.type(input, "まだ決められない");
-  await user.click(screen.getByRole("button", { name: "まとめて送信" }));
+  await user.click(screen.getByRole("button", { name: "回答を送信" }));
   expect(screen.getByRole("alert")).toHaveTextContent("送信できませんでした");
   expect(input).toHaveValue("まだ決められない");
-  expect(screen.getByRole("button", { name: "まとめて送信" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "回答を送信" })).toBeEnabled();
 });
 it("keeps pending questions outside history and folds proposals without stealing the draft or focus", async () => {
   const user = userEvent.setup();
@@ -260,7 +260,7 @@ it("keeps pending questions outside history and folds proposals without stealing
   expect(composer).toHaveFocus();
   expect(composer).toHaveValue("考え途中");
   const history = screen.getByLabelText("会話メッセージ");
-  const question = screen.getByRole("region", { name: "質問にまとめて回答" });
+  const question = screen.getByRole("region", { name: "質問に回答" });
   expect(history).not.toContainElement(question);
   expect(screen.getByText("回答待ち")).toBeVisible();
   const proposals = screen.getByRole("button", { name: "未承認の変更 2" });
@@ -270,7 +270,7 @@ it("keeps pending questions outside history and folds proposals without stealing
   const input = screen.getByLabelText("誰が使いますか？への自由入力");
   await user.type(input, "家族で使う");
   expect(screen.getByText("送信待ち")).toBeVisible();
-  expect(within(question).getByRole("status")).toHaveTextContent("回答がそろいました");
+  expect(within(question).queryByRole("status")).not.toBeInTheDocument();
   await user.click(proposals);
   expect(screen.getByRole("button", { name: "まとめて承認 (2)" })).toBeEnabled();
   act(() => useWorkspace.setState({ snapshot: { ...snapshot } }));
@@ -308,12 +308,95 @@ it("shows completed answers as folded history and only the current conversation'
   const history = screen.getByLabelText("会話メッセージ");
   const summary = within(history).getByText("回答済み");
   expect(summary.closest("details")).not.toHaveAttribute("open");
-  expect(screen.getAllByRole("region", { name: "質問にまとめて回答" })).toHaveLength(1);
+  expect(screen.getAllByRole("region", { name: "質問に回答" })).toHaveLength(1);
   await user.click(summary);
   expect(within(history).getByText("チーム用")).toBeVisible();
-  expect(within(history).queryByRole("button", { name: "まとめて送信" })).not.toBeInTheDocument();
+  expect(within(history).queryByRole("button", { name: "回答を送信" })).not.toBeInTheDocument();
   act(() => useWorkspace.getState().selectConversation(null));
-  expect(screen.queryByRole("region", { name: "質問にまとめて回答" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "質問に回答" })).not.toBeInTheDocument();
+});
+it("reveals and focuses free text on request and simplifies a single question", async () => {
+  const user = userEvent.setup();
+  useWorkspace.setState({ snapshot: questionSnapshot(), conversation: "c" });
+  render(<Chat />);
+  const question = screen.getByRole("region", { name: "質問に回答" });
+  const body = question.querySelector(".chat-question-body")!;
+  Object.defineProperty(body, "scrollHeight", { value: 500 });
+  const history = screen.getByLabelText("会話メッセージ");
+  history.scrollTop = 25;
+  expect(screen.queryByLabelText("質問の切り替え")).not.toBeInTheDocument();
+  expect(screen.queryByText(/質問 1 \/ 1|あと1問/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "次の質問" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "回答を送信" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  const input = screen.getByLabelText("誰が使いますか？への自由入力");
+  expect(input).toHaveFocus();
+  expect(body.scrollTop).toBe(500);
+  expect(history.scrollTop).toBe(25);
+  body.scrollTop = 10;
+  await user.type(input, "家族");
+  expect(body.scrollTop).toBe(10);
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  expect(body.scrollTop).toBe(500);
+  expect(input).toHaveFocus();
+});
+it("submits free text with Ctrl+Enter but preserves newlines and ignores IME, repeats and invalid input", async () => {
+  const user = userEvent.setup();
+  const snapshot = questionSnapshot();
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  vi.mocked(api.send).mockImplementation(() => new Promise(() => {}));
+  render(<Chat />);
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  const input = screen.getByLabelText("誰が使いますか？への自由入力");
+  const shortcut = { key: "Enter", ctrlKey: true };
+  for (const text of ["   ", "長".repeat(2001)]) {
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.keyDown(input, shortcut);
+    expect(api.send).not.toHaveBeenCalled();
+  }
+  fireEvent.change(input, { target: { value: "家族" } });
+  await user.keyboard("{Enter}で使う");
+  expect(input).toHaveValue("家族\nで使う");
+  fireEvent.compositionStart(input);
+  fireEvent.keyDown(input, shortcut);
+  fireEvent.compositionEnd(input);
+  fireEvent.keyDown(input, { ...shortcut, isComposing: true });
+  fireEvent.keyDown(input, { ...shortcut, repeat: true });
+  expect(api.send).not.toHaveBeenCalled();
+  fireEvent.keyDown(input, shortcut);
+  fireEvent.keyDown(input, shortcut);
+  expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "質問への回答", [], "a", [
+    { questionId: "q", optionIndex: null, text: "家族\nで使う" },
+  ]);
+});
+it("advances free text to unanswered questions with Ctrl+Enter and submits the completed batch", async () => {
+  const user = userEvent.setup();
+  const snapshot = {
+    ...questionSnapshot(),
+    questions: [choiceQuestion, { ...choiceQuestion, id: "q2", question: "いつ使いますか？" }],
+  };
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  vi.mocked(api.send).mockImplementation(() => new Promise(() => {}));
+  render(<Chat />);
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  await user.type(screen.getByLabelText("誰が使いますか？への自由入力"), "家族");
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(screen.getByText("いつ使いますか？", { exact: true })).toHaveFocus();
+  expect(api.send).not.toHaveBeenCalled();
+  // A later answer can return to an earlier question that is now incomplete.
+  act(() => useWorkspace.setState({ questionDrafts: {} }));
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  await user.type(screen.getByLabelText("いつ使いますか？への自由入力"), "夜");
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(screen.getByText("誰が使いますか？", { exact: true })).toHaveFocus();
+  expect(api.send).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "自分で回答する" }));
+  await user.type(screen.getByLabelText("誰が使いますか？への自由入力"), "家族");
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "質問への回答", [], "a", [
+    { questionId: "q", optionIndex: null, text: "家族" },
+    { questionId: "q2", optionIndex: null, text: "夜" },
+  ]);
 });
 function proposalSnapshot() {
   const cards = [topic, { ...topic, id: "second", title: "表示方法" }];
