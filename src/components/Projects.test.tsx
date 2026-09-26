@@ -19,7 +19,7 @@ vi.mock("@/lib/api", () => ({
     agents: [],
     consents: [],
   },
-  api: { action: vi.fn(), createProject: vi.fn(), switchProject: vi.fn() },
+  api: { action: vi.fn(), createProject: vi.fn(), switchProject: vi.fn(), deleteProject: vi.fn() },
 }));
 vi.mock("./MarkdownEditor", () => ({
   MarkdownEditor: ({
@@ -89,4 +89,44 @@ it("creates a project with its initial memory and switches to the empty board", 
   expect(api.createProject).toHaveBeenCalledWith("アプリB", "家族で使う");
   expect(useWorkspace.getState().snapshot.project.id).toBe("b");
   expect(useWorkspace.getState().conversation).toBeNull();
+});
+
+it("confirms the project and deletion scope, supports cancellation, and deletes only on confirmation", async () => {
+  const user = userEvent.setup();
+  render(<Projects />);
+  await user.click(screen.getByRole("button", { name: "プロジェクトメモリ" }));
+  await user.click(screen.getByRole("button", { name: "プロジェクトを削除" }));
+  expect(screen.getByRole("heading", { name: "「アプリA」を削除しますか？" })).toBeVisible();
+  expect(screen.getByText(/元に戻せません/)).toHaveTextContent("空のプロジェクト");
+  expect(api.deleteProject).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "キャンセル" }));
+  expect(api.deleteProject).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "プロジェクトを削除" }));
+  vi.mocked(api.deleteProject).mockResolvedValue({
+    snapshot: { ...emptySnapshot, project: { ...emptySnapshot.project, id: "b", name: "B" } },
+    warning: null,
+  });
+  await user.click(screen.getByRole("button", { name: "削除する" }));
+  expect(api.deleteProject).toHaveBeenCalledWith("a");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("keeps the confirmation and project visible after a failure", async () => {
+  const user = userEvent.setup();
+  render(<Projects />);
+  await user.click(screen.getByRole("button", { name: "プロジェクトメモリ" }));
+  await user.click(screen.getByRole("button", { name: "プロジェクトを削除" }));
+  vi.mocked(api.deleteProject).mockRejectedValue("保存に失敗しました");
+  await user.click(screen.getByRole("button", { name: "削除する" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("保存に失敗しました");
+  expect(useWorkspace.getState().snapshot.project.id).toBe("a");
+  expect(screen.getByRole("button", { name: "削除する" })).toBeEnabled();
+});
+
+it("disables deletion while the agent is running", async () => {
+  useWorkspace.setState({ busy: { kind: "chat", conversation: "c" } });
+  const user = userEvent.setup();
+  render(<Projects />);
+  await user.click(screen.getByRole("button", { name: "プロジェクトメモリ" }));
+  expect(screen.getByRole("button", { name: "プロジェクトを削除" })).toBeDisabled();
 });

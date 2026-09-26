@@ -22,6 +22,7 @@ vi.mock("./api", () => ({
     permission: vi.fn(),
     switchProject: vi.fn(),
     createProject: vi.fn(),
+    deleteProject: vi.fn(),
     connection: vi.fn(),
     setConsent: vi.fn(),
   },
@@ -253,6 +254,69 @@ describe("connection status", () => {
   });
 });
 describe("project isolation", () => {
+  it("deletes only the active project's drafts and restores the remaining project's selection", async () => {
+    useWorkspace.setState({
+      projectDrafts: {
+        a: { name: "A", memory: "A draft", revision: 1 },
+        b: { name: "B", memory: "B draft", revision: 1 },
+      },
+      drafts: {
+        [card.id]: { title: "A", body: "A draft", revision: 1 },
+        other: { title: "B", body: "B draft", revision: 1 },
+      },
+    });
+    useWorkspace.getState().attach(card);
+    localStorage.setItem(
+      "tanzakoo-view-b",
+      JSON.stringify({ selected: "other", conversation: null }),
+    );
+    localStorage.setItem("tanzakoo-view-a", "{}");
+    const snapshot = {
+      ...emptySnapshot,
+      project: { ...emptySnapshot.project, id: "b" },
+      cards: [{ ...card, id: "other" }],
+    };
+    vi.mocked(api.deleteProject).mockResolvedValue({
+      snapshot,
+      warning: "ファイル消去を再試行します",
+    });
+    expect(await useWorkspace.getState().deleteProject("a")).toBe(true);
+    expect(useWorkspace.getState().snapshot).toBe(snapshot);
+    expect(useWorkspace.getState().selected).toBe("other");
+    expect(useWorkspace.getState().references).toEqual([]);
+    expect(Object.keys(useWorkspace.getState().drafts)).toEqual(["other"]);
+    expect(Object.keys(useWorkspace.getState().projectDrafts)).toEqual(["b"]);
+    expect(localStorage.getItem("tanzakoo-view-a")).toBeNull();
+    expect(useWorkspace.getState().error).toContain("再試行");
+  });
+  it("blocks stale deletion, deletion during agent work, and duplicate requests", async () => {
+    expect(await useWorkspace.getState().deleteProject("b")).toBe(false);
+    for (const busy of [
+      { kind: "chat", conversation: "c" },
+      { kind: "connecting", agent: "codex" },
+      { kind: "settings" },
+    ] as const) {
+      useWorkspace.setState({ busy });
+      expect(await useWorkspace.getState().deleteProject("a")).toBe(false);
+    }
+    expect(api.deleteProject).not.toHaveBeenCalled();
+    useWorkspace.setState({ busy: null });
+    let reject!: (error: string) => void;
+    vi.mocked(api.deleteProject).mockReturnValue(
+      new Promise((_, fail) => {
+        reject = fail;
+      }),
+    );
+    const deleting = useWorkspace.getState().deleteProject("a");
+    expect(await useWorkspace.getState().deleteProject("a")).toBe(false);
+    expect(await useWorkspace.getState().changeProject("b")).toBe(false);
+    expect(await useWorkspace.getState().send("hello", "codex")).toBe(false);
+    await vi.waitFor(() => expect(api.deleteProject).toHaveBeenCalledOnce());
+    reject("失敗");
+    expect(await deleting).toBe(false);
+    expect(useWorkspace.getState().snapshot.project.id).toBe("a");
+    expect(useWorkspace.getState().switching).toBe(false);
+  });
   it("does not route legacy Claude history to Codex or start a Claude connection", async () => {
     useWorkspace.setState({
       conversation: "legacy",

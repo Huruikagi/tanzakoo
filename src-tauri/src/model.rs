@@ -1,6 +1,14 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct DeleteProjectResult {
+    pub snapshot: Snapshot,
+    pub warning: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]

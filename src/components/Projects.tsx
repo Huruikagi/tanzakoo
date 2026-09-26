@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { FolderOpen, Plus, NotebookPen, Save } from "lucide-react";
+import { FolderOpen, Plus, NotebookPen, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  DialogFooter,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -263,6 +264,68 @@ function ProjectMemory() {
           />
         ))}
       </Proposals>
+      <DeleteProject disabled={saving} />
     </div>
+  );
+}
+
+function DeleteProject({ disabled }: { disabled: boolean }) {
+  const { snapshot, busy, switching, deleteProject } = useWorkspace(
+    useShallow((s) => ({
+      snapshot: s.snapshot,
+      busy: s.busy,
+      switching: s.switching,
+      deleteProject: s.deleteProject,
+    })),
+  );
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  const blocked = disabled || !!busy || switching;
+  async function remove() {
+    setError("");
+    if (!(await deleteProject(snapshot.project.id))) {
+      setError(useWorkspace.getState().error ?? "処理が終わってから削除してください。");
+    }
+  }
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!switching) {
+          setOpen(next);
+          setError("");
+        }
+      }}
+    >
+      <div className="mt-6 border-t pt-4">
+        <DialogTrigger asChild>
+          <Button variant="destructive" size="sm" disabled={blocked}>
+            <Trash2 />
+            プロジェクトを削除
+          </Button>
+        </DialogTrigger>
+        {busy && <p className="hint muted">AIの処理が終わってから削除できます。</p>}
+      </div>
+      <DialogContent showCloseButton={!switching}>
+        <DialogHeader>
+          <DialogTitle>「{snapshot.project.name}」を削除しますか？</DialogTitle>
+          <DialogDescription>
+            このプロジェクトのカード・会話・メモリ・変更提案と未保存の下書きを削除します。元に戻せません。
+            {snapshot.projects.length === 1
+              ? "削除後は空のプロジェクトを開きます。"
+              : "削除後は別のプロジェクトを開きます。"}
+          </DialogDescription>
+        </DialogHeader>
+        {error && <p role="alert">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" disabled={switching} onClick={() => setOpen(false)}>
+            キャンセル
+          </Button>
+          <Button variant="destructive" disabled={blocked} onClick={() => void remove()}>
+            {switching ? "削除しています…" : "削除する"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

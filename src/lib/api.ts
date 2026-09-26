@@ -6,6 +6,7 @@ import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import type { ChatOption } from "@/bindings/ChatOption";
 import type { ExportResult } from "@/bindings/ExportResult";
+import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 
 export type AgentEvent = {
   conversationId: string;
@@ -41,6 +42,8 @@ export const api = {
   action: (action: BoardAction, projectId: string) =>
     invoke<Snapshot>("board_action", { action, projectId }),
   switchProject: (projectId: string) => invoke<Snapshot>("switch_project", { projectId }),
+  deleteProject: (projectId: string) =>
+    invoke<DeleteProjectResult>("delete_project", { projectId }),
   createProject: (name: string, memory: string) =>
     invoke<Snapshot>("create_project", { name, memory }),
   send: (conversationId: string, text: string, references: CardReference[], projectId: string) =>

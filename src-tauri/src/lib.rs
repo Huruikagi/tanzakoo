@@ -150,6 +150,26 @@ async fn create_project(
 }
 
 #[tauri::command]
+async fn delete_project(
+    project_id: String,
+    state: State<'_, AppState>,
+) -> Result<DeleteProjectResult, String> {
+    let projects = state.projects.clone();
+    let runtime = state.runtime.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut projects = projects.lock().map_err(|e| e.to_string())?;
+        runtime.ensure_idle()?;
+        let warning = projects.delete(&project_id).map_err(|e| e.to_string())?;
+        Ok(DeleteProjectResult {
+            snapshot: snapshot(&projects)?,
+            warning,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn send_prompt(
     project_id: String,
     conversation_id: String,
@@ -295,6 +315,7 @@ pub fn run() {
             board_action,
             switch_project,
             create_project,
+            delete_project,
             send_prompt,
             set_consent,
             cancel_prompt,

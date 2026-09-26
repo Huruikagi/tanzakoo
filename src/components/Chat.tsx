@@ -59,6 +59,18 @@ export function Chat() {
   useEffect(
     () =>
       useWorkspace.subscribe((state, previous) => {
+        const removed = previous.snapshot.projects.filter(
+          (project) => !state.snapshot.projects.some((current) => current.id === project.id),
+        );
+        if (removed.length) {
+          setDrafts((current) =>
+            Object.fromEntries(
+              Object.entries(current).filter(
+                ([key]) => !removed.some((project) => key.startsWith(`${project.id}:`)),
+              ),
+            ),
+          );
+        }
         // Preserve the composer when a board action creates the first conversation.
         if (
           previous.conversation === null &&

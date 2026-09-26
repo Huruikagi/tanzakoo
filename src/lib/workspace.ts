@@ -47,6 +47,7 @@ type Workspace = {
   projectDrafts: Record<string, ProjectDraft>;
   changeProject: (id: string) => Promise<boolean>;
   createProject: (name: string, memory: string) => Promise<boolean>;
+  deleteProject: (id: string) => Promise<boolean>;
   selected: string | null;
   conversation: string | null;
   references: CardReference[];
@@ -232,6 +233,34 @@ export const useWorkspace = create<Workspace>((set, get) => ({
           ...snapshotUpdate(state, snapshot),
           ...projectView(snapshot, { selected: null, conversation: null }),
         }));
+        return true;
+      } catch (error) {
+        set({ error: String(error) });
+        return false;
+      } finally {
+        set({ switching: false });
+      }
+    });
+  },
+  deleteProject: async (id) => {
+    if (get().busy || get().switching || get().snapshot.project.id !== id) return false;
+    set({ switching: true, error: null });
+    return serialized(async () => {
+      try {
+        const previous = get().snapshot;
+        const { snapshot, warning } = await api.deleteProject(id);
+        set((state) => {
+          const drafts = { ...state.drafts };
+          for (const card of previous.cards) delete drafts[card.id];
+          const projectDrafts = { ...state.projectDrafts };
+          delete projectDrafts[id];
+          return { snapshot, ...projectView(snapshot), drafts, projectDrafts, error: warning };
+        });
+        try {
+          localStorage.removeItem(`tanzakoo-view-${id}`);
+        } catch {
+          /* Optional UI preference. */
+        }
         return true;
       } catch (error) {
         set({ error: String(error) });
