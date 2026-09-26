@@ -198,12 +198,10 @@ function Details({ card }: { card: Card }) {
             <ProposalCard
               key={p.id}
               reason={p.reason}
-              before={
-                <>
-                  <strong>{p.beforeTitle}</strong>
-                  <Markdown>{p.beforeBody}</Markdown>
-                </>
-              }
+              fields={[
+                { label: "タイトル", before: p.beforeTitle, after: p.title },
+                { label: "本文", before: p.beforeBody, after: p.body },
+              ]}
               after={
                 <>
                   <h4>{p.title}</h4>

@@ -60,6 +60,9 @@ it("keeps memory unchanged until approval and prevents applying over a draft", a
   render(<Projects />);
   await user.click(screen.getByRole("button", { name: "プロジェクトメモリ" }));
   expect(screen.getByLabelText("プロジェクトメモリ本文")).toHaveValue("個人用");
+  expect(screen.getByLabelText("メモリの差分")).toHaveTextContent("個人用。通知なし");
+  await user.click(screen.getByRole("tab", { name: "変更後" }));
+  expect(screen.getByText("個人用。通知なし")).toBeVisible();
   expect(api.action).not.toHaveBeenCalled();
   await user.type(screen.getByLabelText("プロジェクトメモリ本文"), "の予定");
   expect(screen.getByRole("button", { name: "適用する" })).toBeDisabled();

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Check, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TextDiff } from "./TextDiff";
 
 /** Pending AI proposals for one target. Renders nothing when there are none. */
 export function Proposals({ count, children }: { count: number; children: ReactNode }) {
@@ -23,7 +25,7 @@ export function Proposals({ count, children }: { count: number; children: ReactN
  */
 export function ProposalCard({
   reason,
-  before,
+  fields,
   after,
   outdated,
   dirty,
@@ -31,7 +33,7 @@ export function ProposalCard({
   onResolve,
 }: {
   reason: string;
-  before: ReactNode;
+  fields: { label: string; before: string; after: string }[];
   after: ReactNode;
   /** Why the proposal can no longer be applied, if it can't. */
   outdated: string | null;
@@ -42,14 +44,26 @@ export function ProposalCard({
   return (
     <article className="proposal">
       <p className="proposal-reason">{reason}</p>
-      <details>
-        <summary>変更前</summary>
-        <div className="proposal-before">{before}</div>
-      </details>
-      <div className="proposal-after">
-        <span className="small-label">変更案</span>
-        {after}
-      </div>
+      <Tabs defaultValue="diff">
+        <div className="proposal-view-switch">
+          <TabsList aria-label="変更提案の表示">
+            <TabsTrigger value="diff">差分</TabsTrigger>
+            <TabsTrigger value="after">変更後</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="diff">
+          <div className="diff-legend">
+            <span>− 削除</span>
+            <span>+ 追加</span>
+          </div>
+          {fields.map((field) => (
+            <TextDiff key={field.label} {...field} />
+          ))}
+        </TabsContent>
+        <TabsContent value="after">
+          <div className="proposal-after">{after}</div>
+        </TabsContent>
+      </Tabs>
       {outdated ? (
         <p className="inline-error">{outdated}</p>
       ) : (

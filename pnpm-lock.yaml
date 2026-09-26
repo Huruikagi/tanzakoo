@@ -199,6 +199,9 @@ importers:
       cn:
         specifier: ^0.3.0
         version: 0.3.0
+      diff:
+        specifier: 9.0.0
+        version: 9.0.0
       lucide-react:
         specifier: 1.46.0
         version: 1.46.0(react@19.3.0)

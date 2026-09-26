@@ -68,7 +68,7 @@ it("shows a proposal separately and only applies after clicking Apply", async ()
   const user = userEvent.setup();
   render(<CardDetails />);
   expect(screen.getByLabelText("カード本文")).toHaveValue("毎朝");
-  expect(screen.getByText("毎夕")).toBeInTheDocument();
+  expect(screen.getByLabelText("本文の差分")).toHaveTextContent("毎夕");
   expect(api.action).not.toHaveBeenCalled();
   vi.mocked(api.action).mockResolvedValue({
     ...emptySnapshot,
@@ -102,9 +102,11 @@ it("replaces the displayed proposal while keeping the saved card as the comparis
     });
   });
   expect(screen.queryByText("毎夕")).not.toBeInTheDocument();
-  expect(screen.getByText("平日の毎夕")).toBeInTheDocument();
+  expect(screen.getByLabelText("本文の差分")).toHaveTextContent("平日の毎夕");
   expect(screen.getByLabelText("カード本文")).toHaveValue("毎朝");
-  expect(within(screen.getByRole("article")).getByText("毎朝")).toBeInTheDocument();
+  expect(within(screen.getByRole("article")).getByLabelText("本文の差分")).toHaveTextContent(
+    "毎朝",
+  );
   expect(screen.getAllByRole("button", { name: "適用する" })).toHaveLength(1);
   expect(api.action).not.toHaveBeenCalled();
   vi.mocked(api.action).mockResolvedValue({

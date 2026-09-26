@@ -251,7 +251,7 @@ function ProjectMemory() {
           <ProposalCard
             key={p.id}
             reason={p.reason}
-            before={<Markdown>{p.beforeMemory || "（空）"}</Markdown>}
+            fields={[{ label: "メモリ", before: p.beforeMemory, after: p.memory }]}
             after={<Markdown>{p.memory || "（空）"}</Markdown>}
             outdated={
               p.baseRevision !== project.revision

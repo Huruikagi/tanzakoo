@@ -608,16 +608,93 @@ summary:focus-visible {
   background: #f4f6eb;
   line-height: 1.8;
 }
-.proposal details {
-  padding: 10px 13px;
+.proposal-view-switch {
+  padding: 10px 13px 0;
+}
+.diff-legend {
+  display: flex;
+  gap: 14px;
+  padding: 0 13px 10px;
+  font-size: 11px;
+  color: #596354;
+}
+.diff-field {
+  min-width: 0;
+  padding-bottom: 12px;
+}
+.diff-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding: 7px 13px;
+  border-top: 1px solid #e4e8da;
+  font-size: 11px;
+  font-weight: 600;
+}
+.diff-label > span {
+  color: #6a7465;
   font-size: 10px;
-  color: #8a917f;
+  font-weight: 400;
 }
-.proposal summary {
+.diff-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 5px 13px 5px 5px;
+  font-size: 12px;
+  line-height: 1.85;
+}
+.diff-sign {
+  text-align: center;
+  font-weight: 600;
+  user-select: none;
+}
+.diff-text {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
+.diff-same {
+  color: #60695c;
+}
+.diff-removed {
+  color: #702b2b;
+  background: #fff0ee;
+}
+.diff-added {
+  color: #265b39;
+  background: #edf8ee;
+}
+.diff-text mark {
+  color: inherit;
+  border-radius: 2px;
+  box-decoration-break: clone;
+}
+.diff-removed mark {
+  background: #f8cec8;
+}
+.diff-added mark {
+  background: #c5e8c9;
+}
+.diff-context {
+  font-size: 11px;
+  color: #60695c;
+}
+.diff-context summary {
   cursor: pointer;
+  padding: 7px 13px;
+  background: #f4f5f1;
 }
-.proposal-before {
-  margin-top: 10px;
+.diff-context summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.diff-newline {
+  margin: 6px 13px 0;
+  font-size: 10px;
+  color: #60695c;
 }
 .proposal-after {
   padding: 13px;
