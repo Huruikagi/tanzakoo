@@ -1,3 +1,4 @@
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -82,6 +83,45 @@ pub struct Message {
     pub text: String,
     pub references: Vec<CardReference>,
     pub created_at: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct QuestionOption {
+    pub label: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum QuestionState {
+    Pending,
+    Answered,
+    Dismissed,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ChoiceQuestion {
+    pub id: String,
+    pub conversation_id: String,
+    pub message_id: String,
+    pub question: String,
+    pub options: Vec<QuestionOption>,
+    pub state: QuestionState,
+    pub selected_option: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct QuestionAnswer {
+    pub question_id: String,
+    pub option_index: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -197,6 +237,8 @@ pub struct Snapshot {
     pub conversations: Vec<Conversation>,
     pub messages: Vec<Message>,
     pub discussions: Vec<Discussion>,
+    #[serde(default)]
+    pub questions: Vec<ChoiceQuestion>,
     pub agents: Vec<AgentConfig>,
     pub chat_settings: ChatSettings,
     /// Agents the user has agreed to send project content to. App-wide, not per project.

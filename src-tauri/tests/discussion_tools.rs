@@ -7,15 +7,57 @@ struct Fixture {
     dir: PathBuf,
     store: Store,
 }
+static NEXT_FIXTURE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+#[tokio::test]
+async fn mcp_presents_a_persisted_question_but_cannot_answer_it() {
+    let f = Fixture::new();
+    let c = f.store.create_conversation("codex").unwrap();
+    let m = f
+        .store
+        .append_message(&c.id, "user", "TODOを作りたい".into(), vec![])
+        .unwrap();
+    let mut mcp = Mcp::start(&f.store, Some((&c.id, &m.id))).await;
+    let tools = mcp
+        .request(json!({"jsonrpc":"2.0", "id":2, "method":"tools/list"}))
+        .await;
+    let names: Vec<_> = tools["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"present_question"));
+    assert!(!names.contains(&"answer_question"));
+    let request = json!({"jsonrpc":"2.0", "id":3, "method":"tools/call", "params":{
+        "name":"present_question", "arguments":{"question":"誰が使いますか？", "options":[
+            {"label":"自分用", "description":"一人で使う"},
+            {"label":"チーム用", "description":"共有して使う"}
+        ]}
+    }});
+    let result = mcp.request(request.clone()).await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
+    let saved = f.store.snapshot().unwrap();
+    assert_eq!(saved.questions[0].message_id, m.id);
+    assert_eq!(saved.questions[0].state, QuestionState::Pending);
+    assert_eq!(saved.messages.len(), 1);
+    mcp.stop().await;
+    let mut unbound = Mcp::start(&f.store, None).await;
+    let result = unbound.request(request).await;
+    assert_eq!(result["result"]["isError"], true);
+    assert_eq!(f.store.snapshot().unwrap().questions.len(), 1);
+    unbound.stop().await;
+}
 impl Fixture {
     fn new() -> Self {
         let dir = std::env::temp_dir().join(format!(
-            "tanzakoo-discussion-mcp-{}-{}",
+            "tanzakoo-discussion-mcp-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            NEXT_FIXTURE.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Store::open(dir.join("board.db")).unwrap();

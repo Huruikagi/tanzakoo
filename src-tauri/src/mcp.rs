@@ -35,6 +35,11 @@ pub struct DiscussionFocus {
     /// true when the target is ambiguous; show a choice without moving anything.
     pub suggest_only: bool,
 }
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PresentQuestion {
+    pub question: String,
+    pub options: Vec<crate::model::QuestionOption>,
+}
 #[derive(Clone)]
 pub struct BoardTools {
     store: Store,
@@ -79,6 +84,20 @@ impl BoardTools {
     )]
     fn create_candidate(&self, Parameters(p): Parameters<NewCard>) -> CallToolResult {
         response(self.store.create_card(p.title, p.body, &self.source))
+    }
+    #[tool(
+        description = "Show one question with 2-4 distinct clickable options in the chat. Each option has a short label and description. Use for preferences or clarification, never for approving card/memory changes or privileged actions. Free-text replies remain available. The UI saves the question; this tool does NOT return the user's answer. After success, end your turn and wait for their next message. Do not repeat the question/options in prose or assume an answer."
+    )]
+    fn present_question(&self, Parameters(p): Parameters<PresentQuestion>) -> CallToolResult {
+        let Some((conversation_id, message_id)) = &self.turn else {
+            return CallToolResult::error(vec![ContentBlock::text(
+                "現在の会話に紐づいた操作ではありません。",
+            )]);
+        };
+        response(
+            self.store
+                .present_question(conversation_id, message_id, p.question, p.options),
+        )
     }
     #[tool(
         description = "Report a card the USER is actively discussing in this turn. Read get_board first. Use only for an explicit request to discuss it, or concrete wishes/questions unambiguously about its topic. Mere mentions, comparisons, attached references, and topics introduced only by the assistant do NOT qualify. Set suggest_only=true if the target is ambiguous. Clear idea/explore cards move to discuss with an Undo notice; decided cards always require a UI click. Deleted cards and user-overridden moves are protected. Never change content or infer a decision. Inspect the result; a suggestion is not a completed move."

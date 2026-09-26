@@ -1107,3 +1107,27 @@ summary:focus-visible {
   font-size: 10px;
   color: #708a59;
 }
+/* Structured chat replies remain readable in the narrow side pane. */
+.chat-question {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.chat-question-title {
+  margin: 0 0 10px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.chat-question-options {
+  display: grid;
+  gap: 8px;
+}
+.chat-question-description {
+  font-weight: 400;
+  font-size: 12px;
+}
+.chat-question-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+}

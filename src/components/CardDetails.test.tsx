@@ -16,6 +16,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
     conversations: [],
     messages: [],
     discussions: [],
+    questions: [],
     agents: [],
     consents: [],
   },

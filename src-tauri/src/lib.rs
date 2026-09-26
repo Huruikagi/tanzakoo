@@ -179,6 +179,7 @@ async fn send_prompt(
     conversation_id: String,
     text: String,
     references: Vec<CardReference>,
+    question_answer: Option<QuestionAnswer>,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
@@ -204,8 +205,14 @@ async fn send_prompt(
         (store, guard, cancel)
     };
     let runtime = state.runtime.clone();
-    store
-        .append_message(&conversation_id, "user", text.clone(), references.clone())
+    let message = store
+        .append_message_with_answer(
+            &conversation_id,
+            "user",
+            text,
+            references.clone(),
+            question_answer,
+        )
         .map_err(|error| error.to_string())?;
     let emit: agent::Emit = Arc::new(move |event| {
         let _ = app.emit("agent-event", event);
@@ -214,7 +221,7 @@ async fn send_prompt(
         store.clone(),
         runtime.clone(),
         conversation_id.clone(),
-        text,
+        message.text,
         references,
         cancel,
         emit.clone(),

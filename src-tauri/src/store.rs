@@ -4,6 +4,7 @@ mod conversations;
 mod discussion;
 mod project;
 mod proposals;
+mod questions;
 #[cfg(test)]
 mod tests;
 use rusqlite::{Connection, OptionalExtension, params};
@@ -112,6 +113,7 @@ impl Store {
             conversations: list(&tx, "conversation")?,
             messages: list(&tx, "message")?,
             discussions: list(&tx, "discussion")?,
+            questions: list(&tx, "question")?,
             agents: list(&tx, "agent")?,
             chat_settings: list(&tx, "chatSettings")?.pop().unwrap_or_default(),
             consents: vec![],

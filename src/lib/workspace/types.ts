@@ -6,6 +6,7 @@ import type { Card } from "@/bindings/Card";
 import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import type { ChatOption } from "@/bindings/ChatOption";
+import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 
 export type Permission = {
   id: string;
@@ -61,7 +62,11 @@ export type Workspace = {
   detach: (index: number) => void;
   draft: (id: string, value: Draft | null) => void;
   draftProject: (id: string, value: ProjectDraft | null) => void;
-  send: (text: string, agent: string, options?: { useReferences?: boolean }) => Promise<boolean>;
+  send: (
+    text: string,
+    agent: string,
+    options?: { useReferences?: boolean; questionAnswer?: QuestionAnswer },
+  ) => Promise<boolean>;
   broadenTopics: () => Promise<boolean>;
   event: (event: AgentEvent) => void;
   answer: (id: string, option: string | null) => Promise<void>;

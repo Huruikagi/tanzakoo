@@ -32,12 +32,28 @@ impl Store {
         text: String,
         references: Vec<CardReference>,
     ) -> Result<Message> {
+        self.append_message_with_answer(conversation_id, role, text, references, None)
+    }
+
+    pub fn append_message_with_answer(
+        &self,
+        conversation_id: &str,
+        role: &str,
+        mut text: String,
+        references: Vec<CardReference>,
+        answer: Option<QuestionAnswer>,
+    ) -> Result<Message> {
         if !["user", "assistant", "error"].contains(&role) || text.len() > 1_000_000 {
             return Err(invalid("メッセージが不正です。"));
         }
         let mut db = self.connect()?;
         let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let mut c: Conversation = get(&tx, "conversation", conversation_id)?;
+        if role == "user" {
+            text = questions::resolve_answer(&tx, conversation_id, text, answer)?;
+        } else if answer.is_some() {
+            return Err(invalid("選択肢への回答はユーザーのみ送信できます。"));
+        }
         if role == "user" && c.title == "新しい壁打ち" {
             c.title = text.chars().take(40).collect();
             put(&tx, "conversation", &c.id, &c)?;

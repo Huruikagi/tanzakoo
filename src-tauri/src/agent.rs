@@ -167,7 +167,7 @@ pub async fn run(
             store.path().to_string_lossy().into(),
             conversation.agent.clone(),
             conversation_id.clone(),
-            message_id,
+            message_id.clone(),
         ]),
     );
     let prompt = prompt::Prompt::build(&snapshot, &conversation_id, &prompt, &references)?;
@@ -306,6 +306,11 @@ pub async fn run(
         _=&mut cancel=>Err("応答を停止しました。".into()),
     };
     let full = text.lock().map(|s| s.clone()).unwrap_or_default();
+    if result.is_err() {
+        store
+            .cancel_questions(&conversation_id, &message_id)
+            .map_err(|e| e.to_string())?;
+    }
     // Persist partial responses too: cancelling must not erase text already shown.
     if !full.is_empty() {
         store
@@ -367,6 +372,7 @@ mod tests {
             "propose_card_change",
             "propose_memory_change",
             "report_discussion",
+            "present_question",
         ] {
             assert!(is_board_tool(
                 "codex",

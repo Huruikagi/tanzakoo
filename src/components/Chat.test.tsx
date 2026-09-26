@@ -6,6 +6,7 @@ import { useWorkspace } from "@/lib/workspace";
 import { api, emptySnapshot } from "@/lib/api";
 import type { Card } from "@/bindings/Card";
 import type { Discussion } from "@/bindings/Discussion";
+import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   native: true,
@@ -18,6 +19,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
     conversations: [],
     messages: [],
     discussions: [],
+    questions: [],
     agents: [],
     consents: [],
   },
@@ -63,6 +65,101 @@ const topic: Card = {
   createdAt: 1,
   updatedAt: 2,
 };
+const choiceQuestion: ChoiceQuestion = {
+  id: "q",
+  conversationId: "c",
+  messageId: "m",
+  question: "誰が使いますか？",
+  options: [
+    { label: "自分用", description: "一人で使う" },
+    { label: "チーム用", description: "共有する" },
+  ],
+  state: "pending",
+  selectedOption: null,
+};
+function questionSnapshot() {
+  return {
+    ...emptySnapshot,
+    consents: ["codex"],
+    conversations: [{ id: "c", title: "相談", agent: "codex", sessionId: null, createdAt: 1 }],
+    messages: [
+      {
+        id: "m",
+        conversationId: "c",
+        role: "user",
+        text: "TODOを作りたい",
+        references: [],
+        createdAt: 1,
+      },
+    ],
+    questions: [choiceQuestion],
+  };
+}
+it("sends a choice once while preserving the draft and attached references", async () => {
+  const user = userEvent.setup();
+  const snapshot = questionSnapshot();
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  useWorkspace.getState().attach(topic);
+  let finish!: () => void;
+  vi.mocked(api.send).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  vi.mocked(api.snapshot).mockResolvedValue({
+    ...snapshot,
+    questions: [{ ...choiceQuestion, state: "answered", selectedOption: 0 }],
+  });
+  render(<Chat />);
+  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "考え途中");
+  const option = screen.getByRole("button", { name: "自分用" });
+  await user.dblClick(option);
+  expect(api.send).toHaveBeenCalledExactlyOnceWith("c", "自分用", [], "a", {
+    questionId: "q",
+    optionIndex: 0,
+  });
+  expect(option).toBeDisabled();
+  await act(async () => finish());
+  expect(screen.getByText("回答済み")).toBeVisible();
+  expect(screen.getByRole("button", { name: "自分用" })).toBeDisabled();
+  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("考え途中");
+  expect(screen.getByRole("button", { name: `${topic.title}の参照を外す` })).toBeVisible();
+  expect(api.action).not.toHaveBeenCalled();
+});
+it("keeps free-text replies available and isolates questions between conversations", async () => {
+  const user = userEvent.setup();
+  const snapshot = questionSnapshot();
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  vi.mocked(api.send).mockResolvedValue();
+  vi.mocked(api.snapshot).mockResolvedValue({
+    ...snapshot,
+    questions: [{ ...choiceQuestion, state: "dismissed" }],
+  });
+  render(<Chat />);
+  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "家族で使う");
+  await user.click(screen.getByRole("button", { name: "メッセージを送信" }));
+  expect(api.send).toHaveBeenCalledWith("c", "家族で使う", [], "a");
+  expect(screen.getByRole("button", { name: "チーム用" })).toBeDisabled();
+  act(() => useWorkspace.getState().selectConversation(null));
+  expect(screen.queryByRole("region", { name: "誰が使いますか？" })).not.toBeInTheDocument();
+});
+it("shows errors and refreshes stale choices without clearing the draft", async () => {
+  const user = userEvent.setup();
+  const snapshot = questionSnapshot();
+  useWorkspace.setState({ snapshot, conversation: "c" });
+  vi.mocked(api.send).mockRejectedValue(new Error("回答受付は終了しています"));
+  vi.mocked(api.snapshot).mockResolvedValue({
+    ...snapshot,
+    questions: [{ ...choiceQuestion, state: "cancelled" }],
+  });
+  render(<Chat />);
+  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "補足");
+  await user.click(screen.getByRole("button", { name: "自分用" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("回答受付は終了しています");
+  expect(screen.getByText("この質問は取り消されました")).toBeVisible();
+  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("補足");
+});
 function proposalSnapshot() {
   const cards = [topic, { ...topic, id: "second", title: "表示方法" }];
   return {

@@ -2,6 +2,7 @@ mod cards;
 mod discussion;
 mod project;
 mod proposals;
+mod questions;
 
 use super::*;
 struct Fixture {

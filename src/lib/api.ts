@@ -7,6 +7,7 @@ import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import type { ChatOption } from "@/bindings/ChatOption";
 import type { ExportResult } from "@/bindings/ExportResult";
 import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
+import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 
 export type AgentEvent = {
   conversationId: string;
@@ -31,6 +32,7 @@ export const emptySnapshot: Snapshot = {
   conversations: [],
   messages: [],
   discussions: [],
+  questions: [],
   agents: [],
   chatSettings: { model: null, reasoningEffort: null },
   consents: [],
@@ -46,8 +48,13 @@ export const api = {
     invoke<DeleteProjectResult>("delete_project", { projectId }),
   createProject: (name: string, memory: string) =>
     invoke<Snapshot>("create_project", { name, memory }),
-  send: (conversationId: string, text: string, references: CardReference[], projectId: string) =>
-    invoke<void>("send_prompt", { conversationId, text, references, projectId }),
+  send: (
+    conversationId: string,
+    text: string,
+    references: CardReference[],
+    projectId: string,
+    questionAnswer?: QuestionAnswer,
+  ) => invoke<void>("send_prompt", { conversationId, text, references, projectId, questionAnswer }),
   setConsent: (agent: string, granted: boolean) =>
     invoke<Snapshot>("set_consent", { agent, granted }),
   connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>

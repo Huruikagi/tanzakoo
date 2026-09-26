@@ -121,7 +121,7 @@ export const createAgentSlice: WorkspaceSlice<
     get().setChatOpen(true);
     return get().send(BROADEN_TOPICS_PROMPT, "codex", { useReferences: false });
   },
-  send: async (text, agent, { useReferences = true } = {}) => {
+  send: async (text, agent, { useReferences = true, questionAnswer } = {}) => {
     if (get().busy || get().switching || !text.trim()) return false;
     const activeAgent =
       get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
@@ -153,7 +153,11 @@ export const createAgentSlice: WorkspaceSlice<
       references: useReferences ? [] : pendingReferences,
     });
     try {
-      await api.send(id, text, references, get().snapshot.project.id);
+      if (questionAnswer) {
+        await api.send(id, text, references, get().snapshot.project.id, questionAnswer);
+      } else {
+        await api.send(id, text, references, get().snapshot.project.id);
+      }
       return true;
     } catch (error) {
       set({ chatError: String(error), ...(useReferences ? { references } : {}) });

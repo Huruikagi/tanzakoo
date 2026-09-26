@@ -17,6 +17,7 @@ import { AgentConnection, AgentConnectionDialog } from "./AgentConnection";
 import { DiscussionNotice } from "./DiscussionNotice";
 import { ChatSettings } from "./ChatSettings";
 import { PendingProposals } from "./PendingProposals";
+import { QuestionChoices } from "./QuestionChoices";
 import { useChatDraft } from "@/lib/use-chat-draft";
 
 export function Chat() {
@@ -53,9 +54,24 @@ export function Chat() {
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);
+  const questionCount = snapshot.questions.filter((q) => q.conversationId === conversation).length;
+  // Place each structured question after the last response in its originating turn.
+  const questionsByMessage = new Map<string, typeof snapshot.questions>();
+  let turnId: string | undefined;
+  messages.forEach((message, index) => {
+    if (message.role === "user") turnId = message.id;
+    if (!messages[index + 1] || messages[index + 1]?.role === "user") {
+      questionsByMessage.set(
+        message.id,
+        snapshot.questions.filter(
+          (q) => q.conversationId === conversation && q.messageId === turnId,
+        ),
+      );
+    }
+  });
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, stream, permissions.length]);
+  }, [messages.length, stream, permissions.length, questionCount]);
   function submit() {
     if (!text.trim() || busy || !native || unavailable || !consented) return;
     sendDraft(agent);
@@ -190,6 +206,13 @@ export function Chat() {
               .map((d) => (
                 <DiscussionNotice key={d.id} discussion={d} />
               ))}
+            {questionsByMessage.get(m.id)?.map((q) => (
+              <QuestionChoices
+                key={q.id}
+                question={q}
+                disabled={!!busy || !native || unavailable || !consented}
+              />
+            ))}
           </Fragment>
         ))}
         {isThisBusy && (

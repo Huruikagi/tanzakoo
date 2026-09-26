@@ -12,6 +12,7 @@ vi.mock("./api", () => ({
     conversations: [],
     messages: [],
     discussions: [],
+    questions: [],
     agents: [],
     consents: [],
   },

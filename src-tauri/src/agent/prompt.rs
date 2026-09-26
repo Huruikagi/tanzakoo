@@ -20,6 +20,8 @@ impl Prompt {
             "references": references,
             "discussionActivity": snapshot.discussions.iter()
                 .filter(|d| d.conversation_id == conversation_id).collect::<Vec<_>>(),
+            "recentQuestions": snapshot.questions.iter().rev()
+                .filter(|q| q.conversation_id == conversation_id).take(20).collect::<Vec<_>>(),
         });
         let history = serde_json::to_string(
             &snapshot
@@ -41,8 +43,9 @@ impl Prompt {
         let instructions = format!(
             "{instructions}\nプロジェクトの名前とメモリは上記projectにあります。メモリは会話をまたぐ前提・進め方として参照し、過去の会話より現在の内容を優先してください。プロジェクトメモリの更新はget_boardで現行revisionを確認してpropose_memory_changeで提案してください。承認前に適用済みと言わないでください。個別の論点・結論はカードに残し、依頼なくメモリへ全履歴を重複保存しないでください。"
         );
-        let instructions =
-            format!("{instructions}\n{PROPOSAL_INSTRUCTIONS}\n{DISCUSSION_INSTRUCTIONS}");
+        let instructions = format!(
+            "{instructions}\n{PROPOSAL_INSTRUCTIONS}\n{DISCUSSION_INSTRUCTIONS}\n{QUESTION_INSTRUCTIONS}"
+        );
         Ok(Self {
             instructions,
             history,
@@ -66,6 +69,8 @@ const DISCUSSION_INSTRUCTIONS: &str = "会話で実際に掘り下げ始めた�
 
 const CANDIDATE_INSTRUCTIONS: &str = "会話では質問攻めにせず、重要な問いを一つずつ話します。ただし、質問の数と候補カードの数は別です。作りたいものが示された初期段階では、回答を待たず、利用場面・利用者・使い方・制約など異なる切り口の論点を3〜5枚ほど、tanzakooのcreate_candidateで積極的に起票してください。その後も会話から独立した新しい論点が出たら、あとで拾える候補として残します。まずget_boardで現在のカードとプロジェクトメモリを確認し、既存の論点は再利用してください。1枚につき1つの論点とし、短いタイトルと検討したい点を本文に書き、推測を決定事項にしないでください。新しい切り口が足りなければ枚数を無理に埋めず、前提が分からなければ一つだけ質問します。ユーザーが枚数を指定したり、追加不要・ツールを使わないと指示した場合は必ずそれを優先します。特定のカードを詰めているときは、関連の薄い候補を増やさないでください。候補を追加しただけで全カードへの回答を求めたり、『話し合う』へ移したりしないでください。";
 
+const QUESTION_INSTRUCTIONS: &str = "ユーザーの希望や前提を選択肢で確かめられるときは、present_questionで質問を1つと選択肢を2〜4個提示してください。各選択肢は短いラベルと違いが分かる説明にします。自由入力でも返答できます。成功したら本文に同じ質問や選択肢を重ねず、ターンを終えてユーザーの次の発言を待ってください。ツール結果は提示の完了であり回答ではありません。推奨案を回答済みとみなさず、クリックによる回答も会話の希望として扱います。カードやメモリの変更・権限の承認をこの質問で代用しないでください。選択肢が不要な会話や、ツール禁止・質問不要という指示では使いません。";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,6 +91,13 @@ mod tests {
                  "state":"superseded", "createdAt":1}
             ],
             "messages":[], "discussions":[], "agents":[], "consents":[],
+            "questions":[
+                {"id":"q", "conversationId":"c", "messageId":"1", "question":"SAVED_QUESTION",
+                 "options":[{"label":"CHOICE_A", "description":""},{"label":"CHOICE_B", "description":""}],
+                 "state":"dismissed", "selectedOption":null},
+                {"id":"other-q", "conversationId":"other", "messageId":"other", "question":"OTHER_QUESTION",
+                 "options":[], "state":"pending", "selectedOption":null}
+            ],
             "chatSettings":{"model":null, "reasoningEffort":null},
             "cards":[
                 {"id":"live", "title":"CURRENT_CARD", "body":"", "status":"idea", "revision":1,
@@ -129,12 +141,15 @@ mod tests {
                 "EXPLICIT_QUOTE",
                 "CURRENT_QUESTION",
                 "PENDING_CHANGE",
+                "SAVED_QUESTION",
+                "CHOICE_A",
             ] {
                 assert!(input.contains(text), "missing {text}");
             }
             for text in [
                 "DELETED_CARD",
                 "OTHER_CONVERSATION",
+                "OTHER_QUESTION",
                 "HISTORY_00",
                 "HISTORY_01",
                 "HISTORY_22",
