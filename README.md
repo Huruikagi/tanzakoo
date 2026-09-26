@@ -130,15 +130,18 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test age
 
 ## 構成
 
-| 場所                        | 役割                                               |
-| --------------------------- | -------------------------------------------------- |
-| `src/components`            | ボード・カード詳細・チャット、shadcn/uiの部品      |
-| `src/lib`                   | Tauri呼び出しと画面の状態                          |
-| `src/bindings`              | Rustから生成したデータ型                           |
-| `src-tauri/src/store.rs`    | SQLiteと提案の適用条件                             |
-| `src-tauri/src/projects.rs` | プロジェクト一覧、DB切り替え、既存データの引き継ぎ |
-| `src-tauri/src/agent.rs`    | ACPセッション、通知、権限、停止                    |
-| `src-tauri/src/mcp.rs`      | エージェントに提供するボード操作                   |
-| `notes`                     | プロダクト方針・技術選定・検証結果                 |
+| 場所                        | 役割                                                   |
+| --------------------------- | ------------------------------------------------------ |
+| `src/components`            | ボード・カード詳細・チャット、shadcn/uiの部品          |
+| `src/lib`                   | Tauri呼び出しと画面の状態                              |
+| `src/lib/workspace`         | 単一ストアを構成する機能別の状態管理と共通の更新キュー |
+| `src/lib/use-chat-draft.ts` | 会話ごとの入力下書きの保持・引き継ぎ・復元             |
+| `src/bindings`              | Rustから生成したデータ型                               |
+| `src-tauri/src/store.rs`    | SQLite共通処理とスナップショット取得                   |
+| `src-tauri/src/store`       | カード・提案・メモリ・会話の保存処理と機能別テスト     |
+| `src-tauri/src/projects.rs` | プロジェクト一覧、DB切り替え、既存データの引き継ぎ     |
+| `src-tauri/src/agent.rs`    | ACPセッション、通知、権限、停止                        |
+| `src-tauri/src/mcp.rs`      | エージェントに提供するボード操作                       |
+| `notes`                     | プロダクト方針・技術選定・検証結果                     |
 
 設計の出発点は [プロダクトメモ](notes/product-idea.md)、採用候補と理由は [技術スタック](notes/stack-proposal.md) にまとめています。
