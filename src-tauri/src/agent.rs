@@ -1,13 +1,12 @@
+mod notifications;
 mod permissions;
 mod prompt;
+mod session;
 #[cfg(test)]
 use permissions::is_board_tool;
 
 use crate::{model::*, store::Store};
-use agent_client_protocol::{
-    AcpAgent, Agent, ConnectionTo,
-    schema::{ProtocolVersion, v1::*},
-};
+use agent_client_protocol::{AcpAgent, Agent, ConnectionTo, schema::v1::*};
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -171,56 +170,24 @@ pub async fn run(
         ]),
     );
     let prompt = prompt::Prompt::build(&snapshot, &conversation_id, &prompt, &references)?;
-    let text = Arc::new(Mutex::new(String::new()));
-    let tool_calls = Arc::new(Mutex::new(HashMap::<String, serde_json::Value>::new()));
-    let notify_calls = tool_calls.clone();
-    let permission_calls = tool_calls;
+    let notifications = Arc::new(notifications::Notifications::new(
+        conversation_id.clone(),
+        emit.clone(),
+    ));
+    let notify = notifications.clone();
+    let permission_notifications = notifications.clone();
+    let session_notifications = notifications.clone();
     let permission_agent = conversation.agent.clone();
-    let replaying = Arc::new(AtomicBool::new(false));
-    let notify_text = text.clone();
-    let notify_replay = replaying.clone();
-    let notify_emit = emit.clone();
-    let notify_id = conversation_id.clone();
     let permission_emit = emit.clone();
     let permission_id = conversation_id.clone();
     let permission_runtime = runtime.clone();
     let launch = crate::agent_setup::launch(config, &store)?;
     let session_store = store.clone();
-    let session_conversation_id = conversation_id.clone();
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
             async move |notice: SessionNotification, _cx| {
-                if notify_replay.load(Ordering::SeqCst) {
-                    return Ok(());
-                }
-                let data = serde_json::to_value(&notice.update).unwrap_or_default();
-                if data["sessionUpdate"] == "tool_call"
-                    && let Some(id) = data["toolCallId"].as_str()
-                    && let Ok(mut calls) = notify_calls.lock()
-                {
-                    calls.insert(id.into(), data.clone());
-                }
-                if let SessionUpdate::AgentMessageChunk(chunk) = &notice.update {
-                    if let ContentBlock::Text(t) = &chunk.content {
-                        if let Ok(mut whole) = notify_text.lock() {
-                            whole.push_str(&t.text);
-                        }
-                        notify_emit(AgentEvent {
-                            conversation_id: notify_id.clone(),
-                            kind: "delta".into(),
-                            text: t.text.clone(),
-                            detail: None,
-                        });
-                    }
-                } else {
-                    notify_emit(AgentEvent {
-                        conversation_id: notify_id.clone(),
-                        kind: "activity".into(),
-                        text: "検討しています".into(),
-                        detail: Some(serde_json::to_value(&notice.update).unwrap_or_default()),
-                    });
-                }
+                notify.receive(notice.update);
                 Ok(())
             },
             agent_client_protocol::on_receive_notification!(),
@@ -230,7 +197,7 @@ pub async fn run(
                 let response = permissions::respond(
                     &permission_runtime,
                     &permission_agent,
-                    &permission_calls,
+                    &permission_notifications.tool_calls,
                     request,
                     &permission_id,
                     &permission_emit,
@@ -243,52 +210,17 @@ pub async fn run(
         .connect_with(
             AcpAgent::new(launch),
             |cx: ConnectionTo<Agent>| async move {
-                let initialized = cx
-                    .send_request(InitializeRequest::new(ProtocolVersion::V1))
-                    .block_task()
-                    .await?;
-                // Sessions created before app-owned credentials live in the user's
-                // CLI home. Keep the chat history, but start a fresh app-owned session.
-                let saved_session = conversation.session_id.and_then(|id| {
-                    if conversation.agent == "codex" {
-                        id.strip_prefix("tanzakoo-v1:").map(str::to_owned)
-                    } else {
-                        Some(id)
-                    }
-                });
-                let restoring =
-                    saved_session.is_some() && initialized.agent_capabilities.load_session;
-                let session_id = if let Some(saved) =
-                    saved_session.filter(|_| initialized.agent_capabilities.load_session)
-                {
-                    replaying.store(true, Ordering::SeqCst);
-                    cx.send_request(
-                        LoadSessionRequest::new(saved.clone(), workspace).mcp_servers(vec![mcp]),
-                    )
-                    .block_task()
-                    .await?;
-                    replaying.store(false, Ordering::SeqCst);
-                    SessionId::new(saved)
-                } else {
-                    let response = cx
-                        .send_request(NewSessionRequest::new(workspace).mcp_servers(vec![mcp]))
-                        .block_task()
-                        .await?;
-                    session_store
-                        .save_session(
-                            &session_conversation_id,
-                            if conversation.agent == "codex" {
-                                format!("tanzakoo-v1:{}", response.session_id)
-                            } else {
-                                response.session_id.to_string()
-                            },
-                        )
-                        .map_err(|e| {
-                            agent_client_protocol::Error::internal_error().data(e.to_string())
-                        })?;
-                    response.session_id
-                };
-                let input = prompt.into_input(restoring);
+                let prepared = session::prepare(
+                    &cx,
+                    &session_store,
+                    &conversation,
+                    workspace,
+                    mcp,
+                    &session_notifications.replaying,
+                )
+                .await?;
+                let session_id = prepared.id;
+                let input = prompt.into_input(prepared.restoring);
                 if conversation.agent == "codex" {
                     crate::chat_settings::apply(&cx, &session_id, &snapshot.chat_settings).await?;
                 }
@@ -302,10 +234,15 @@ pub async fn run(
             },
         );
     let result = tokio::select! {
-        r=tokio::time::timeout(Duration::from_secs(600),job)=>match r {Ok(r)=>r.map_err(|e|format!("エージェント接続に失敗しました: {e}. ログインと起動設定を確認してください。")),Err(_)=>Err("応答が10分以内に完了しませんでした。".into())},
-        _=&mut cancel=>Err("応答を停止しました。".into()),
+        result = tokio::time::timeout(Duration::from_secs(600), job) => match result {
+            Ok(result) => result.map_err(|e| format!(
+                "エージェント接続に失敗しました: {e}. ログインと起動設定を確認してください。"
+            )),
+            Err(_) => Err("応答が10分以内に完了しませんでした。".into()),
+        },
+        _ = &mut cancel => Err("応答を停止しました。".into()),
     };
-    let full = text.lock().map(|s| s.clone()).unwrap_or_default();
+    let full = notifications.text();
     if result.is_err() {
         store
             .cancel_questions(&conversation_id, &message_id)
