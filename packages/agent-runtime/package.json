@@ -9,6 +9,6 @@
   ],
   "type": "module",
   "dependencies": {
-    "@agentclientprotocol/codex-acp": "1.11.0"
+    "@agentclientprotocol/codex-acp": "1.13.1"
   }
 }

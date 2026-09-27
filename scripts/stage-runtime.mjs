@@ -35,7 +35,7 @@ cpSync(deployment, destination, { recursive: true, dereference: true });
 const packageVersion = (name) =>
   JSON.parse(readFileSync(join(destination, "node_modules", name, "package.json"), "utf8")).version;
 const codexVersion = packageVersion("@openai/codex");
-if (codexVersion !== "0.153.4")
+if (codexVersion !== "0.156.1")
   throw new Error("Update the bundled Codex LICENSE and NOTICE for the resolved version.");
 const bin = join(destination, "bin");
 mkdirSync(bin, { recursive: true });

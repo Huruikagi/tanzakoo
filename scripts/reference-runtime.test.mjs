@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const adapterRequire = createRequire(require.resolve("@agentclientprotocol/codex-acp"));
 const codex = join(dirname(adapterRequire.resolve("@openai/codex/package.json")), "bin/codex.js");
 
-for (const model of ["gpt-5.4", "gpt-6-astra"]) {
+for (const model of ["gpt-5.4", "gpt-6-astra", "gpt-6-luna"]) {
   test(
     `reference policy removes filesystem escape tools and blocks patches (${model})`,
     { timeout: 45_000 },

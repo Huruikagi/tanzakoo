@@ -20,7 +20,13 @@ import { Ledger } from "../packages/review-relay/src/ledger.mjs";
 import { createRelay } from "../packages/review-relay/src/server.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-for (const route of ["gateway", "providers", "gateway-board", "gateway-custom-model"]) {
+for (const route of [
+  "gateway",
+  "providers",
+  "gateway-board",
+  "gateway-luna",
+  "gateway-custom-model",
+]) {
   test(
     `review ${route}: fresh credentials and real ACP streaming`,
     { timeout: 60_000 },
@@ -30,7 +36,12 @@ for (const route of ["gateway", "providers", "gateway-board", "gateway-custom-mo
       const home = join(dir, "home");
       const boardPath = join(dir, "board.db");
       const boardMode = route === "gateway-board";
-      const model = route === "gateway-custom-model" ? "review-fixture-model" : "gpt-6-astra";
+      const model =
+        route === "gateway-custom-model"
+          ? "review-fixture-model"
+          : boardMode || route === "gateway-luna"
+            ? "gpt-6-luna"
+            : "gpt-6-astra";
       mkdirSync(home);
       const requests = [];
       const failures = [];
@@ -140,7 +151,9 @@ for (const route of ["gateway", "providers", "gateway-board", "gateway-custom-mo
         await relay.listen({ host: "127.0.0.1", port: 0 });
         const launch = () =>
           startAcp({
-            entry: join(root, "packages/agent-runtime/codex.mjs"),
+            entry:
+              process.env.TANZAKOO_TEST_RUNTIME_ENTRY ??
+              join(root, "packages/agent-runtime/codex.mjs"),
             home,
             cwd: dir,
             env: { TANZAKOO_REVIEW_MODEL: model },
@@ -202,6 +215,13 @@ for (const route of ["gateway", "providers", "gateway-board", "gateway-custom-mo
           client.notifications.some((m) => m.params?.update?.content?.text === "REVIEW_OK"),
         );
         assert.ok(!client.diagnostics().includes(token), "token leaked to stderr");
+        if (model === "gpt-6-luna") {
+          assert.doesNotMatch(
+            JSON.stringify(client.notifications) + client.diagnostics(),
+            /Model metadata for|fallback metadata/i,
+            "the bundled Codex must recognize the review model without fallback metadata",
+          );
+        }
         if (boardMode) {
           const db = new DatabaseSync(boardPath, { readOnly: true });
           try {
@@ -237,6 +257,13 @@ for (const route of ["gateway", "providers", "gateway-board", "gateway-custom-mo
           prompt: [{ type: "text", text: "Reply REVIEW_OK again." }],
         });
         assert.equal(requests.length, boardMode ? 4 : 2);
+        if (model === "gpt-6-luna") {
+          assert.doesNotMatch(
+            JSON.stringify(client.notifications) + client.diagnostics(),
+            /Model metadata for|fallback metadata/i,
+            "restored review sessions must also recognize the model",
+          );
+        }
         await client.stop();
         for (const file of readdirSync(home, { recursive: true, withFileTypes: true })) {
           if (file.isFile())

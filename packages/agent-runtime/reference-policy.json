@@ -10,6 +10,7 @@
     "code_mode_host": true,
     "multi_agent": false,
     "multi_agent_v2": false,
+    "goals": false,
     "apps": false,
     "plugins": false,
     "browser_use": false,

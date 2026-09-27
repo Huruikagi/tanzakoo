@@ -6,7 +6,7 @@
 
 - React / Vite / Tailwind / shadcn/ui、Lucide、Resizable、dnd kit、Zustand、CodeMirror、react-markdownを導入した。
 - SQLite / rusqlite、ACP Rust SDK 2.1.0、rmcp 3.3.0、Tokio / Serde / thiserror / ts-rsを導入した。
-- ACPアダプターは `@agentclientprotocol/codex-acp` 1.11.0、`@agentclientprotocol/claude-agent-acp` 0.77.0。両方で起票・会話再開・変更提案・停止を実接続検証した。
+- ACPアダプターは `@agentclientprotocol/codex-acp` 1.13.1、`@agentclientprotocol/claude-agent-acp` 0.77.0。両方で起票・会話再開・変更提案・停止を実接続検証した。Codexは2026-09-27に1.11.0から更新し、Luna対応の同梱Codex 0.156.1で会話復元・カード提案・操作制限の回帰テストと公開仲介の実API応答を確認した。
 - miseでNode 24.21.0とpnpm 12.4.2を導入・実行確認した。`packageManager` も同期済み。
 - Oxlint 1.83.0 + Oxfmt 0.68.0 + `@shadcn/lint` 0.1.0を導入した。TypeScriptはlintプラグインのパーサーとの互換性に合わせ6.0.3を使用。正常例の通過と `Button` の余白上書きの検出を確認した。
 - 提案は変更前と変更後の全文を表示する。差分計算ライブラリ、Tiptap、WebdriverIOはまだ導入していない。
