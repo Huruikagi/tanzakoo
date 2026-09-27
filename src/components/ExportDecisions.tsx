@@ -80,7 +80,7 @@ export function ExportDecisions() {
           })}
         </p>
         <ul className="list-disc pl-5">
-          <li>{t("README.md — 読み方と決定事項の一覧")}</li>
+          <li>{t("index.md — 読み方と決定事項の一覧")}</li>
           <li>{t("project.md — プロジェクトの背景・前提")}</li>
           <li>{t("decisions/ — 1つの話題につき1つのMarkdown")}</li>
         </ul>

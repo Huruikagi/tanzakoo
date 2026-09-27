@@ -134,7 +134,7 @@
   "決めたことをMarkdownに出力": "Export decisions as Markdown",
   "{{value0}}の決定事項を、アプリ開発の入力として渡せるファイル群にします。": "Export decisions from {{value0}} as files you can use to guide development.",
   "「決めたこと」のカード {{value0}}件と、プロジェクトメモリを出力します。": "Export {{value0}} cards from Decided and the project memory.",
-  "README.md — 読み方と決定事項の一覧": "README.md — reading guide and decision index",
+  "index.md — 読み方と決定事項の一覧": "index.md — reading guide and decision index",
   "project.md — プロジェクトの背景・前提": "project.md — project background and context",
   "decisions/ — 1つの話題につき1つのMarkdown": "decisions/ — one Markdown file per topic",
   "保存済みの内容を出力します。編集中の内容は先に保存してください。未適用の提案や会話履歴は含みません。 選択した保存先の中に、新しいフォルダーを作成します。": "Only saved content is exported. Save your edits first. Pending proposals and conversation history are excluded. A new folder will be created in the location you choose.",

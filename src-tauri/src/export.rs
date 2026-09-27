@@ -46,7 +46,8 @@ impl MarkdownExport {
             );
         }
         let project = &snapshot.project;
-        let mut readme = if language == Language::En {
+        let mut index = String::from("---\nokf_version: \"0.2\"\n---\n\n");
+        index.push_str(&if language == Language::En {
             format!(
                 "# {} — Decisions\n\nA snapshot of decisions saved in Tanzakoo.\n\n- Project ID: {}\n- Decided topics: {}\n\n## Starting development\n\n1. Read the [project background and context](project.md).\n2. Read the decisions below.\n3. Ask for clarification before proceeding if information is missing or contradictory.\n\nTreat unspecified behavior as undecided. Undecided cards, conversation history, unsaved edits, and pending proposals are excluded. Saved content is included verbatim.\n\n",
                 markdown_text(&project.name),
@@ -60,7 +61,7 @@ impl MarkdownExport {
                 markdown_text(&project.id),
                 cards.len(),
             )
-        };
+        });
         if snapshot
             .memory_proposals
             .iter()
@@ -70,51 +71,65 @@ impl MarkdownExport {
                 .iter()
                 .any(|p| p.state == "pending" && cards.iter().any(|card| card.id == p.card_id))
         {
-            readme.push_str(language.choose("出力時点で、決定事項またはプロジェクトメモリに未適用の変更提案があります。この出力には適用前の内容を収録しています。\n\n", "There are pending proposals for decisions or project memory. This export contains the saved content before those proposals are applied.\n\n"));
+            index.push_str(language.choose("出力時点で、決定事項またはプロジェクトメモリに未適用の変更提案があります。この出力には適用前の内容を収録しています。\n\n", "There are pending proposals for decisions or project memory. This export contains the saved content before those proposals are applied.\n\n"));
         }
-        readme.push_str(language.choose("## 決定事項\n\n", "## Decisions\n\n"));
+        index.push_str(language.choose("## 決定事項\n\n", "## Decisions\n\n"));
+        let project_header = format!(
+            "---\ntype: Tanzakoo Project\ntitle: {}\ntanzakoo:\n  project_id: {}\n  revision: {}\n---\n\n",
+            yaml_string(&project.name),
+            yaml_string(&project.id),
+            project.revision,
+        );
         let mut files = vec![(
             "project.md".into(),
-            if language == Language::En {
-                format!(
-                    "# Project background and context\n\n- Project: {}\n- Project ID: {}\n- Revision: {}\n\n---\n\n{}\n",
-                    markdown_text(&project.name),
-                    markdown_text(&project.id),
-                    project.revision,
-                    if project.memory.is_empty() {
-                        "(No project memory.)"
-                    } else {
-                        &project.memory
-                    },
-                )
-            } else {
-                format!(
-                    "# プロジェクトの背景・前提\n\n- プロジェクト: {}\n- プロジェクトID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
-                    markdown_text(&project.name),
-                    markdown_text(&project.id),
-                    project.revision,
-                    if project.memory.is_empty() {
-                        "（プロジェクトメモリは未記入です。）"
-                    } else {
-                        &project.memory
-                    },
-                )
-            },
+            project_header
+                + &if language == Language::En {
+                    format!(
+                        "# Project background and context\n\n- Project: {}\n- Project ID: {}\n- Revision: {}\n\n---\n\n{}\n",
+                        markdown_text(&project.name),
+                        markdown_text(&project.id),
+                        project.revision,
+                        if project.memory.is_empty() {
+                            "(No project memory.)"
+                        } else {
+                            &project.memory
+                        },
+                    )
+                } else {
+                    format!(
+                        "# プロジェクトの背景・前提\n\n- プロジェクト: {}\n- プロジェクトID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
+                        markdown_text(&project.name),
+                        markdown_text(&project.id),
+                        project.revision,
+                        if project.memory.is_empty() {
+                            "（プロジェクトメモリは未記入です。）"
+                        } else {
+                            &project.memory
+                        },
+                    )
+                },
         )];
-        for (index, card) in cards.iter().enumerate() {
+        for (position, card) in cards.iter().enumerate() {
             let filename = format!(
                 "decisions/{:04}-{}.md",
-                index + 1,
+                position + 1,
                 filename_part(&card.title)
             );
-            readme.push_str(&format!(
+            index.push_str(&format!(
                 "- [{}]({})\n",
                 markdown_text(&card.title),
                 link_path(&filename),
             ));
+            let header = format!(
+                "---\ntype: Tanzakoo Decision\ntitle: {}\ntanzakoo:\n  project_id: {}\n  card_id: {}\n  revision: {}\n---\n\n",
+                yaml_string(&card.title),
+                yaml_string(&project.id),
+                yaml_string(&card.id),
+                card.revision,
+            );
             files.push((
                 filename,
-                if language == Language::En { format!(
+                header + &if language == Language::En { format!(
                     "# {}\n\n- Status: Decided\n- Card ID: {}\n- Revision: {}\n\n---\n\n{}\n",
                     markdown_text(&card.title), markdown_text(&card.id), card.revision,
                     if card.body.is_empty() { "(No content.)" } else { &card.body },
@@ -131,7 +146,7 @@ impl MarkdownExport {
                 ) },
             ));
         }
-        files.push(("README.md".into(), readme));
+        files.push(("index.md".into(), index));
         Ok(Self {
             project_name: project.name.clone(),
             card_count: cards.len(),
@@ -223,6 +238,21 @@ impl MarkdownExport {
             card_count: self.card_count,
         })
     }
+}
+
+// JSON quoting is also YAML double quoting. Escape additional YAML control and
+// line-break characters so arbitrary saved titles remain a single scalar.
+fn yaml_string(text: &str) -> String {
+    let quoted = serde_json::to_string(text).expect("serializing a string cannot fail");
+    let mut output = String::new();
+    for c in quoted.chars() {
+        if c.is_control() || matches!(c, '\u{2028}' | '\u{2029}' | '\u{fffe}' | '\u{ffff}') {
+            output.push_str(&format!("\\u{:04X}", c as u32));
+        } else {
+            output.push(c);
+        }
+    }
+    output
 }
 
 // A numbered/prefixed filename avoids Windows reserved names and duplicate titles.
@@ -345,21 +375,23 @@ mod tests {
         let english =
             MarkdownExport::from_snapshot_in_language(store.snapshot().unwrap(), Language::En)
                 .unwrap();
-        let readme_en = &english
+        let index_en = &english
             .files
             .iter()
-            .find(|(name, _)| name == "README.md")
+            .find(|(name, _)| name == "index.md")
             .unwrap()
             .1;
-        assert!(readme_en.contains("## Starting development"));
-        assert!(readme_en.contains("pending proposals"));
+        assert!(index_en.starts_with("---\nokf_version: \"0.2\"\n---\n\n"));
+        assert!(index_en.contains("## Starting development"));
+        assert!(index_en.contains("pending proposals"));
         let memory_en = &english
             .files
             .iter()
             .find(|(name, _)| name == "project.md")
             .unwrap()
             .1;
-        assert!(memory_en.starts_with("# Project background and context"));
+        assert!(memory_en.starts_with("---\ntype: Tanzakoo Project\n"));
+        assert!(memory_en.contains("# Project background and context"));
         assert!(memory_en.contains("# 目的\n\n家族で使う。"));
         assert!(
             english
@@ -368,6 +400,33 @@ mod tests {
                 .any(|(_, content)| content.contains("- Status: Decided")
                     && content.contains(&decided.body))
         );
+        // Every concept has metadata; only the bundle root declares the version.
+        // Machine-readable fields are independent of the selected display language.
+        for (name, content) in &bundle.files {
+            let (header, _) = content
+                .strip_prefix("---\n")
+                .unwrap()
+                .split_once("\n---\n")
+                .unwrap();
+            let english_content = &english
+                .files
+                .iter()
+                .find(|(path, _)| path == name)
+                .unwrap()
+                .1;
+            assert!(english_content.starts_with(&format!("---\n{header}\n---\n")));
+            if name == "index.md" {
+                assert_eq!(header, "okf_version: \"0.2\"");
+                continue;
+            }
+            assert!(header.starts_with("type: Tanzakoo "));
+            assert!(header.contains("\ntitle: \""));
+            assert!(header.contains("\ntanzakoo:\n  project_id: \""));
+            assert!(!header.contains("okf_version:"));
+            assert!(!header.contains("verified:"));
+            assert!(!header.contains("generated:"));
+            assert!(!header.contains("sources:"));
+        }
         store
             .update_project("新しい名前".into(), "出力開始後のメモリ".into(), 2)
             .unwrap();
@@ -376,26 +435,36 @@ mod tests {
         assert_ne!(first.path, second.path);
         assert_eq!(first.card_count, 2);
         let dir = Path::new(&first.path);
-        let readme = fs::read_to_string(dir.join("README.md")).unwrap();
-        assert!(readme.contains("未適用の変更提案"));
-        assert!(readme.contains("%E9%80%9A%E7%9F%A5"));
+        let index = fs::read_to_string(dir.join("index.md")).unwrap();
+        assert!(index.contains("未適用の変更提案"));
+        assert!(index.contains("%E9%80%9A%E7%9F%A5"));
         let mut decisions: Vec<_> = fs::read_dir(dir.join("decisions"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .collect();
         decisions.sort();
         assert_eq!(decisions.len(), 2);
+        assert_eq!(decisions[0].file_name().unwrap(), "0001-通知--毎日--CON.md");
+        assert_eq!(decisions[1].file_name().unwrap(), "0002-通知--毎日--CON.md");
+        for path in &decisions {
+            let relative = format!("decisions/{}", path.file_name().unwrap().to_str().unwrap());
+            assert!(index.contains(&format!("]({})", link_path(&relative))));
+        }
         assert!(
             fs::read_to_string(&decisions[0])
                 .unwrap()
                 .contains("先に決めた本文")
         );
         let content = fs::read_to_string(&decisions[1]).unwrap();
-        assert!(content.contains(&decided.body));
-        assert!(content.contains(&decided.id));
+        assert!(content.ends_with(&format!("{}\n", decided.body)));
+        assert!(content.contains(&format!(
+            "  card_id: \"{}\"\n  revision: {}\n",
+            decided.id, decided.revision
+        )));
         let memory = fs::read_to_string(dir.join("project.md")).unwrap();
-        assert!(memory.contains("# 目的\n\n家族で使う。"));
-        let all = format!("{readme}{content}{memory}");
+        assert!(memory.ends_with("# 目的\n\n家族で使う。\n"));
+        assert!(memory.contains("  revision: 2\n"));
+        let all = format!("{index}{content}{memory}");
         for omitted in [
             "未適用の題名",
             "未適用の本文",
@@ -417,9 +486,26 @@ mod tests {
         let write_error = bundle.write_named(&root, "partial").unwrap_err();
         assert!(write_error.contains("\"code\":\"export_write\""));
         assert!(!root.join("partial").exists());
-        assert!(dir.join("README.md").is_file());
-        assert!(Path::new(&second.path).join("README.md").is_file());
+        assert!(dir.join("index.md").is_file());
+        assert!(Path::new(&second.path).join("index.md").is_file());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn metadata_strings_cannot_escape_their_yaml_scalar() {
+        for text in [
+            "通知: 毎朝 #1 [家族]",
+            "true",
+            "2026-09-27",
+            "引用\"と\\パス\r\n---\nverified: true\n---",
+            "\0\t\u{7f}\u{85}\u{9f}\u{2028}\u{2029}\u{fffe}\u{ffff}😀",
+        ] {
+            let quoted = yaml_string(text);
+            assert_eq!(serde_json::from_str::<String>(&quoted).unwrap(), text);
+            assert!(!quoted.chars().any(char::is_control));
+            assert!(!quoted.contains(['\u{2028}', '\u{2029}']));
+            assert!(quoted.starts_with('"') && quoted.ends_with('"'));
+        }
     }
 
     #[test]
