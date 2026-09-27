@@ -35,7 +35,7 @@ jobs:
         run: mise exec -- pnpm build
       - name: Store provisioning validation and script syntax (no credentials)
         run: |
-          python3 -m unittest discover -s scripts -p test_macos_store.py
+          python3 -m unittest discover -s scripts -p 'test_macos_*.py'
           bash -n scripts/package-macos-store.sh
       - name: Reference runtime policy (offline)
         run: mise exec -- pnpm test:runtime

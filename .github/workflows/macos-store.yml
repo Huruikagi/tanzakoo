@@ -34,6 +34,23 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@v4
+      - name: Check signing passwords before compilation
+        env:
+          MAS_APP_CERTIFICATE: ${{ secrets.MAS_APP_CERTIFICATE }}
+          MAS_APP_CERTIFICATE_PASSWORD: ${{ secrets.MAS_APP_CERTIFICATE_PASSWORD }}
+          MAS_INSTALLER_CERTIFICATE: ${{ secrets.MAS_INSTALLER_CERTIFICATE }}
+          MAS_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.MAS_INSTALLER_CERTIFICATE_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib, subprocess, tempfile
+          os.umask(0o077)
+          with tempfile.TemporaryDirectory(prefix="store-preflight-", dir=os.environ["RUNNER_TEMP"]) as folder:
+              for kind in ("APP", "INSTALLER"):
+                  name = f"MAS_{kind}_CERTIFICATE"
+                  file = pathlib.Path(folder) / f"{kind}.p12"
+                  file.write_bytes(base64.b64decode(os.environ[name], validate=True))
+                  subprocess.run(["python3", "scripts/macos-store-p12.py", str(file), name + "_PASSWORD"], check=True)
+          PY
       - name: Check runner and build number
         env:
           BUILD_NUMBER: ${{ inputs.build_number }}
@@ -44,9 +61,21 @@ jobs:
           python3 -c 'import json,os; json.dump({"bundle":{"macOS":{"bundleVersion":os.environ["BUILD_NUMBER"]}}},open(".local/store-build.json","w"))'
       - name: Install dependencies
         run: mise exec -- pnpm install --frozen-lockfile
+      - name: Identify Rust toolchain
+        id: rust-version
+        run: echo "fingerprint=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Restore unsigned Rust build cache
+        id: rust-cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: src-tauri/target
+          key: store-macos-26-arm64-${{ steps.rust-version.outputs.fingerprint }}-${{ hashFiles('src-tauri/Cargo.lock', 'src-tauri/Cargo.toml', 'src-tauri/build.rs', 'src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            store-macos-26-arm64-${{ steps.rust-version.outputs.fingerprint }}-
+            dmg-macos-26-arm64-true-${{ steps.rust-version.outputs.fingerprint }}-
       - name: Check provisioning validation and packaging syntax
         run: |
-          python3 -m unittest discover -s scripts -p test_macos_store.py
+          python3 -m unittest discover -s scripts -p 'test_macos_*.py'
           bash -n scripts/package-macos-store.sh
       - name: Frontend checks
         run: mise exec -- pnpm check
@@ -65,7 +94,14 @@ jobs:
           mise exec -- pnpm tauri build --ci --no-sign --target aarch64-apple-darwin --bundles app \
             --config src-tauri/tauri.runtime.conf.json --config src-tauri/tauri.appstore.conf.json \
             --config .local/store-build.json -- --locked
-      # Credentials enter only this step; no signed app or profile is cached.
+      # Save only unsigned build outputs, before signing touches the bundle.
+      - name: Save unsigned Rust build cache
+        if: ${{ !cancelled() && steps.rust-cache.outcome == 'success' && steps.rust-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: src-tauri/target
+          key: ${{ steps.rust-cache.outputs.cache-primary-key }}
+      # Preflight removed its temporary credentials; signing uses a fresh directory.
       - name: Sign application and create Store PKG
         env:
           MAS_APP_CERTIFICATE: ${{ secrets.MAS_APP_CERTIFICATE }}

@@ -65,7 +65,7 @@ if (Test-Path "$signDir\$kind.p12") { throw '既存のp12を上書きしない�
 if ($LASTEXITCODE -ne 0) { throw 'p12作成失敗' }
 ```
 
-最初に秘密鍵のパスワード、続いてp12用のExport Passwordを2回入力する。Actionsの `*_CERTIFICATE_PASSWORD` にはこのExport Passwordを登録する。OpenSSLの既定の暗号形式で作成しており、Macキーチェーンでの互換性は初回署名実行で確認する。
+最初に秘密鍵のパスワード、続いてp12用のExport Passwordを2回入力する。Actionsの `*_CERTIFICATE_PASSWORD` にはこのExport Passwordを登録する。Windows側はOpenSSLの既定の暗号形式を使う。CIではOpenSSLでパスワードと整合性を確認してから、MacのSecurityツール向けにp12内部の鍵・証明書暗号化を3DES、MACをSHA-1、反復回数を100,000へ変換する。パスワードは環境変数から渡し、復号した鍵は所有者だけがアクセスできる一時ディレクトリー内に置き、変換後に削除する。アプリ自体の署名アルゴリズムを変更する処理ではない。
 
 バイナリーファイルをGitHub Secretへ登録するときは、PowerShellで次のようにBase64を直接クリップボードへ送る。各ファイルのコピーと貼り付けを1件ずつ行い、内容を画面やログへ表示しない。
 
@@ -83,7 +83,7 @@ if ($LASTEXITCODE -ne 0) { throw 'p12作成失敗' }
 gh workflow run macos-store.yml --ref main -f build_number=1 -f review_access=true
 ```
 
-1. Frontend・通常Rustテスト・Sandboxの不正bookmark拒否テストを実行する。
+1. ビルド前にp12のパスワードと整合性をOpenSSLで検証し、一時ファイルを削除する。Frontend・通常Rustテスト・Sandboxの不正bookmark拒否テストを実行する。再試行では署名前に保存したRustキャッシュを利用する。
 2. `tauri.runtime.conf.json` と `tauri.appstore.conf.json`、指定build numberをマージしてunsigned `.app` を作る。macOS固有の最低OS・Info.plist設定はTauriが通常通り読み込む。
 3. 署名専用ステップで2種類の証明書を一時キーチェーンへ取り込む。署名物・秘密情報はキャッシュしない。終了時にはキーチェーン検索リストを復元し、一時キーチェーンと秘密ファイルを削除する。
 4. プロファイルの期限・macOS対象・配布種別・明示App ID・Team ID・証明書の一致を検査する。App ID PrefixはTeam IDと同一とは仮定せず、プロファイルから取得する。親の既存Sandbox権限にアプリ識別子とTeam IDだけを追加する。
@@ -95,6 +95,8 @@ gh workflow run macos-store.yml --ref main -f build_number=1 -f review_access=tr
 ## 検証と次段階
 
 2026-09-27、Windowsでプロファイル検証の4テスト（期限・対象OS・配布種別・App ID・Team ID・証明書の不一致等の拒否条件を含む）、Bash構文、マージしたTauri設定のスキーマとYAML構文、Rustの整形、`app-sandbox` / `sandbox-validation` 各featureの `cargo check --locked` を確認した。署名・productbuild・Appleの検証はmacOSと実際の証明書が必要なので、ローカルテストで通過扱いにしない。
+
+2026-09-28、`e1d8284` の [初回Storeビルド](https://github.com/Huruikagi/tanzakoo/actions/runs/36341778499) はFrontend・Rust・Sandboxの検証とStore用アプリの生成を通過したが、p12取り込みで `MAC verification failed during PKCS12 import (wrong password?)` となった。この表示だけではパスワード不一致と暗号形式の互換性を区別できないため、事前のOpenSSL検証と上記のMac互換形式への変換を追加した。使い捨ての証明書で、鍵・証明書・追加のチェーン証明書の保持、誤ったパスワードの拒否、上書き防止、一時鍵の削除を検証する。
 
 Store配布署名のpkgは、これまでの直接インストール用DMGとは用途が異なる。署名検証の成功は、そのまま起動して動くことやAppleの受理を保証しない。次段階でApp Store Connectへのアップロードを進めるときに、Appレコード・暗号利用の申告・プライバシー情報・サポートURL・スクリーンショット・英語審査メモを用意し、Appleが処理したビルドをTestFlight等で検証する。暗号利用の申告値は未判断なので `ITSAppUsesNonExemptEncryption` を便宜的に固定しない。
 

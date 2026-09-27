@@ -54,13 +54,15 @@ umask 077
 printf '%s' "$MAS_APP_CERTIFICATE" | /usr/bin/base64 --decode > "$work/app.p12"
 printf '%s' "$MAS_INSTALLER_CERTIFICATE" | /usr/bin/base64 --decode > "$work/installer.p12"
 printf '%s' "$MAS_PROVISION_PROFILE" | /usr/bin/base64 --decode > "$work/store.provisionprofile"
+python3 "$root/scripts/macos-store-p12.py" "$work/app.p12" MAS_APP_CERTIFICATE_PASSWORD --output "$work/app-import.p12"
+python3 "$root/scripts/macos-store-p12.py" "$work/installer.p12" MAS_INSTALLER_CERTIFICATE_PASSWORD --output "$work/installer-import.p12"
 keychain_password=$(openssl rand -hex 32)
 security create-keychain -p "$keychain_password" "$keychain"
 security set-keychain-settings -lut 7200 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
 security list-keychains -d user -s "$keychain" "${original_keychains[@]}"
-security import "$work/app.p12" -k "$keychain" -P "$MAS_APP_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null
-security import "$work/installer.p12" -k "$keychain" -P "$MAS_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/productsign >/dev/null
+security import "$work/app-import.p12" -k "$keychain" -P "$MAS_APP_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null
+security import "$work/installer-import.p12" -k "$keychain" -P "$MAS_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/productsign >/dev/null
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
 unset MAS_APP_CERTIFICATE MAS_APP_CERTIFICATE_PASSWORD MAS_INSTALLER_CERTIFICATE MAS_INSTALLER_CERTIFICATE_PASSWORD MAS_PROVISION_PROFILE keychain_password
 
