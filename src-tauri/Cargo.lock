@@ -3769,6 +3769,8 @@ dependencies = [
  "agent-client-protocol",
  "cap-fs-ext",
  "cap-std",
+ "libc",
+ "objc2",
  "objc2-foundation",
  "reqwest",
  "rmcp",

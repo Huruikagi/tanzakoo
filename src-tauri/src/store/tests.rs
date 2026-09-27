@@ -30,3 +30,34 @@ impl Drop for Fixture {
         let _ = std::fs::remove_dir_all(&self.dir);
     }
 }
+
+#[test]
+fn reference_bookmarks_are_private_and_removed_with_the_material() {
+    let fixture = Fixture::new();
+    let material = ReferenceMaterial {
+        id: "fixture".into(),
+        path: "/fixture.md".into(),
+        kind: MaterialKind::File,
+    };
+    let db = fixture.store.connect().unwrap();
+    put(&db, "material", &material.id, &material).unwrap();
+    put(
+        &db,
+        "material_access",
+        &material.id,
+        &serde_json::json!({"private": "bookmark-secret"}),
+    )
+    .unwrap();
+    let snapshot = serde_json::to_string(&fixture.store.snapshot().unwrap()).unwrap();
+    assert!(!snapshot.contains("bookmark-secret"));
+    assert!(!snapshot.contains("material_access"));
+    fixture.store.remove_material(&material.id).unwrap();
+    let remaining: i64 = db
+        .query_row(
+            "SELECT count(*) FROM records WHERE id=?1 AND kind IN ('material', 'material_access')",
+            [&material.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(remaining, 0);
+}

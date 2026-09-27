@@ -174,11 +174,7 @@ pub async fn run(
         .join("agent-workspace");
     std::fs::create_dir_all(&workspace).map_err(|e| e.to_string())?;
     let mcp = McpServer::Stdio(
-        McpServerStdio::new(
-            "tanzakoo",
-            std::env::current_exe().map_err(|e| e.to_string())?,
-        )
-        .args(vec![
+        McpServerStdio::new("tanzakoo", crate::agent_setup::mcp_binary()?).args(vec![
             "--mcp".into(),
             store.path().to_string_lossy().into(),
             conversation.agent.clone(),

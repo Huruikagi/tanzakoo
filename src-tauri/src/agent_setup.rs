@@ -24,6 +24,23 @@ pub fn initialize(resources: PathBuf, data: PathBuf) {
     let _ = PATHS.set((resources, data));
 }
 
+pub fn mcp_binary() -> Result<PathBuf, String> {
+    let executable = std::env::current_exe().map_err(|e| e.to_string())?;
+    #[cfg(all(target_os = "macos", feature = "app-sandbox"))]
+    {
+        // The GUI has the parent sandbox profile; the MCP child must inherit it.
+        let helper = executable.with_file_name("tanzakoo-mcp");
+        if !helper.is_file() {
+            return Err("同梱のボード操作プログラムが見つかりません。".into());
+        }
+        Ok(helper)
+    }
+    #[cfg(not(all(target_os = "macos", feature = "app-sandbox")))]
+    {
+        Ok(executable)
+    }
+}
+
 pub fn managed_config() -> AgentConfig {
     AgentConfig {
         id: "codex".into(),

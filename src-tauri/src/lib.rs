@@ -13,6 +13,8 @@ pub mod store;
 pub mod system_message;
 
 mod commands;
+#[cfg(all(target_os = "macos", feature = "app-sandbox"))]
+pub mod sandbox_check;
 
 use std::sync::{Arc, Mutex};
 use tauri::Manager;

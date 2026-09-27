@@ -20,17 +20,21 @@ Macでは `HOME` の連結や `~/Library/Containers/<ID>` の固定パスを使�
 
 `src-tauri/tauri.macos.conf.json` で最低OSを26.0に設定する。CPUはビルド時に `--target aarch64-apple-darwin` を指定する。
 
-DMG版ではApp Sandboxを有効にせず、通常のユーザー領域のApplication Supportへ保存する。Hardened Runtimeを使い、NodeにだけJIT権限を付けて署名する。ファイル選択・同梱ランタイムとデータの分離は維持する。
+通常DMGではApp Sandboxを有効にせず、通常のユーザー領域のApplication Supportへ保存する。Hardened Runtimeを使い、Nodeと専用のcode-mode hostにだけJIT権限を付けて署名する。ファイル選択・同梱ランタイムとデータの分離は維持する。
 
-参照資料は現在の非App Sandbox構成を対象に、登録済みパスを都度読み取る。フォルダー名が同じでもリンクへの差し替えは拒否し、参照先の移動・削除・権限不足では再選択を案内する。将来App Sandboxを有効にする場合、この文字列パスの保存だけでは再起動後の許可を維持できないため、読み取り用の永続許可の取得・復元を別途実装する必要がある。
+参照資料は登録済みパスを都度読み取る。フォルダー名が同じでもリンクへの差し替えは拒否し、参照先の移動・削除・権限不足では再選択を案内する。macOSでは `O_NOFOLLOW_ANY` でパスの全要素についてリンク追跡を拒否し、選択したファイルの親フォルダーを開くための広い許可を要求しない。
 
-`src-tauri/tauri.sandbox.conf.json` は将来の **ファイル保存の検証用** として残す設定で、DMGワークフローでは使用しない。`Entitlements.sandbox.plist` を参照する。
+`src-tauri/tauri.sandbox.conf.json` は `app-sandbox` featureを有効にする **別の検証用アプリ**。DMGワークフローの `sandbox=true` でビルドする。名称はTanzakoo Sandbox、識別子は `dev.huruikagi.tanzakoo.sandbox-test`。通常版のデータや認証を移行・共有しない。Foundationが返すコンテナ内のApplication Supportを使う。
 
 - `com.apple.security.app-sandbox`: アプリのSandboxを有効化する。
 - `com.apple.security.files.user-selected.read-write`: ダイアログで選ばれたフォルダーへエクスポートする。
+- `com.apple.security.files.bookmarks.app-scope`: 選択した参照資料の読み取り専用security-scoped bookmarkをプロジェクトDBの非公開 `material_access` レコードに保存する。Snapshot・MCP応答・会話には含めない。再選択で更新し、登録解除と同時に削除する。
+- 読み取り・一覧・検索の各操作で許可を復元し、操作終了時に解除する。欠落・破損・期限切れ扱いのbookmark、移動した参照元は再選択を案内し、保存パスだけでは読み取りを続けない。
+- `network.client` はAI接続、`network.server` は通常認証のローカルコールバック等に使う。広いファイル権限やtemporary exceptionは追加しない。
+- Node・Codex・専用MCP helper等の実行ファイルは `app-sandbox` と `inherit` だけをSandbox権限に持つ。JITはNodeとcode-mode hostだけ。親アプリにはinheritを付けない。MCP helperは親と同じアプリ識別子で署名し、自身でbookmarkを復元する。
 - 出力先は保存せず毎回選ぶので、永続的なsecurity-scoped bookmarkは不要。Frontendに任意パスを書き込むIPCや広いファイル権限は追加しない。
 
-この設定だけではストア提出・AI接続は完成しない。通信権限、Node/Codex/MCP子プロセスへのSandbox継承と署名、ブラウザ認証、Team ID・App ID・プロファイルは、AI接続と配布の検証時に追加する。現時点のプロファイルには通信権限を含めていない。
+この検証版のDeveloper ID署名・公証はStoreへの提出ではない。Store用の証明書・App ID・プロビジョニングプロファイル・提出用pkgは後段で扱う。ブラウザ認証、ネイティブ選択、再起動後の外部資料読み取りは実機で確認する。
 
 ## Microsoft Store
 

@@ -1,6 +1,7 @@
 //! Read-only access to user-selected sources. The model never supplies an absolute path.
 mod access;
 mod policy;
+pub(crate) mod scope;
 mod search;
 
 pub use access::validate_selection;
@@ -10,7 +11,7 @@ use crate::{
     model::{MaterialKind, ReferenceMaterial},
     store::{Result, Store, StoreError},
 };
-use access::{open_material, read_text};
+use access::{Opened, open_material};
 use policy::{safe_name, text_file};
 use rmcp::schemars;
 use serde::{Deserialize, Serialize};
@@ -122,16 +123,17 @@ fn source_line(line: usize, text: &str) -> SourceLine {
 
 pub fn list_files(store: &Store, params: ListFiles) -> Result<FileList> {
     let material = store.material(&params.source.material_id)?;
-    let (dir, file) = open_material(&material, &params.source.path)?;
+    let _scope = scope::acquire(store, &material)?;
+    let opened = open_material(&material, &params.source.path)?;
     let mut entries = vec![];
     let mut truncated = false;
-    if let Some(file) = file {
-        read_text(&dir, &file)?;
+    if let Opened::File(file) = opened {
+        access::read_open_file(file)?;
         entries.push(FileEntry {
             path: display_path(&material, &params.source.path),
             kind: "file",
         });
-    } else {
+    } else if let Opened::Directory(dir) = opened {
         for (index, entry) in dir.entries().map_err(access_error)?.enumerate() {
             if index >= MAX_ENTRIES {
                 truncated = true;
@@ -173,11 +175,11 @@ pub fn read_file(store: &Store, params: ReadFile) -> Result<FileExcerpt> {
         return Err(invalid("開始行は1以上、行数は1〜500で指定してください。"));
     }
     let material = store.material(&params.source.material_id)?;
-    let (dir, file) = open_material(&material, &params.source.path)?;
-    let text = read_text(
-        &dir,
-        &file.ok_or_else(|| invalid("ファイルを指定してください。"))?,
-    )?;
+    let _scope = scope::acquire(store, &material)?;
+    let Opened::File(file) = open_material(&material, &params.source.path)? else {
+        return Err(invalid("ファイルを指定してください。"));
+    };
+    let text = access::read_open_file(file)?;
     let mut lines = vec![];
     let mut bytes = 0;
     let mut next_line = None;

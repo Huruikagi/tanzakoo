@@ -1,7 +1,7 @@
 //! Bounded traversal and literal text search through the shared access layer.
 use super::{
     MAX_ENTRIES, MAX_OUTPUT_BYTES, SearchFiles, SearchHit, SearchResult,
-    access::{open_material, read_text},
+    access::{Opened, open_material, read_open_file, read_text},
     access_error, display_path, invalid, joined,
     policy::{safe_name, text_file},
     source_line,
@@ -12,7 +12,10 @@ use cap_std::fs::Dir;
 
 const MAX_SEARCH_BYTES: usize = 16 * 1024 * 1024;
 fn search_file(dir: &Dir, name: &str, path: &str, query: &str, result: &mut SearchResult) {
-    let Ok(text) = read_text(dir, name) else {
+    search_text(read_text(dir, name), path, query, result);
+}
+fn search_text(text: Result<String>, path: &str, query: &str, result: &mut SearchResult) {
+    let Ok(text) = text else {
         result.skipped_files += 1;
         return;
     };
@@ -88,18 +91,18 @@ pub fn search_files(store: &Store, params: SearchFiles) -> Result<SearchResult> 
         return Err(invalid("検索語は1〜2000バイトで指定してください。"));
     }
     let material = store.material(&params.source.material_id)?;
-    let (dir, file) = open_material(&material, &params.source.path)?;
+    let _scope = super::scope::acquire(store, &material)?;
+    let opened = open_material(&material, &params.source.path)?;
     let mut result = SearchResult::default();
     let query = params.query.to_lowercase();
-    if let Some(file) = file {
-        search_file(
-            &dir,
-            &file,
+    if let Opened::File(file) = opened {
+        search_text(
+            read_open_file(file),
             &display_path(&material, &params.source.path),
             &query,
             &mut result,
         );
-    } else {
+    } else if let Opened::Directory(dir) = opened {
         search_dir(&dir, &params.source.path, &query, 0, &mut result)?;
     }
     Ok(result)

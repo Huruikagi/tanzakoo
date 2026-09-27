@@ -24,7 +24,7 @@ pub fn data_dir<R: tauri::Runtime>(
 }
 
 #[cfg(target_os = "macos")]
-fn macos_data_dir(identifier: &str) -> io::Result<PathBuf> {
+pub(crate) fn macos_data_dir(identifier: &str) -> io::Result<PathBuf> {
     use objc2_foundation::{
         NSSearchPathDirectory, NSSearchPathDomainMask, NSSearchPathForDirectoriesInDomains,
     };

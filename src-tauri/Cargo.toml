@@ -5,6 +5,9 @@ edition = "2024"
 rust-version = "1.88"
 default-run = "tanzakoo"
 
+[features]
+app-sandbox = []
+
 [lib]
 name = "tanzakoo_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
@@ -37,9 +40,14 @@ cap-fs-ext = "4.0.3"
 reqwest = { version = "=0.13.5", default-features = false, features = ["native-tls"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+libc = "0.2"
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSArray",
   "NSString",
   "NSPathUtilities",
+  "NSURL",
+  "NSData",
+  "NSError",
 ] }

@@ -1,4 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "bundle": { "macOS": { "entitlements": "./Entitlements.sandbox.plist" } }
+  "productName": "Tanzakoo Sandbox",
+  "identifier": "dev.huruikagi.tanzakoo.sandbox-test",
+  "build": { "features": ["app-sandbox"] },
+  "bundle": {
+    "macOS": { "entitlements": "./Entitlements.sandbox.plist" },
+    "resources": {
+      "../scripts/sandbox-board-check.mjs": "sandbox-check/sandbox-board-check.mjs",
+      "../scripts/lib/acp-client.mjs": "sandbox-check/lib/acp-client.mjs",
+      "../scripts/check-packaged-runtime.mjs": "sandbox-check/check-packaged-runtime.mjs"
+    }
+  }
 }

@@ -15,7 +15,17 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 app=$(cd "$1" && pwd)
 mkdir -p "$2"
 output=$(cd "$2" && pwd)
-[[ $app == */Tanzakoo.app ]] || { echo 'Expected Tanzakoo.app' >&2; exit 1; }
+sandbox=${SANDBOX:-false}
+app_name=Tanzakoo
+parent_entitlements="$root/src-tauri/Entitlements.sandbox.plist"
+if [[ $sandbox == true ]]; then app_name='Tanzakoo Sandbox'; fi
+[[ $app == */"$app_name.app" ]] || { echo "Expected $app_name.app" >&2; exit 1; }
+bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")
+if [[ $sandbox == true ]]; then
+  [[ $bundle_id == dev.huruikagi.tanzakoo.sandbox-test ]] || exit 1
+  # The parent GUI and its MCP subprocess require different entitlement profiles.
+  cp "$app/Contents/MacOS/tanzakoo" "$app/Contents/MacOS/tanzakoo-mcp"
+fi
 [[ -z $(find "$output" -mindepth 1 -maxdepth 1 -print -quit) ]] || {
   echo 'Output directory must be empty.' >&2; exit 1;
 }
@@ -33,10 +43,12 @@ version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/C
 work=$(mktemp -d "$RUNNER_TEMP/tanzakoo-signing.XXXXXX")
 keychain="$work/signing.keychain-db"
 mounted=false
+canary=''
 cleanup() {
   if [[ $mounted == true ]]; then hdiutil detach "$work/mount" -quiet || true; fi
   security delete-keychain "$keychain" >/dev/null 2>&1 || true
   rm -rf "$work"
+  if [[ -n $canary ]]; then rm -f "$canary"; fi
 }
 trap cleanup EXIT
 umask 077
@@ -70,6 +82,7 @@ cat > "$work/empty.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict/></plist>
 PLIST
+if [[ $sandbox != true ]]; then parent_entitlements="$work/empty.plist"; fi
 # Fail if new dependencies introduce bundles that need their own inside-out signing.
 if [[ -n $(find "$app/Contents" -type d \( -name '*.app' -o -name '*.framework' -o -name '*.xpc' -o -name '*.bundle' \) -print -quit) ]]; then
   echo 'Nested bundles require an explicit signing plan.' >&2; exit 1;
@@ -86,8 +99,21 @@ while IFS= read -r -d '' binary; do
   if [[ $binary == "$runtime"/node_modules/*/vendor/aarch64-apple-darwin/bin/codex-code-mode-host ]]; then
     entitlements="$root/src-tauri/Entitlements.codex-code-mode-host.plist"
   fi
+  if [[ $sandbox == true && $description == *executable* ]]; then
+    if [[ $binary == "$app/Contents/MacOS/tanzakoo" ]]; then
+      entitlements="$parent_entitlements"
+    elif [[ $binary == "$node" || $binary == "$runtime"/node_modules/*/vendor/aarch64-apple-darwin/bin/codex-code-mode-host ]]; then
+      entitlements="$root/src-tauri/Entitlements.sandbox-jit-child.plist"
+    else
+      entitlements="$root/src-tauri/Entitlements.sandbox-child.plist"
+    fi
+  fi
   # Keep the array nonempty: macOS ships Bash 3.2, whose nounset rejects empty arrays.
   options=(--force --timestamp --sign "$identity" --keychain "$keychain")
+  if [[ $sandbox == true && $binary == "$app/Contents/MacOS/tanzakoo-mcp" ]]; then
+    # App-scoped bookmarks belong to this signed application, including its helper.
+    options+=(--identifier "$bundle_id")
+  fi
   if [[ $description == *executable* ]]; then
     options+=(--options runtime --entitlements "$entitlements")
   fi
@@ -96,7 +122,7 @@ while IFS= read -r -d '' binary; do
   count=$((count + 1))
 done < <(find "$app/Contents" -type f -print0)
 [[ $count -ge 3 ]] || { echo 'Expected app, Node and Codex native binaries.' >&2; exit 1; }
-codesign --force --timestamp --options runtime --entitlements "$work/empty.plist" \
+codesign --force --timestamp --options runtime --entitlements "$parent_entitlements" \
   --sign "$identity" --keychain "$keychain" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 echo "Signed and verified $count Mach-O files and the application bundle."
@@ -104,26 +130,35 @@ echo "Signed and verified $count Mach-O files and the application bundle."
 # Test the signed runtimes before paying the cost of notarization. No developer PATH,
 # inherited AI credentials, login, external model request or project content is used.
 mkdir "$work/home"
-env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-  "$node" "$root/scripts/check-packaged-runtime.mjs" "$runtime"
 # Exercise a real tool call too: ACP initialization alone cannot detect failures
 # in the signed Codex tool host or in the packaged application's MCP subprocess.
 check_board_tools() {
   local packaged_app="$1"
   local packaged_runtime="$packaged_app/Contents/Resources/agent-runtime"
+  if [[ $sandbox == true ]]; then
+    # An inherited child launched directly from this shell would not prove App Sandbox.
+    "$packaged_app/Contents/MacOS/tanzakoo" --sandbox-check "$canary"
+    return
+  fi
+  env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+    "$packaged_runtime/bin/node" "$root/scripts/check-packaged-runtime.mjs" "$packaged_runtime"
   env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
     TANZAKOO_TEST_RUNTIME_ENTRY="$packaged_runtime/codex.mjs" \
     TANZAKOO_TEST_MCP_BINARY="$packaged_app/Contents/MacOS/tanzakoo" \
     "$packaged_runtime/bin/node" --test --test-name-pattern='review gateway-board:' \
     "$root/scripts/review-connection.test.mjs"
 }
+if [[ $sandbox == true ]]; then
+  canary=$(mktemp "$HOME/tanzakoo-sandbox-denied.XXXXXX")
+  printf 'sandbox access must be denied\n' > "$canary"
+fi
 check_board_tools "$app"
 
-dmg="$output/Tanzakoo_${version}_aarch64.dmg"
+dmg="$output/${app_name// /_}_${version}_aarch64.dmg"
 mkdir "$work/image"
-ditto "$app" "$work/image/Tanzakoo.app"
+ditto "$app" "$work/image/$app_name.app"
 ln -s /Applications "$work/image/Applications"
-hdiutil create -volname Tanzakoo -srcfolder "$work/image" -format UDZO "$dmg"
+hdiutil create -volname "$app_name" -srcfolder "$work/image" -format UDZO "$dmg"
 codesign --force --timestamp --sign "$identity" --keychain "$keychain" "$dmg"
 codesign --verify --strict "$dmg"
 
@@ -149,12 +184,9 @@ spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg
 mkdir "$work/mount"
 hdiutil attach "$dmg" -readonly -nobrowse -mountpoint "$work/mount" -quiet
 mounted=true
-codesign --verify --deep --strict --verbose=2 "$work/mount/Tanzakoo.app"
-spctl --assess --type execute --verbose=2 "$work/mount/Tanzakoo.app"
-env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-  "$work/mount/Tanzakoo.app/Contents/Resources/agent-runtime/bin/node" \
-  "$root/scripts/check-packaged-runtime.mjs" "$work/mount/Tanzakoo.app/Contents/Resources/agent-runtime"
-check_board_tools "$work/mount/Tanzakoo.app"
+codesign --verify --deep --strict --verbose=2 "$work/mount/$app_name.app"
+spctl --assess --type execute --verbose=2 "$work/mount/$app_name.app"
+check_board_tools "$work/mount/$app_name.app"
 hdiutil detach "$work/mount" -quiet
 mounted=false
 (cd "$output" && shasum -a 256 "$(basename "$dmg")" > "$(basename "$dmg").sha256")

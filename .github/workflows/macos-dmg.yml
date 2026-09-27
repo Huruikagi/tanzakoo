@@ -8,6 +8,11 @@ on:
         type: boolean
         default: false
         required: true
+      sandbox:
+        description: Build the separate App Sandbox verification app
+        type: boolean
+        default: false
+        required: true
 
 permissions:
   contents: read
@@ -42,7 +47,7 @@ jobs:
         uses: actions/cache/restore@v6.1.0
         with:
           path: src-tauri/target
-          key: dmg-macos-26-arm64-${{ steps.rust-version.outputs.fingerprint }}-${{ hashFiles('src-tauri/Cargo.lock', 'src-tauri/Cargo.toml', 'src-tauri/build.rs', 'src-tauri/src/**/*.rs') }}
+          key: dmg-macos-26-arm64-${{ inputs.sandbox }}-${{ steps.rust-version.outputs.fingerprint }}-${{ hashFiles('src-tauri/Cargo.lock', 'src-tauri/Cargo.toml', 'src-tauri/build.rs', 'src-tauri/src/**/*.rs') }}
       - name: Frontend checks
         run: mise exec -- pnpm check
       - name: Rust tests
@@ -50,16 +55,20 @@ jobs:
       - name: Check generated types are current
         # ts-rs can emit trailing spaces before field documentation.
         run: git diff --ignore-space-at-eol --exit-code -- src/bindings
+      - name: Sandbox bookmark failure cases
+        if: inputs.sandbox
+        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features app-sandbox --lib materials::scope
       - name: Stage bundled runtime
         run: mise exec -- pnpm runtime:stage
       - name: Build application bundle
         env:
           TANZAKOO_REVIEW_URL: ${{ inputs.review_access && 'https://review-relay-production-4f29.up.railway.app' || '' }}
-        run: >-
-          mise exec -- pnpm tauri build --ci --no-sign
-          --target aarch64-apple-darwin --bundles app
-          --config src-tauri/tauri.runtime.conf.json
-          --config src-tauri/tauri.dmg.conf.json -- --locked
+          SANDBOX: ${{ inputs.sandbox }}
+        run: |
+          configs=(--config src-tauri/tauri.runtime.conf.json --config src-tauri/tauri.dmg.conf.json)
+          if [[ $SANDBOX == true ]]; then configs+=(--config src-tauri/tauri.sandbox.conf.json); fi
+          mise exec -- pnpm tauri build --ci --no-sign \
+            --target aarch64-apple-darwin --bundles app "${configs[@]}" -- --locked
       # Save before any signing credentials or signed files enter the job.
       - name: Save unsigned Rust build cache
         if: steps.rust-cache.outputs.cache-hit != 'true'
@@ -74,14 +83,16 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
-        run: >-
-          bash scripts/package-macos.sh
-          src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Tanzakoo.app
-          .local/macos-dist
+          SANDBOX: ${{ inputs.sandbox }}
+        run: |
+          name=Tanzakoo
+          if [[ $SANDBOX == true ]]; then name='Tanzakoo Sandbox'; fi
+          bash scripts/package-macos.sh \
+            "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/$name.app" .local/macos-dist
       - name: Upload verified DMG
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: Tanzakoo-macos-arm64-${{ github.sha }}-${{ inputs.review_access && 'review' || 'standard' }}
+          name: Tanzakoo-macos-arm64-${{ github.sha }}-${{ inputs.review_access && 'review' || 'standard' }}${{ inputs.sandbox && '-sandbox' || '' }}
           path: |
             .local/macos-dist/*.dmg
             .local/macos-dist/*.sha256

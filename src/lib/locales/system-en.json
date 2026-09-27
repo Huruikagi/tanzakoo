@@ -3,6 +3,8 @@
   "このエージェントの同梱版はまだ利用できません。": "A bundled runtime for this agent is not available yet.",
   "アプリの保存場所を取得できません。": "Could not locate the app data directory.",
   "同梱エージェントが見つかりません。カードの閲覧・編集は引き続き利用できます。": "The bundled agent was not found. You can still view and edit cards.",
+  "同梱のボード操作プログラムが見つかりません。": "The bundled board helper was not found.",
+  "参照資料のアクセス許可を復元できません。参照資料をもう一度選択してください。": "Access to this reference material could not be restored. Select it again to renew access.",
   "接続操作が不正です。": "Invalid connection action.",
   "TanzakooはClaudeのサインイン・サインアウトを提供していません。提供条件を確認中です。": "Claude sign-in and sign-out are unavailable while availability terms are being reviewed.",
   "接続設定を読み込めませんでした。": "Could not load connection settings.",
