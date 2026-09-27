@@ -1,6 +1,40 @@
 import { spawn, execFileSync } from "node:child_process";
 import { createInterface } from "node:readline";
 
+function killTree(pid) {
+  if (process.platform === "win32")
+    execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+  else process.kill(-pid, "SIGKILL");
+}
+
+// taskkill can report a tree member's exit race after terminating the adapter.
+// Accept that only after the child's close event (including its pipes), never
+// merely because taskkill returned a particular Windows/localized status code.
+export async function stopAcpProcess(child, closed, terminate = killTree) {
+  if (child.pid && child.exitCode === null) {
+    try {
+      terminate(child.pid);
+    } catch (error) {
+      let timer;
+      try {
+        const didClose = await Promise.race([
+          closed.then(() => true),
+          new Promise((resolve) => {
+            timer = setTimeout(() => resolve(false), 1000);
+          }),
+        ]);
+        if (!didClose) throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
+  await closed;
+}
+
 // Test-only client for the real, pinned adapter. Never prints provider diagnostics.
 export function startAcp({ entry, home, cwd, env = {}, onRequest = () => null }) {
   const childEnv = { ...process.env, ...env, CODEX_HOME: home, INITIAL_AGENT_MODE: "read-only" };
@@ -97,20 +131,7 @@ export function startAcp({ entry, home, cwd, env = {}, onRequest = () => null })
       if (stopped) return;
       stopped = true;
       lines.close();
-      if (child.pid && child.exitCode === null) {
-        try {
-          if (process.platform === "win32")
-            execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-              windowsHide: true,
-              stdio: "ignore",
-            });
-          else process.kill(-child.pid, "SIGKILL");
-        } catch (error) {
-          if (error.code !== "ESRCH" && !(process.platform === "win32" && error.status === 128))
-            throw error;
-        }
-      }
-      await closed;
+      await stopAcpProcess(child, closed);
     },
   };
 }
