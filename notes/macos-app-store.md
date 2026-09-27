@@ -8,7 +8,7 @@ Store専用のTauri設定・手動ワークフロー・署名スクリプトを�
 
 2026-09-28、利用者がApp IDと2種類の配布証明書、Mac App Store Connectプロファイルを作成した。テスト用Macは私用機ではないため、秘密鍵・CSR・パスワード付きp12はWindowsで作成した。アプリ用・インストーラー用の公開証明書はApple WWDR G3発行で、p12には同中間証明書も含めた。プロファイルはWindowsでBundle ID・アプリ用証明書・Team ID・配布種別・有効期限の一致を確認済み。CMSの署名をローカルで検証したが、Appleの証明書チェーンの信頼確認はMac署名ランナーに残る。
 
-同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、GitHub側で名前の存在を確認した。Secretの値・パスワードの正しさやMacキーチェーンへのインポートはまだ確認していない。署名済みpkgの生成・Apple側の検証は未実行。ワークフローは成果物をGitHub Actionsに保存するところまでで、App Store Connectへのアップロード・TestFlight配布・審査提出・公開は行わない。
+同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、Macランナーでp12のパスワード・整合性・キーチェーンへのインポートとプロファイルの一致を確認した。`2cbaf63` から署名済みpkgの生成とローカル署名検証が成功した。ワークフローは成果物をGitHub Actionsに保存するところまでで、App Store Connectへのアップロード・Apple側の検証・TestFlight配布・審査提出・公開は未実施。
 
 ## Apple側の初回作業
 
@@ -97,6 +97,10 @@ gh workflow run macos-store.yml --ref main -f build_number=1 -f review_access=tr
 2026-09-27、Windowsでプロファイル検証の4テスト（期限・対象OS・配布種別・App ID・Team ID・証明書の不一致等の拒否条件を含む）、Bash構文、マージしたTauri設定のスキーマとYAML構文、Rustの整形、`app-sandbox` / `sandbox-validation` 各featureの `cargo check --locked` を確認した。署名・productbuild・Appleの検証はmacOSと実際の証明書が必要なので、ローカルテストで通過扱いにしない。
 
 2026-09-28、`e1d8284` の [初回Storeビルド](https://github.com/Huruikagi/tanzakoo/actions/runs/36341778499) はFrontend・Rust・Sandboxの検証とStore用アプリの生成を通過したが、p12取り込みで `MAC verification failed during PKCS12 import (wrong password?)` となった。この表示だけではパスワード不一致と暗号形式の互換性を区別できないため、事前のOpenSSL検証と上記のMac互換形式への変換を追加した。使い捨ての証明書で、鍵・証明書・追加のチェーン証明書の保持、誤ったパスワードの拒否、上書き防止、一時鍵の削除を検証する。
+
+同日、`2cbaf638c943313a7889db5a688091431fe65d14` の [再実行](https://github.com/Huruikagi/tanzakoo/actions/runs/36342814606) が成功した。既存のSecretsのまま両p12の事前検証とMac互換変換、キーチェーンへのインポートが成功し、プロファイルの一致、63個のMach-Oとアプリの署名、実際のentitlements・Team ID、`productbuild` と `pkgutil --check-signature` を確認した。生成物は `Tanzakoo_0.1.0_1_aarch64.pkg`（バージョン0.1.0、build 1、Apple Silicon、macOS 26以上、審査用接続有効）。[Artifact](https://github.com/Huruikagi/tanzakoo/actions/runs/36342814606/artifacts/10939698681) にpkg・SHA-256・provenanceを保存した。Artifact ZIPのSHA-256は `c6a1cef5d73649c180efe2714c744b4d8d97b15e7186b1b9eca8df40c8c6cb54`、保持期限は2026-10-12 04:18 JST。これはpkg単体のハッシュではない。
+
+同じソースの [通常CI](https://github.com/Huruikagi/tanzakoo/actions/runs/36342808833) はWindows・macOS・仲介サーバーの全ジョブが成功した。初回Windows CIで発生したテスト終了時の `taskkill` 競合には、子プロセスとパイプの実際の終了を待って判定する修正を `511fced` で追加した。終了を確認できない場合は失敗を維持し、この分岐の3テストと実ACP/MCP検証も通過している。
 
 Store配布署名のpkgは、これまでの直接インストール用DMGとは用途が異なる。署名検証の成功は、そのまま起動して動くことやAppleの受理を保証しない。次段階でApp Store Connectへのアップロードを進めるときに、Appレコード・暗号利用の申告・プライバシー情報・サポートURL・スクリーンショット・英語審査メモを用意し、Appleが処理したビルドをTestFlight等で検証する。暗号利用の申告値は未判断なので `ITSAppUsesNonExemptEncryption` を便宜的に固定しない。
 
