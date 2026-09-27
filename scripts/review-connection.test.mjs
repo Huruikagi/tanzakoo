@@ -272,6 +272,13 @@ for (const route of [
               "review token persisted in Codex state",
             );
         }
+      } catch (error) {
+        // This fixture has no user data or external credentials. Keep the local
+        // grant out of diagnostics while exposing signed-runtime tool failures.
+        const detail = JSON.stringify(client?.notifications ?? []).slice(-12_000);
+        error.message += `\nACP diagnostics: ${client?.diagnostics() ?? ""}\nNotifications: ${detail}`;
+        error.message = error.message.replaceAll(token, "[REDACTED]");
+        throw error;
       } finally {
         await client?.stop();
         await relay?.close();

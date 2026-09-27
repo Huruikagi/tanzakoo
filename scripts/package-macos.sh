@@ -97,10 +97,22 @@ codesign --verify --deep --strict --verbose=2 "$app"
 echo "Signed and verified $count Mach-O files and the application bundle."
 
 # Test the signed runtimes before paying the cost of notarization. No developer PATH,
-# inherited AI credentials, login, model request or project content is used.
+# inherited AI credentials, login, external model request or project content is used.
 mkdir "$work/home"
 env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
   "$node" "$root/scripts/check-packaged-runtime.mjs" "$runtime"
+# Exercise a real tool call too: ACP initialization alone cannot detect failures
+# in the signed Codex tool host or in the packaged application's MCP subprocess.
+check_board_tools() {
+  local packaged_app="$1"
+  local packaged_runtime="$packaged_app/Contents/Resources/agent-runtime"
+  env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+    TANZAKOO_TEST_RUNTIME_ENTRY="$packaged_runtime/codex.mjs" \
+    TANZAKOO_TEST_MCP_BINARY="$packaged_app/Contents/MacOS/tanzakoo" \
+    "$packaged_runtime/bin/node" --test --test-name-pattern='review gateway-board:' \
+    "$root/scripts/review-connection.test.mjs"
+}
+check_board_tools "$app"
 
 dmg="$output/Tanzakoo_${version}_aarch64.dmg"
 mkdir "$work/image"
@@ -137,6 +149,7 @@ spctl --assess --type execute --verbose=2 "$work/mount/Tanzakoo.app"
 env -i HOME="$work/home" TMPDIR="$work/" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
   "$work/mount/Tanzakoo.app/Contents/Resources/agent-runtime/bin/node" \
   "$root/scripts/check-packaged-runtime.mjs" "$work/mount/Tanzakoo.app/Contents/Resources/agent-runtime"
+check_board_tools "$work/mount/Tanzakoo.app"
 hdiutil detach "$work/mount" -quiet
 mounted=false
 (cd "$output" && shasum -a 256 "$(basename "$dmg")" > "$(basename "$dmg").sha256")
