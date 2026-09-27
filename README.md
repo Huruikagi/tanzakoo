@@ -125,6 +125,7 @@ tanzakoo-プロジェクト名-出力時刻/
 ```powershell
 mise exec -- pnpm check
 mise exec -- pnpm test:runtime
+mise exec -- pnpm test:review
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
@@ -133,6 +134,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 - Oxlint + Oxfmt。`@shadcn/lint` の `no-restyle` で共通部品の利用を確認します。レイアウト調整と動的スタイルは許容します。
 - Vitest / React Testing Libraryで参照・下書き・送信・提案適用を検証します。
 - Rustのテストで保存、承認時の競合検出、許可対象、キャンセル状態を検証します。認証のテストではmiseのNodeで模擬ACPエージェントを起動します。`ts-rs` によるTypeScript型も生成します。
+- `test:review` は審査用仲介の境界と、実Codex・ACP・MCPを使う候補作成・変更提案・会話復元をローカル模擬APIで検証します。Rustで現在の本体をビルドします。実APIの費用は発生しません。仲介はまだアプリの接続設定へ組み込んでおらず、詳細は [審査用仲介の手順と制限](packages/review-relay/README.md) を参照してください。
 - 実エージェントのスモークテストは `scripts/agent-smoke.ps1`。ログイン済みのアカウントを使い、テスト用の会話を送信します。CIでは実行しません。Codexは先に検証専用フォルダーを `TANZAKOO_DATA_DIR` に指定してアプリからサインインし、アプリを終了した後、同じフォルダーを `-DataDirectory` に指定します。認証ファイルをコピーする必要はありません。
 
 ```powershell

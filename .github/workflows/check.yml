@@ -22,6 +22,8 @@ jobs:
         run: mise exec -- pnpm test:runtime
       - name: Test on Apple Silicon
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin
+      - name: Review relay and real ACP/MCP (offline, not App Sandbox)
+        run: mise exec -- pnpm test:review
       - name: Rust lint
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked --target aarch64-apple-darwin -- -D warnings
       - name: Check generated types are current
@@ -43,6 +45,8 @@ jobs:
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Rust tests and generated types
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Review relay and real ACP/MCP (offline)
+        run: mise exec -- pnpm test:review
       - name: Check generated types are current
         # ts-rs can emit trailing spaces before field documentation.
         run: git diff --ignore-space-at-eol --exit-code -- src/bindings

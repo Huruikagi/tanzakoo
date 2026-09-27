@@ -1,0 +1,18 @@
+{
+  "name": "@tanzakoo/review-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.mjs",
+    "grant": "node src/admin.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "eventsource-parser": "4.1.1",
+    "fastify": "5.12.5"
+  },
+  "engines": {
+    "node": ">=24.21.0 <25"
+  }
+}
