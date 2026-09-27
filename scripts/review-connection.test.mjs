@@ -1,25 +1,31 @@
 // Uses the actual managed wrapper and pinned ACP/Codex against loopback fixtures.
 import assert from "node:assert/strict";
-import {
-  mkdtempSync,
-  mkdirSync,
-  realpathSync,
-  rmSync,
-  existsSync,
-  readdirSync,
-  readFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 import { startAcp } from "./lib/acp-client.mjs";
 import { Ledger } from "../packages/review-relay/src/ledger.mjs";
 import { createRelay } from "../packages/review-relay/src/server.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+async function readAfterExit(path) {
+  // Windows can briefly retain a child's file lock after taskkill has returned.
+  // Retry the read, never skip the credential-persistence check.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await readFile(path);
+    } catch (error) {
+      if (error.code !== "EBUSY" || attempt >= 10) throw error;
+      await delay(100);
+    }
+  }
+}
 for (const route of [
   "gateway",
   "providers",
@@ -268,7 +274,7 @@ for (const route of [
         for (const file of readdirSync(home, { recursive: true, withFileTypes: true })) {
           if (file.isFile())
             assert.ok(
-              !readFileSync(join(file.parentPath, file.name)).includes(Buffer.from(token)),
+              !(await readAfterExit(join(file.parentPath, file.name))).includes(Buffer.from(token)),
               "review token persisted in Codex state",
             );
         }
