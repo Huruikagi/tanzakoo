@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    #[cfg(all(target_os = "macos", feature = "app-sandbox"))]
+    #[cfg(all(target_os = "macos", feature = "sandbox-validation"))]
     if args.get(1).map(String::as_str) == Some("--sandbox-check") {
         if let Err(error) =
             tanzakoo_lib::sandbox_check::run(args.get(2).expect("denied canary path"))
@@ -11,7 +11,7 @@ fn main() {
         }
         return;
     }
-    #[cfg(all(target_os = "macos", feature = "app-sandbox"))]
+    #[cfg(all(target_os = "macos", feature = "sandbox-validation"))]
     if args.get(1).map(String::as_str) == Some("--sandbox-denial-check") {
         std::process::exit(
             if tanzakoo_lib::sandbox_check::denied(args.get(2).expect("canary path")).is_ok() {

@@ -7,6 +7,7 @@ default-run = "tanzakoo"
 
 [features]
 app-sandbox = []
+sandbox-validation = ["app-sandbox"]
 
 [lib]
 name = "tanzakoo_lib"

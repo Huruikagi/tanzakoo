@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": { "features": ["app-sandbox"] },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "category": "Productivity",
+    "icon": ["icons/icon.icns"],
+    "macOS": {
+      "hardenedRuntime": true,
+      "entitlements": "./Entitlements.sandbox.plist"
+    }
+  }
+}

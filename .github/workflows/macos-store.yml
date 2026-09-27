@@ -1,0 +1,95 @@
+name: macOS Store package
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: New numeric CFBundleVersion (increase for each upload)
+        type: string
+        required: true
+      review_access:
+        description: Include the Tanzakoo review relay connection
+        type: boolean
+        default: true
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-store-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "26.0"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+      - name: Check runner and build number
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          test "$(uname -m)" = arm64
+          [[ $BUILD_NUMBER =~ ^[1-9][0-9]{0,3}(\.[0-9]{1,2}){0,2}$ ]]
+          mkdir -p .local
+          python3 -c 'import json,os; json.dump({"bundle":{"macOS":{"bundleVersion":os.environ["BUILD_NUMBER"]}}},open(".local/store-build.json","w"))'
+      - name: Install dependencies
+        run: mise exec -- pnpm install --frozen-lockfile
+      - name: Check provisioning validation and packaging syntax
+        run: |
+          python3 -m unittest discover -s scripts -p test_macos_store.py
+          bash -n scripts/package-macos-store.sh
+      - name: Frontend checks
+        run: mise exec -- pnpm check
+      - name: Rust tests
+        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin
+      - name: Sandbox bookmark failure cases
+        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin --features app-sandbox --lib materials::scope
+      - name: Check generated types are current
+        run: git diff --ignore-space-at-eol --exit-code -- src/bindings
+      - name: Stage bundled runtime
+        run: mise exec -- pnpm runtime:stage
+      - name: Build Store application without validation fixtures
+        env:
+          TANZAKOO_REVIEW_URL: ${{ inputs.review_access && 'https://review-relay-production-4f29.up.railway.app' || '' }}
+        run: |
+          mise exec -- pnpm tauri build --ci --no-sign --target aarch64-apple-darwin --bundles app \
+            --config src-tauri/tauri.runtime.conf.json --config src-tauri/tauri.appstore.conf.json \
+            --config .local/store-build.json -- --locked
+      # Credentials enter only this step; no signed app or profile is cached.
+      - name: Sign application and create Store PKG
+        env:
+          MAS_APP_CERTIFICATE: ${{ secrets.MAS_APP_CERTIFICATE }}
+          MAS_APP_CERTIFICATE_PASSWORD: ${{ secrets.MAS_APP_CERTIFICATE_PASSWORD }}
+          MAS_INSTALLER_CERTIFICATE: ${{ secrets.MAS_INSTALLER_CERTIFICATE }}
+          MAS_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.MAS_INSTALLER_CERTIFICATE_PASSWORD }}
+          MAS_PROVISION_PROFILE: ${{ secrets.MAS_PROVISION_PROFILE }}
+        run: |
+          bash scripts/package-macos-store.sh \
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Tanzakoo.app .local/macos-store
+      - name: Record artifact provenance
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          REVIEW_ACCESS: ${{ inputs.review_access }}
+        run: |
+          python3 -c 'import json,os; json.dump({"commit":os.environ["GITHUB_SHA"],"buildNumber":os.environ["BUILD_NUMBER"],"reviewAccess":os.environ["REVIEW_ACCESS"],"run":os.environ["GITHUB_RUN_ID"],"validation":"local signatures only; not uploaded or Store-validated"},open(".local/macos-store/provenance.json","w"),indent=2)'
+      - name: Upload signed package artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Tanzakoo-macos-store-${{ github.sha }}-${{ inputs.build_number }}
+          path: |
+            .local/macos-store/*.pkg
+            .local/macos-store/*.sha256
+            .local/macos-store/provenance.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

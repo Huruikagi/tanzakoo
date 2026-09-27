@@ -4,6 +4,8 @@ Mac初版はApple Silicon・macOS 26 Tahoe以上向けのDMGを直接配布す�
 
 ## 初回設定
 
+Mac App Store用の署名とpkg作成は別の [Storeパッケージ準備手順](macos-app-store.md) を参照する。
+
 Apple Developer ProgramのAccount HolderがDeveloper ID ApplicationのG2証明書を発行する。秘密鍵と証明書をパスワード付き `.p12` にまとめる。App Store ConnectではDeveloper権限のチームAPIキーを公証用に発行する。
 
 GitHubのリポジトリに次のActions Secretsを登録する。秘密鍵・パスワードをGitやログに入れない。

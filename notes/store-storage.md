@@ -24,7 +24,7 @@ Macでは `HOME` の連結や `~/Library/Containers/<ID>` の固定パスを使�
 
 参照資料は登録済みパスを都度読み取る。フォルダー名が同じでもリンクへの差し替えは拒否し、参照先の移動・削除・権限不足では再選択を案内する。macOSでは `O_NOFOLLOW_ANY` でパスの全要素についてリンク追跡を拒否し、選択したファイルの親フォルダーを開くための広い許可を要求しない。
 
-`src-tauri/tauri.sandbox.conf.json` は `app-sandbox` featureを有効にする **別の検証用アプリ**。DMGワークフローの `sandbox=true` でビルドする。名称はTanzakoo Sandbox、識別子は `dev.huruikagi.tanzakoo.sandbox-test`。通常版のデータや認証を移行・共有しない。Foundationが返すコンテナ内のApplication Supportを使う。
+`src-tauri/tauri.sandbox.conf.json` は `sandbox-validation` feature（`app-sandbox` を含む）を有効にする **別の検証用アプリ**。DMGワークフローの `sandbox=true` でビルドする。名称はTanzakoo Sandbox、識別子は `dev.huruikagi.tanzakoo.sandbox-test`。通常版のデータや認証を移行・共有しない。Foundationが返すコンテナ内のApplication Supportを使う。
 
 - `com.apple.security.app-sandbox`: アプリのSandboxを有効化する。
 - `com.apple.security.files.user-selected.read-write`: ダイアログで選ばれたフォルダーへエクスポートする。
@@ -34,7 +34,7 @@ Macでは `HOME` の連結や `~/Library/Containers/<ID>` の固定パスを使�
 - Node・Codex・専用MCP helper等の実行ファイルは `app-sandbox` と `inherit` だけをSandbox権限に持つ。JITはNodeとcode-mode hostだけ。親アプリにはinheritを付けない。MCP helperは親と同じアプリ識別子で署名し、自身でbookmarkを復元する。
 - 出力先は保存せず毎回選ぶので、永続的なsecurity-scoped bookmarkは不要。Frontendに任意パスを書き込むIPCや広いファイル権限は追加しない。
 
-この検証版のDeveloper ID署名・公証はStoreへの提出ではない。Store用の証明書・App ID・プロビジョニングプロファイル・提出用pkgは後段で扱う。ブラウザ認証、ネイティブ選択、再起動後の外部資料読み取りは実機で確認する。
+この検証版のDeveloper ID署名・公証はStoreへの提出ではない。Store用の証明書・App ID・プロビジョニングプロファイル・提出用pkgは [Storeパッケージ準備手順](macos-app-store.md) で扱う。Store版は `tauri.appstore.conf.json` の `app-sandbox` featureを使い、検証専用の `sandbox-validation` featureとテスト資材を含めない。ブラウザ認証、ネイティブ選択、再起動後の外部資料読み取りの実機結果は下記検証記録を参照する。
 
 ## Microsoft Store
 
