@@ -67,7 +67,9 @@ Appleの初回公証は30分を超える場合がある。タイムアウトや 
 
 2026-09-26、コミット `4666605` の [初回成功実行](https://github.com/Huruikagi/tanzakoo/actions/runs/36246728045) で証明書・パスワード・公証キーを含む工程全体を検証した。10個のMach-Oとアプリ本体の署名、公証Accepted、DMGへのチケット添付、DMGと内包アプリのGatekeeper判定、同梱Node 24.21.0のJIT・Codex 0.153.4起動・ACP初期化が通過した。公証申請IDは `dc911d0e-486e-42d7-bad3-8a798537efe2`。成果物のビルド元はこのコミットであり、後続の文書更新コミットとは区別する。
 
-GUIの起動、ブラウザ認証、カード保存・会話・MCP・エクスポートは別途Macで操作確認する。今後のバイナリー変更でも同じCI検証を実行する。Nodeの権限は今回の `allow-jit` だけでCIを通過しており、権限を一律に広げて回避しない。
+2026-09-27、コミット `3e3221c` の [審査用DMGの実行](https://github.com/Huruikagi/tanzakoo/actions/runs/36300371177) が成功した。`review_access=true` で公開仲介URLを組み込み、Node 24.21.0・Codex 0.156.1・ACP 1.13.1を同梱した。62個のMach-Oとアプリ本体の署名、公証Accepted、チケット添付、DMGと内包アプリのGatekeeper判定、署名後とDMGマウント後のNode JIT・Codex起動・ACP初期化を確認した。公証申請IDは `c52ba999-cda0-4a2c-8d5f-f885a29c765d`。[審査用Artifact](https://github.com/Huruikagi/tanzakoo/actions/runs/36300371177/artifacts/10925935987) のビルド元は `3e3221c5097bd5590d3d058d94064985c4217be2`。同じコミットの通常CIもMac・Windows・仲介サーバーの全ジョブが成功した。
+
+GUIの起動、ブラウザ認証、カード保存・会話・MCP・エクスポートは別途Macで操作確認する。2026-09-27の審査用DMGはApple Silicon・macOS 26以上の実機で検証予定であり、GUIの結果は未確認。今後のバイナリー変更でも同じCI検証を実行する。Nodeの権限は今回の `allow-jit` だけでCIを通過しており、権限を一律に広げて回避しない。
 
 App Sandbox用の設定はDMGビルドで読み込まない。保存先と外部ファイルアクセスは [保存設計](store-storage.md) を参照。初版の更新は新しいDMGからアプリを置き換える形を想定し、自動更新は未実装。
 
