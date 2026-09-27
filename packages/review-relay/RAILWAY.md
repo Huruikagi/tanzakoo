@@ -9,7 +9,7 @@ Railwayに公開し、`gpt-6-luna` の実API応答を確認済み。ストア提
 - 公開URLで `/health` の200、コードなしの `/review/status` の401、発行済みコードによる状態取得を確認した。
 - 実Responses APIでSSEの完了イベントと応答、台帳の試行回数減算を確認した。隔離したボードで実Codex・ACP・MCPによる候補作成と未承認提案を確認し、元の本文を保持した。
 - 検証コードは24時間・20試行に限定した。ストア提出用は日程に合わせて別途発行する。コードやAPIキーはGitへ保存しない。
-- 実アプリ画面での接続・承認操作と、配布ビルドでの検証は残っている。
+- 公開URLを組み込んだWindows releaseビルドが成功し、同梱Node・Codex・ACPの初期化を確認した。開発用NodeをPATHから外し、専用データ保存先で空のボード画面まで起動できた。実画面での接続・承認操作、署名済みパッケージやMac版の検証は残っている。
 
 ## 構成
 
@@ -73,6 +73,17 @@ node /app/src/admin.mjs revoke <発行ID>
 発行したコードは一度だけ表示される。審査提出先へ渡し、共有ログやリポジトリへ貼らない。1回の会話操作でツール実行を挟み、複数回のAPI試行になることがある。試行回数は金額上限の保証ではない。
 
 公開URLの `/health` が200を返し、コードなしの `/review/status` が401になることを確認する。公開HTTPSのoriginをビルド時の `TANZAKOO_REVIEW_URL` に設定したアプリで「審査用アクセス」を開き、コード確認・期限・モデルの表示を確認する。ここまではAI呼び出し枠を消費しない。実API・ストリーミング・カード提案の確認は、予算管理を用意してから行う。
+
+### Windowsで公開URLを組み込んで検証する
+
+同梱ランタイムは `mise exec -- pnpm runtime:stage` で準備する。ラッパーや固定依存を更新した後は、既存の `src-tauri/resources/agent-runtime` を作業用の退避先へ移してから再実行する。古い配置のままビルドしない。
+
+```powershell
+$env:TANZAKOO_REVIEW_URL = 'https://review-relay-production-4f29.up.railway.app'
+mise exec -- pnpm build:desktop
+```
+
+生成物は `src-tauri/target/release/tanzakoo.exe` と、隣接する `agent-runtime` ディレクトリ。これは署名・インストーラー作成前の実行ファイルで、ストア提出用パッケージではない。検証では `TANZAKOO_DATA_DIR` に専用の絶対パスを指定し、通常のプロジェクトやCodex認証と分離して起動する。releaseの接続先は起動時の環境変数では変更できず、URL変更時には再ビルドが必要。
 
 提出時は仲介の目的、送信先、指定モデルと期限付きアクセスであること、通常接続との違いを審査メモに明記する。追加確認や再審査が終わるまではサーバーを止めない。
 
