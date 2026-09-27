@@ -1,0 +1,25 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "packages/review-relay/Dockerfile",
+    "watchPatterns": [
+      "/packages/review-relay/**",
+      "/packages/agent-runtime/package.json",
+      "/package.json",
+      "/pnpm-lock.yaml",
+      "/pnpm-workspace.yaml"
+    ]
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "sleepApplication": false,
+    "requiredMountPath": "/data",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "overlapSeconds": 0,
+    "drainingSeconds": 15
+  }
+}

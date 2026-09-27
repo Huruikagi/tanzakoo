@@ -1,0 +1,14 @@
+# Allowlist the Docker build context; never send credentials, local DBs or app data.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!packages/
+!packages/agent-runtime/
+!packages/agent-runtime/package.json
+!packages/review-relay/
+!packages/review-relay/package.json
+!packages/review-relay/src/
+!packages/review-relay/src/**
+!packages/review-relay/Dockerfile
+!packages/review-relay/Dockerfile.dockerignore

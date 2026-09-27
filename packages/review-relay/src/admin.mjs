@@ -1,8 +1,9 @@
 import { Ledger } from "./ledger.mjs";
+import { databasePath } from "./config.mjs";
+import { isAbsolute } from "node:path";
 
-const path = process.env.TANZAKOO_RELAY_DB;
-if (!path) throw new Error("Set TANZAKOO_RELAY_DB");
-const ledger = new Ledger(path);
+process.umask(0o077);
+const ledger = new Ledger(databasePath());
 try {
   const [action, ...args] = process.argv.slice(2);
   if (action === "issue" && args.length === 3) {
@@ -23,7 +24,16 @@ try {
     console.log("Revoked");
   } else if (action === "list" && args.length === 0)
     console.log(JSON.stringify(ledger.list(), null, 2));
-  else throw new Error("Usage: issue <model> <ISO expiry> <max requests> | revoke <id> | list");
+  else if (action === "backup" && args.length === 1) {
+    if (!isAbsolute(args[0])) throw new Error("Use an absolute path for the backup");
+    // SQLite takes a consistent snapshot, including committed WAL pages. Refuses
+    // a nonempty destination; never copy just the live .sqlite file.
+    ledger.db.prepare("VACUUM INTO ?").run(args[0]);
+    console.log("Backup created");
+  } else
+    throw new Error(
+      "Usage: issue <model> <ISO expiry> <max requests> | revoke <id> | list | backup <absolute path>",
+    );
 } finally {
   ledger.close();
 }

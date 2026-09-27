@@ -6,6 +6,21 @@ on:
 permissions:
   contents: read
 jobs:
+  review-relay-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build review relay image
+        run: docker build -f packages/review-relay/Dockerfile -t tanzakoo-review-relay:check .
+      - name: Check volume guards and live SQLite backup (offline)
+        run: >-
+          docker run --rm --network none
+          -v "$PWD/packages/review-relay/test:/app/test:ro"
+          --entrypoint node tanzakoo-review-relay:check
+          --test test/deployment.test.mjs
+      - name: Check container startup, persistent volume and graceful restart (offline)
+        run: bash scripts/review-container-smoke.sh tanzakoo-review-relay:check
   macos:
     runs-on: macos-26
     timeout-minutes: 30

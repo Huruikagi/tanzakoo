@@ -2,6 +2,9 @@
   "name": "@tanzakoo/review-relay",
   "version": "0.1.0",
   "private": true,
+  "files": [
+    "src"
+  ],
   "type": "module",
   "scripts": {
     "start": "node src/main.mjs",

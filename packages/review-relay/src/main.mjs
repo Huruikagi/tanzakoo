@@ -1,10 +1,10 @@
 import { Ledger } from "./ledger.mjs";
 import { createRelay } from "./server.mjs";
+import { databasePath } from "./config.mjs";
 
 // HTTPS termination is the host's responsibility. Bind locally by default.
-const path = process.env.TANZAKOO_RELAY_DB;
-if (!path) throw new Error("Set TANZAKOO_RELAY_DB to a persistent database path");
-const ledger = new Ledger(path);
+process.umask(0o077);
+const ledger = new Ledger(databasePath());
 const app = createRelay({
   ledger,
   apiKey: process.env.OPENAI_API_KEY,
