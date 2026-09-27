@@ -81,6 +81,11 @@ while IFS= read -r -d '' binary; do
   /usr/bin/lipo "$binary" -verify_arch arm64
   entitlements="$work/empty.plist"
   if [[ $binary == "$node" ]]; then entitlements="$root/src-tauri/Entitlements.node.plist"; fi
+  # The dedicated code-mode host executes tool calls in V8. Preserve JIT only
+  # for this pinned helper (including pnpm's materialized copy), not all Codex binaries.
+  if [[ $binary == "$runtime"/node_modules/*/vendor/aarch64-apple-darwin/bin/codex-code-mode-host ]]; then
+    entitlements="$root/src-tauri/Entitlements.codex-code-mode-host.plist"
+  fi
   # Keep the array nonempty: macOS ships Bash 3.2, whose nounset rejects empty arrays.
   options=(--force --timestamp --sign "$identity" --keychain "$keychain")
   if [[ $description == *executable* ]]; then
