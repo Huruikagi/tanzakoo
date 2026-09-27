@@ -5,6 +5,7 @@ import systemEnglish from "./locales/system-en.json";
 import ts from "typescript";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { systemMessages } from "./system-messages";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -44,12 +45,52 @@ it("works without storage and preserves technical details and interpolated user 
   expect(
     systemMessage("審査用コードの有効期限が切れています。新しいコードを入力してください。"),
   ).toBe("The review access code has expired. Enter a new code.");
+  const coded =
+    '@tanzakoo/system:{"code":"storage_write","args":{"detail":"G:\\\\日本語\\\\data.db"},"fallback":"旧表示"}';
+  expect(systemMessage(coded)).toBe("Could not save: G:\\日本語\\data.db");
   expect(systemMessage("保存に失敗しました: G:\\日本語\\data.db")).toBe(
-    "Could not save: G:\\日本語\\data.db",
+    "保存に失敗しました: G:\\日本語\\data.db",
   );
   expect(systemMessage("unrecognized technical error")).toBe("unrecognized technical error");
   setLanguage("ja");
+  expect(systemMessage(coded)).toBe("保存に失敗しました: G:\\日本語\\data.db");
   expect(systemMessage("Connected.")).toBe("接続できました。");
+});
+
+it("uses stable codes and keeps opaque details verbatim across language changes", () => {
+  const coded = (code: string, args: Record<string, string>, fallback = "従来の文面") =>
+    `@tanzakoo/system:${JSON.stringify({ code, args, fallback })}`;
+  const partial = coded("export_partial", {
+    detail: "disk: {{path}} 日本語",
+    path: "G:\\出力先\\残り",
+  });
+  setLanguage("en");
+  expect(systemMessage(partial)).toBe(
+    "Could not export Markdown: disk: {{path}} 日本語. Incomplete output remains at G:\\出力先\\残り.",
+  );
+  expect(systemMessage(coded("unknown_code", {}, "元の診断"))).toBe("元の診断");
+  expect(systemMessage(coded("export_partial", { detail: "missing path" }))).toBe("従来の文面");
+  expect(systemMessage("@tanzakoo/system:{bad json")).toBe("@tanzakoo/system:{bad json");
+  setLanguage("ja");
+  expect(systemMessage(partial)).toBe(
+    "Markdownの出力に失敗しました: disk: {{path}} 日本語。不完全な出力が G:\\出力先\\残り に残っています。",
+  );
+  for (const [code, translation] of Object.entries(systemMessages)) {
+    expect(code).toMatch(/^[a-z_]+$/);
+    expect(translation.ja).toBeTruthy();
+    expect(translation.en).toBeTruthy();
+    const placeholders = (value: string) =>
+      [...value.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort();
+    expect(placeholders(translation.en)).toEqual(placeholders(translation.ja));
+  }
+  const native = readFileSync(join(process.cwd(), "src-tauri/src/system_message.rs"), "utf8");
+  const variants = native.match(/pub enum Code \{([\s\S]*?)\}/)?.[1] ?? "";
+  const nativeCodes = [...variants.matchAll(/^\s+([A-Z][A-Za-z]+),$/gm)]
+    .map(([, name]) =>
+      name.replace(/[A-Z]/g, (letter, index) => `${index ? "_" : ""}${letter.toLowerCase()}`),
+    )
+    .sort();
+  expect(Object.keys(systemMessages).sort()).toEqual(nativeCodes);
 });
 
 it("has complete translations and preserves every interpolation placeholder", () => {

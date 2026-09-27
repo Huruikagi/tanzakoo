@@ -6,6 +6,7 @@ import { api, emptySnapshot } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import type { Card } from "@/bindings/Card";
 import type { ExportResult } from "@/bindings/ExportResult";
+import { setLanguage } from "@/lib/i18n";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
@@ -73,6 +74,28 @@ it("allows retry after cancellation or failure without claiming success", async 
   expect(screen.getByRole("alert")).toHaveTextContent("保存先にアクセスできません");
   expect(screen.getByRole("status")).toBeEmptyDOMElement();
   expect(screen.getByRole("button", { name: "保存先を選んで出力" })).toBeEnabled();
+});
+it("translates a coded native export error when the display language changes", async () => {
+  const user = userEvent.setup();
+  setLanguage("ja");
+  vi.mocked(api.exportDecisions).mockRejectedValue(
+    `@tanzakoo/system:${JSON.stringify({
+      code: "export_partial",
+      args: { detail: "access denied", path: "G:\\出力先\\残り" },
+      fallback: "元の診断",
+    })}`,
+  );
+  render(<ExportDecisions />);
+  await user.click(screen.getByRole("button", { name: "エクスポート" }));
+  await user.click(screen.getByRole("button", { name: "保存先を選んで出力" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Markdownの出力に失敗しました: access denied。不完全な出力が G:\\出力先\\残り に残っています。",
+  );
+  act(() => setLanguage("en"));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Could not export Markdown: access denied. Incomplete output remains at G:\\出力先\\残り.",
+  );
+  setLanguage("ja");
 });
 it("does not export undecided or deleted cards", async () => {
   useWorkspace.setState({

@@ -3,6 +3,7 @@ import { initReactI18next } from "react-i18next";
 import { create } from "zustand";
 import english from "./locales/en.json";
 import systemEnglish from "./locales/system-en.json";
+import { decodeSystemMessage } from "./system-messages";
 
 export type Locale = "ja" | "en";
 export type LanguagePreference = "system" | Locale;
@@ -77,37 +78,10 @@ window.addEventListener("languagechange", () => {
 
 /** Only app-owned status/error fields call this; never pass cards or chat prose. */
 export function systemMessage(message: string): string {
+  const coded = decodeSystemMessage(message, currentLocale());
+  if (coded !== null) return coded;
   if (Object.hasOwn(resources, message)) return t(message);
   const source = sourceByEnglish.get(message);
   if (source) return t(source);
-  const partialExport =
-    /^Markdownの出力に失敗しました: ([\s\S]*)。不完全な出力が ([\s\S]*) に残っています。$/.exec(
-      message,
-    );
-  if (partialExport)
-    return t("Markdownの出力に失敗しました: {{detail}}。不完全な出力が {{path}} に残っています。", {
-      detail: partialExport[1],
-      path: partialExport[2],
-    });
-  // These native errors append opaque technical details. Keep those verbatim.
-  const prefixes = [
-    "保存先にアクセスできません: ",
-    "保存に失敗しました: ",
-    "データを読み取れません: ",
-    "保存先を開けません: ",
-    "出力フォルダーを作成できません: ",
-    "Markdownの出力に失敗しました: ",
-    "モデル一覧を取得できませんでした。Codexの接続とサインインを確認してください: ",
-    "プロジェクトは削除しましたが、保存ファイルの一部を消去できませんでした。次回起動時に再試行します。",
-  ];
-  for (const prefix of prefixes)
-    if (message.startsWith(prefix)) return t(prefix) + message.slice(prefix.length);
-  const prefix = "エージェント接続に失敗しました: ";
-  const suffix = ". ログインと起動設定を確認してください。";
-  if (message.startsWith(prefix) && message.endsWith(suffix)) {
-    return t("エージェント接続に失敗しました: {{detail}}. ログインと起動設定を確認してください。", {
-      detail: message.slice(prefix.length, -suffix.length),
-    });
-  }
   return message;
 }

@@ -15,7 +15,7 @@ pub(crate) async fn switch_project(
     let runtime = state.runtime.clone();
     with_projects(&state, move |projects| {
         runtime.ensure_idle()?;
-        projects.switch(&project_id).map_err(|e| e.to_string())
+        projects.switch(&project_id).map_err(|e| e.system_message())
     })
     .await
 }
@@ -29,7 +29,9 @@ pub(crate) async fn create_project(
     let runtime = state.runtime.clone();
     with_projects(&state, move |projects| {
         runtime.ensure_idle()?;
-        projects.create(name, memory).map_err(|e| e.to_string())
+        projects
+            .create(name, memory)
+            .map_err(|e| e.system_message())
     })
     .await
 }
@@ -44,7 +46,9 @@ pub(crate) async fn delete_project(
     tokio::task::spawn_blocking(move || {
         let mut projects = projects.lock().map_err(|e| e.to_string())?;
         runtime.ensure_idle()?;
-        let warning = projects.delete(&project_id).map_err(|e| e.to_string())?;
+        let warning = projects
+            .delete(&project_id)
+            .map_err(|e| e.system_message())?;
         Ok(DeleteProjectResult {
             snapshot: snapshot(&projects)?,
             warning,
@@ -71,7 +75,7 @@ pub(crate) async fn set_consent(
         }
         projects
             .set_consent(&agent, granted)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.system_message())
     })
     .await
 }

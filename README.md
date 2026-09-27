@@ -179,9 +179,11 @@ Skillは変更内容・互換性・最新コミットのCIを確認し、1件ず
 | `src/lib/workspace`               | 単一ストアを構成する機能別の状態管理と共通の更新キュー |
 | `src/lib/use-chat-draft.ts`       | 会話ごとの入力下書きの保持・引き継ぎ・復元             |
 | `src/lib/use-question-answers.ts` | 質問への回答下書き・入力チェック・質問移動・送信       |
+| `src/lib/system-messages.ts`      | ネイティブ診断コードの日本語・英語表示                 |
 | `src/bindings`                    | Rustから生成したデータ型                               |
 | `src-tauri/src/lib.rs`            | Tauri起動・状態の登録・コマンドの登録                  |
 | `src-tauri/src/commands`          | 機能別のコマンド受付と、プロジェクト確認・実行予約     |
+| `src-tauri/src/system_message.rs` | ネイティブ診断の識別子・詳細・表示用フォールバック     |
 | `src-tauri/src/store.rs`          | SQLite共通処理とスナップショット取得                   |
 | `src-tauri/src/store`             | カード・提案・メモリ・会話の保存処理と機能別テスト     |
 | `src-tauri/src/projects.rs`       | プロジェクト一覧、DB切り替え、既存データの引き継ぎ     |
@@ -193,3 +195,4 @@ Skillは変更内容・互換性・最新コミットのCIを確認し、1件ず
 | `notes`                           | プロダクト方針・技術選定・検証結果                     |
 
 設計の出発点は [プロダクトメモ](notes/product-idea.md)、採用候補と理由は [技術スタック](notes/stack-proposal.md) にまとめています。
+ネイティブ診断コードを追加するときは `system_message.rs` と `system-messages.ts` の両方に追加します。テストでコードの対応を検査します。

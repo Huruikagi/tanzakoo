@@ -11,7 +11,7 @@ use crate::{AppState, model::Snapshot, store};
 use tauri::State;
 
 fn snapshot(projects: &crate::projects::Projects) -> Result<Snapshot, String> {
-    let mut s = projects.snapshot().map_err(|e| e.to_string())?;
+    let mut s = projects.snapshot().map_err(|e| e.system_message())?;
     for id in ["codex", "claude"] {
         if !s.agents.iter().any(|a| a.id == id) {
             s.agents.push(crate::agent::default_config(id));
@@ -53,7 +53,7 @@ impl AppState {
         let projects = self.projects.lock().map_err(|e| e.to_string())?;
         let store = projects
             .require_active(project_id)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.system_message())?;
         validate(&projects, &store)?;
         let (guard, cancel) = self.runtime.begin()?;
         Ok(ProjectOperation {

@@ -32,7 +32,7 @@ pub(crate) async fn add_reference_materials(
         let projects = state.projects.lock().map_err(|e| e.to_string())?;
         let store = projects
             .require_active(&project_id)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.system_message())?;
         if let Some(paths) = paths {
             let paths = paths
                 .into_iter()
@@ -40,7 +40,7 @@ pub(crate) async fn add_reference_materials(
                 .collect::<Result<Vec<_>, _>>()?;
             store
                 .add_materials(&paths, kind)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| e.system_message())?;
         }
         snapshot(&projects)
     })
@@ -59,9 +59,9 @@ pub(crate) async fn remove_reference_material(
         runtime.ensure_idle()?;
         projects
             .require_active(&project_id)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.system_message())?
             .remove_material(&material_id)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.system_message())
     })
     .await
 }

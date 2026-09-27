@@ -26,7 +26,39 @@ pub enum StoreError {
     #[error("{0}")]
     Invalid(String),
 }
+impl StoreError {
+    /// Encode only app-owned storage failures. Domain validation keeps its
+    /// existing message until each caller has a stable diagnostic code.
+    pub fn system_message(&self) -> String {
+        use crate::system_message::{Code, detail};
+        match self {
+            Self::Io(error) => detail(Code::StorageAccess, &error.to_string(), &self.to_string()),
+            Self::Sql(error) => detail(Code::StorageWrite, &error.to_string(), &self.to_string()),
+            Self::Json(error) => detail(Code::StorageRead, &error.to_string(), &self.to_string()),
+            Self::Invalid(message) => message.clone(),
+        }
+    }
+}
 pub type Result<T> = std::result::Result<T, StoreError>;
+
+#[cfg(test)]
+mod system_message_tests {
+    use super::*;
+
+    #[test]
+    fn native_storage_failure_has_a_stable_code_and_unmodified_detail() {
+        let error = StoreError::Io(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "file 日本語",
+        ));
+        let wire = error.system_message();
+        let payload: serde_json::Value =
+            serde_json::from_str(wire.strip_prefix("@tanzakoo/system:").unwrap()).unwrap();
+        assert_eq!(payload["code"], "storage_access");
+        assert_eq!(payload["args"]["detail"], "file 日本語");
+        assert_eq!(payload["fallback"], error.to_string());
+    }
+}
 
 #[derive(Clone)]
 pub struct Store {

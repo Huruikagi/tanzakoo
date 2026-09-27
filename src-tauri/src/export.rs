@@ -153,9 +153,13 @@ impl MarkdownExport {
 
     fn write_named(&self, parent: &Path, name: &str) -> Result<ExportResult, String> {
         let display_parent = parent;
-        let parent = parent
-            .canonicalize()
-            .map_err(|e| format!("保存先を開けません: {e}"))?;
+        let parent = parent.canonicalize().map_err(|e| {
+            crate::system_message::detail(
+                crate::system_message::Code::ExportOpen,
+                &e.to_string(),
+                &format!("保存先を開けません: {e}"),
+            )
+        })?;
         let mut suffix = 0u32;
         let directory = loop {
             let path = parent.join(if suffix == 0 {
@@ -170,7 +174,13 @@ impl MarkdownExport {
                         .checked_add(1)
                         .ok_or("出力先の名前を確保できません。")?;
                 }
-                Err(e) => return Err(format!("出力フォルダーを作成できません: {e}")),
+                Err(e) => {
+                    return Err(crate::system_message::detail(
+                        crate::system_message::Code::ExportCreate,
+                        &e.to_string(),
+                        &format!("出力フォルダーを作成できません: {e}"),
+                    ));
+                }
             }
         };
         let write = || -> std::io::Result<()> {
@@ -188,11 +198,21 @@ impl MarkdownExport {
         if let Err(error) = write() {
             // Only this call's exclusively created directory can be cleaned up.
             return match fs::remove_dir_all(&directory) {
-                Ok(()) => Err(format!("Markdownの出力に失敗しました: {error}")),
-                Err(_) => Err(format!(
-                    "Markdownの出力に失敗しました: {error}。不完全な出力が {} に残っています。",
-                    directory.display()
+                Ok(()) => Err(crate::system_message::detail(
+                    crate::system_message::Code::ExportWrite,
+                    &error.to_string(),
+                    &format!("Markdownの出力に失敗しました: {error}"),
                 )),
+                Err(_) => {
+                    let path = directory.display().to_string();
+                    Err(crate::system_message::partial_export(
+                        &error.to_string(),
+                        &path,
+                        &format!(
+                            "Markdownの出力に失敗しました: {error}。不完全な出力が {path} に残っています。"
+                        ),
+                    ))
+                }
             };
         }
         Ok(ExportResult {
@@ -386,12 +406,16 @@ mod tests {
             assert!(!all.contains(omitted));
         }
         assert_eq!(store.snapshot().unwrap().cards.len(), 6);
-        assert!(bundle.write_to(&root.join("board.db")).is_err());
+        let missing_parent = bundle.write_to(&root.join("missing-parent")).unwrap_err();
+        assert!(missing_parent.contains("\"code\":\"export_open\""));
+        let open_error = bundle.write_to(&root.join("board.db")).unwrap_err();
+        assert!(open_error.contains("\"code\":\"export_create\""));
         // A write failure after earlier files were saved removes only the partial export.
         bundle
             .files
             .push(("missing/file.md".into(), "失敗させる".into()));
-        assert!(bundle.write_named(&root, "partial").is_err());
+        let write_error = bundle.write_named(&root, "partial").unwrap_err();
+        assert!(write_error.contains("\"code\":\"export_write\""));
         assert!(!root.join("partial").exists());
         assert!(dir.join("README.md").is_file());
         assert!(Path::new(&second.path).join("README.md").is_file());

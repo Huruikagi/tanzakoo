@@ -82,7 +82,7 @@ pub async fn discover(
 ) -> Result<Vec<ChatOption>, String> {
     let config = store
         .snapshot()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.system_message())?
         .agents
         .into_iter()
         .find(|a| a.id == "codex")
@@ -133,7 +133,11 @@ pub async fn discover(
     );
     tokio::select! {
         response = tokio::time::timeout(Duration::from_secs(60), job) => {
-            response.map_err(|_| "モデル一覧の取得がタイムアウトしました。")?.map_err(|e| format!("モデル一覧を取得できませんでした。Codexの接続とサインインを確認してください: {e}"))?;
+            response.map_err(|_| "モデル一覧の取得がタイムアウトしました。")?.map_err(|e| crate::system_message::detail(
+                crate::system_message::Code::ModelOptions,
+                &e.to_string(),
+                &format!("モデル一覧を取得できませんでした。Codexの接続とサインインを確認してください: {e}"),
+            ))?;
         }
         _ = &mut cancel => return Err("モデル一覧の取得を中止しました。".into()),
     }

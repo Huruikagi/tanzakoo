@@ -12,7 +12,7 @@ pub(crate) async fn board_action(
     with_projects(&state, move |projects| {
         let store = projects
             .require_active(&project_id)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.system_message())?;
         let result: store::Result<()> = match action {
             BoardAction::UpdateProject {
                 name,
@@ -47,7 +47,7 @@ pub(crate) async fn board_action(
                 store.set_chat_settings(settings)
             }
         };
-        result.map_err(|e| e.to_string())
+        result.map_err(|e| e.system_message())
     })
     .await
 }

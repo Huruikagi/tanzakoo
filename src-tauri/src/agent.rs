@@ -141,7 +141,7 @@ pub async fn run(
 ) -> Result<(), String> {
     let conversation = store
         .conversation(&conversation_id)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.system_message())?;
     let mut review = runtime.review_session()?;
     crate::review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
     if let Some(access) = &mut review {
@@ -152,7 +152,7 @@ pub async fn run(
         };
         *runtime.review.lock().map_err(|e| e.to_string())? = Some(access.clone());
     }
-    let snapshot = store.snapshot().map_err(|e| e.to_string())?;
+    let snapshot = store.snapshot().map_err(|e| e.system_message())?;
     let message_id = snapshot
         .messages
         .iter()
@@ -269,7 +269,11 @@ pub async fn run(
         result = tokio::time::timeout(Duration::from_secs(600), job) => match result {
             Ok(result) => result.map_err(|e| if is_review {
                 "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。".into()
-            } else { format!("エージェント接続に失敗しました: {e}. ログインと起動設定を確認してください。") }),
+            } else { crate::system_message::detail(
+                crate::system_message::Code::AgentConnection,
+                &e.to_string(),
+                &format!("エージェント接続に失敗しました: {e}. ログインと起動設定を確認してください。"),
+            ) }),
             Err(_) => Err("応答が10分以内に完了しませんでした。".into()),
         },
         _ = &mut cancel => Err("応答を停止しました。".into()),
@@ -278,13 +282,13 @@ pub async fn run(
     if result.is_err() {
         store
             .cancel_questions(&conversation_id, &message_id)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.system_message())?;
     }
     // Persist partial responses too: cancelling must not erase text already shown.
     if !full.is_empty() {
         store
             .append_message(&conversation_id, "assistant", full, vec![])
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.system_message())?;
     }
     result
 }

@@ -26,14 +26,14 @@ pub(crate) async fn send_prompt(
     } = state.begin_project_operation(&project_id, |projects, store| {
         let conversation = store
             .conversation(&conversation_id)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.system_message())?;
         let review = state.runtime.review_session()?;
         review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
         if let Some(access) = &review {
             access.ensure_usable()?;
         } else if !projects
             .consented(&conversation.agent)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.system_message())?
         {
             return Err("AIへの送信に同意してください。".into());
         }
@@ -49,7 +49,7 @@ pub(crate) async fn send_prompt(
             question_answers,
             ui_language.unwrap_or_default(),
         )
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.system_message())?;
     let emit: agent::Emit = Arc::new(move |event| {
         let _ = app.emit("agent-event", event);
     });

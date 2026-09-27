@@ -10,6 +10,7 @@ pub mod projects;
 pub mod review;
 pub mod storage;
 pub mod store;
+pub mod system_message;
 
 mod commands;
 

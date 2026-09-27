@@ -16,9 +16,9 @@ pub(crate) async fn export_decisions(
             let projects = projects.lock().map_err(|e| e.to_string())?;
             let store = projects
                 .require_active(&project_id)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| e.system_message())?;
             export::MarkdownExport::from_snapshot_in_language(
-                store.snapshot().map_err(|e| e.to_string())?,
+                store.snapshot().map_err(|e| e.system_message())?,
                 ui_language.unwrap_or_default(),
             )?
         };

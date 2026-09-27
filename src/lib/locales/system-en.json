@@ -107,12 +107,6 @@
   "現在の質問すべてに1回ずつ回答してください。古い質問には回答できません。": "Answer each current question once. Older questions can no longer be answered.",
   "選択肢が見つかりません。": "Option not found.",
   "各質問は選択肢か自由入力（1〜2000文字）のどちらかで回答してください。": "Answer each question with an option or 1–2000 characters of text.",
-  "保存先にアクセスできません: ": "Cannot access storage: ",
-  "保存に失敗しました: ": "Could not save: ",
-  "データを読み取れません: ": "Could not read data: ",
-  "モデル一覧を取得できませんでした。Codexの接続とサインインを確認してください: ": "Could not load models. Check the Codex connection and sign-in status: ",
-  "プロジェクトは削除しましたが、保存ファイルの一部を消去できませんでした。次回起動時に再試行します。": "The project was deleted, but some files could not be removed. Cleanup will be retried on the next launch. ",
-  "エージェント接続に失敗しました: {{detail}}. ログインと起動設定を確認してください。": "Agent connection failed: {{detail}}. Check sign-in and launch settings.",
   "審査用接続を読み込めません。": "Could not load review access.",
   "エージェントの応答を待つか、停止してからプロジェクトを切り替えてください。": "Wait for the agent to finish or stop it before switching projects.",
   "エージェントの応答を待つか、停止してください。": "Wait for the agent to finish or stop it.",
@@ -120,9 +114,5 @@
   "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。": "Could not send using review access. In Connection status, check the code's expiry, usage limit, and server connection.",
   "応答が10分以内に完了しませんでした。": "The response did not finish within 10 minutes.",
   "「決めたこと」にカードがありません。決定した話題を移してから出力してください。": "There are no cards in Decided. Move a decided topic there before exporting.",
-  "出力先の名前を確保できません。": "Could not allocate an export folder name.",
-  "保存先を開けません: ": "Could not open the export location: ",
-  "出力フォルダーを作成できません: ": "Could not create the export folder: ",
-  "Markdownの出力に失敗しました: ": "Could not export Markdown: ",
-  "Markdownの出力に失敗しました: {{detail}}。不完全な出力が {{path}} に残っています。": "Could not export Markdown: {{detail}}. Incomplete output remains at {{path}}."
+  "出力先の名前を確保できません。": "Could not allocate an export folder name."
 }

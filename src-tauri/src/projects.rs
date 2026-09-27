@@ -202,8 +202,10 @@ impl Projects {
         )?;
         tx.commit()?;
         self.active = next;
-        Ok(self.cleanup_deleted().err().map(|error| format!(
-            "プロジェクトは削除しましたが、保存ファイルの一部を消去できませんでした。次回起動時に再試行します。{error}"
+        Ok(self.cleanup_deleted().err().map(|error| crate::system_message::detail(
+            crate::system_message::Code::ProjectCleanup,
+            &error.to_string(),
+            &format!("プロジェクトは削除しましたが、保存ファイルの一部を消去できませんでした。次回起動時に再試行します。{error}"),
         )))
     }
 
