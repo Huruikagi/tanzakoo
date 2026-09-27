@@ -107,6 +107,15 @@ done < <(find "$app/Contents" -type f -print0)
 [[ $count -ge 3 ]] || { echo 'Expected app, Node and Codex native binaries.' >&2; exit 1; }
 codesign --force --timestamp --options runtime --entitlements "$work/parent.plist" \
   --sign "$app_identity" --keychain "$keychain" "$app"
+# Runtime resources may retain private download/extraction permissions. Installed
+# app files must be readable by every user so the signature can be verified.
+# Only normalize the public app bundle; credentials stay in the private work dir.
+echo 'Bundle entries requiring public read/traverse permissions:'
+find "$app" \( -type f ! -perm -004 -o -type d ! -perm -005 \) -print
+chmod -R a+rX "$app"
+[[ -z $(find "$app" \( -type f ! -perm -004 -o -type d ! -perm -005 \) -print -quit) ]] || {
+  echo 'Bundle contains files that non-root users cannot read.' >&2; exit 1;
+}
 codesign --verify --deep --strict --verbose=2 "$app"
 codesign -d --entitlements :- "$app" > "$work/signed-entitlements.plist" 2>/dev/null
 cmp -s "$work/parent.plist" "$work/signed-entitlements.plist" || {

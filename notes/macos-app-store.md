@@ -105,6 +105,8 @@ gh workflow run macos-store-upload.yml --ref main -f source_run_id=36342814606 -
 
 既定の `validate` はAppleによるパッケージ検証のみ。`upload` は検証後に1回だけアップロードする。アップロードがタイムアウト等で失敗した場合、Apple側の受信状態を確認してから再試行する。コマンドの成功とApple側のビルド処理完了は別で、TestFlight画面で処理結果・暗号利用の申告を確認する。テスターへの配布や審査提出を自動では行わない。
 
+2026-09-28、[初回Apple検証](https://github.com/Huruikagi/tanzakoo/actions/runs/36344752076) は既存APIキーで認証できたが、build 1を `90255`（root以外が読めない同梱ファイル）で拒否した。署名後の公開アプリバンドルだけに `a+rX` を適用し、一般ユーザーの読み取り・ディレクトリー通過権限を検査してから署名を再検証するよう修正した。一時キーチェーンや秘密鍵の権限は変更しない。build 1はTestFlight確認には使わない。
+
 ## 検証と次段階
 
 2026-09-27、Windowsでプロファイル検証の4テスト（期限・対象OS・配布種別・App ID・Team ID・証明書の不一致等の拒否条件を含む）、Bash構文、マージしたTauri設定のスキーマとYAML構文、Rustの整形、`app-sandbox` / `sandbox-validation` 各featureの `cargo check --locked` を確認した。署名・productbuild・Appleの検証はmacOSと実際の証明書が必要なので、ローカルテストで通過扱いにしない。
