@@ -25,6 +25,11 @@ pub struct AppState {
     pub runtime: Arc<agent::AgentRuntime>,
 }
 
+pub(crate) fn context() -> tauri::Context<tauri::Wry> {
+    // macOS emits one embedded Info.plist symbol per invocation of this macro.
+    tauri::generate_context!()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -60,6 +65,6 @@ pub fn run() {
                 window.state::<AppState>().runtime.cancel();
             }
         })
-        .run(tauri::generate_context!())
+        .run(context())
         .expect("Tanzakoo startup failed");
 }
