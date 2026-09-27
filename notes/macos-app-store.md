@@ -6,13 +6,15 @@
 
 Store専用のTauri設定・手動ワークフロー・署名スクリプトを追加した。`app-sandbox` は製品の権限処理、`sandbox-validation` は別名の検証アプリの固定CLIとテスト資材に分離した。Store版には後者を含めない。新しい依存ライブラリは追加せず、既存のTauri・Apple標準ツール・Python標準ライブラリを使う。
 
-利用者からStore用のApp ID・証明書・プロファイルはまだ未作成との回答を受けた。署名済みpkgの生成・Apple側の検証は未実行。ワークフローは成果物をGitHub Actionsに保存するところまでで、App Store Connectへのアップロード・TestFlight配布・審査提出・公開は行わない。
+2026-09-28、利用者がApp IDと2種類の配布証明書、Mac App Store Connectプロファイルを作成した。テスト用Macは私用機ではないため、秘密鍵・CSR・パスワード付きp12はWindowsで作成した。アプリ用・インストーラー用の公開証明書はApple WWDR G3発行で、p12には同中間証明書も含めた。プロファイルはWindowsでBundle ID・アプリ用証明書・Team ID・配布種別・有効期限の一致を確認済み。CMSの署名をローカルで検証したが、Appleの証明書チェーンの信頼確認はMac署名ランナーに残る。
+
+同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、GitHub側で名前の存在を確認した。Secretの値・パスワードの正しさやMacキーチェーンへのインポートはまだ確認していない。署名済みpkgの生成・Apple側の検証は未実行。ワークフローは成果物をGitHub Actionsに保存するところまでで、App Store Connectへのアップロード・TestFlight配布・審査提出・公開は行わない。
 
 ## Apple側の初回作業
 
 1. [Identifiers](https://developer.apple.com/account/resources/identifiers/list) で **App IDs** を追加する。Descriptionは `Tanzakoo`、Bundle IDは **Explicit** / `dev.huruikagi.tanzakoo`。既存の同一IDがあればそれを確認して使う。Sandbox検証用の `.sandbox-test` は使わない。今回、追加のCloud・Push・App Groups等は不要。
-2. Macの「キーチェーンアクセス → 証明書アシスタント → 認証局に証明書を要求」でCSRをディスクに保存する。秘密鍵はそのMacに保持する。[Certificates](https://developer.apple.com/account/resources/certificates/list) で **Mac App Distribution** と **Mac Installer Distribution** を発行する。既存のDeveloper ID ApplicationはDMG用なので置き換えない。
-3. ダウンロードした証明書をCSRを作ったMacへ取り込む。「自分の証明書」で秘密鍵が付いていることを確認し、それぞれパスワード付き `.p12` として書き出す。アプリ用の署名名は `3rd Party Mac Developer Application`（既存の `Apple Distribution` も処理で対応）、pkg用は `3rd Party Mac Developer Installer`。証明書チェーンが有効であることを確認する。CIで中間証明書不足になる場合は該当するApple公開中間証明書もp12へ含める。
+2. 自分が管理するWindowsで下記のOpenSSL手順によりCSRを作る。Macで行う場合は「キーチェーンアクセス → 証明書アシスタント → 認証局に証明書を要求」で作成できる。[Certificates](https://developer.apple.com/account/resources/certificates/list) で **Mac App Distribution** と **Mac Installer Distribution** を発行する。既存のDeveloper ID ApplicationはDMG用なので置き換えない。
+3. CSRを作った秘密鍵とダウンロードした証明書を、それぞれパスワード付き `.p12` にまとめる。Windowsは下記手順を使い、Macは「自分の証明書」で秘密鍵付きの証明書を書き出す。アプリ用の署名名は `3rd Party Mac Developer Application`（既存の `Apple Distribution` も処理で対応）、pkg用は `3rd Party Mac Developer Installer`。発行元に対応するApple公開中間証明書もp12へ含める。
 4. [Profiles](https://developer.apple.com/account/resources/profiles/list) で **Mac App Store Connect** の配布用プロファイルを作る。上記App IDとアプリ用の配布証明書を選び、`.provisionprofile` をダウンロードする。開発用・Developer ID用のプロファイルは使わない。
 5. 以下のActions Secretsをリポジトリへ設定する。DMG用の既存 `APPLE_*` Secretsは変更しない。
 
@@ -31,6 +33,47 @@ base64 -i /path/to/file.p12 | tr -d '\n' | pbcopy
 ```
 
 プロファイルも同様。値は該当するGitHub Secret欄へ直接貼り付ける。チャット・コミット・実行ログへ貼らない。p12・秘密鍵・プロファイルはGitの除外対象。
+
+### Windowsでの証明書準備
+
+Git for Windows同梱の `C:\Program Files\Git\usr\bin\openssl.exe` を使用した。秘密鍵とp12はリポジトリの外、自分のWindowsユーザーフォルダー内に保存する。アプリ用は `mac-app`、インストーラー用は `mac-installer` という別の名前と鍵を使う。以下はアプリ用の例。インストーラー用は `$kind` と通称を変更し、同じ保存フォルダーで実行する。
+
+```powershell
+$openssl = 'C:\Program Files\Git\usr\bin\openssl.exe'
+$signDir = Join-Path $env:USERPROFILE ('Tanzakoo-signing-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+New-Item -ItemType Directory -Path $signDir -ErrorAction Stop | Out-Null
+$kind = 'mac-app'
+$email = Read-Host 'Apple Developerに登録しているメールアドレス'
+if (Test-Path "$signDir\$kind.key.pem") { throw '既存の秘密鍵を上書きしないでください' }
+& $openssl req -new -newkey rsa:2048 -sha256 `
+  -config 'C:\Program Files\Git\usr\ssl\openssl.cnf' `
+  -keyout "$signDir\$kind.key.pem" -out "$signDir\$kind.certSigningRequest" `
+  -subj "/CN=Tanzakoo Mac App Distribution/emailAddress=$email"
+if ($LASTEXITCODE -ne 0) { throw 'CSR作成失敗' }
+& $openssl req -in "$signDir\$kind.certSigningRequest" -noout -verify
+```
+
+秘密鍵のパスワードはOpenSSLの入力要求へ直接入力する。Appleへアップロードするのは `.certSigningRequest`。発行された証明書を同じフォルダーに `mac-app.cer` / `mac-installer.cer` として保存する。
+
+`openssl x509 -inform DER -in <証明書.cer> -noout -issuer` で発行元を確認し、対応する中間証明書を [Apple PKI](https://www.apple.com/certificateauthority/) から取得する。今回の発行元は両方ともWWDR G3だった。証明書と中間証明書を `openssl x509 -inform DER -in <入力.cer> -out <出力.pem>` でPEMへ変換してから、次を実行する。
+
+```powershell
+if (Test-Path "$signDir\$kind.p12") { throw '既存のp12を上書きしないでください' }
+& $openssl pkcs12 -export -inkey "$signDir\$kind.key.pem" `
+  -in "$signDir\$kind.cert.pem" -certfile "$signDir\AppleWWDRCAG3.pem" `
+  -out "$signDir\$kind.p12"
+if ($LASTEXITCODE -ne 0) { throw 'p12作成失敗' }
+```
+
+最初に秘密鍵のパスワード、続いてp12用のExport Passwordを2回入力する。Actionsの `*_CERTIFICATE_PASSWORD` にはこのExport Passwordを登録する。OpenSSLの既定の暗号形式で作成しており、Macキーチェーンでの互換性は初回署名実行で確認する。
+
+バイナリーファイルをGitHub Secretへ登録するときは、PowerShellで次のようにBase64を直接クリップボードへ送る。各ファイルのコピーと貼り付けを1件ずつ行い、内容を画面やログへ表示しない。
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$signDir\mac-app.p12")) | Set-Clipboard
+```
+
+インストーラーp12と `Tanzakoo.provisionprofile` も同様に行う。パスワード2件はSecret欄へ直接入力する。
 
 ## ビルド
 
