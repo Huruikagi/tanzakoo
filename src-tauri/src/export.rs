@@ -83,31 +83,18 @@ impl MarkdownExport {
         let mut files = vec![(
             "project.md".into(),
             project_header
-                + &if language == Language::En {
-                    format!(
-                        "# Project background and context\n\n- Project: {}\n- Project ID: {}\n- Revision: {}\n\n---\n\n{}\n",
-                        markdown_text(&project.name),
-                        markdown_text(&project.id),
-                        project.revision,
-                        if project.memory.is_empty() {
-                            "(No project memory.)"
-                        } else {
-                            &project.memory
-                        },
-                    )
-                } else {
-                    format!(
-                        "# プロジェクトの背景・前提\n\n- プロジェクト: {}\n- プロジェクトID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
-                        markdown_text(&project.name),
-                        markdown_text(&project.id),
-                        project.revision,
-                        if project.memory.is_empty() {
-                            "（プロジェクトメモリは未記入です。）"
-                        } else {
-                            &project.memory
-                        },
-                    )
-                },
+                + &format!(
+                    "# {}\n\n{}\n",
+                    language.choose("プロジェクトの背景・前提", "Project background and context"),
+                    if project.memory.is_empty() {
+                        language.choose(
+                            "（プロジェクトメモリは未記入です。）",
+                            "(No project memory.)",
+                        )
+                    } else {
+                        &project.memory
+                    },
+                ),
         )];
         for (position, card) in cards.iter().enumerate() {
             let filename = format!(
@@ -129,21 +116,16 @@ impl MarkdownExport {
             );
             files.push((
                 filename,
-                header + &if language == Language::En { format!(
-                    "# {}\n\n- Status: Decided\n- Card ID: {}\n- Revision: {}\n\n---\n\n{}\n",
-                    markdown_text(&card.title), markdown_text(&card.id), card.revision,
-                    if card.body.is_empty() { "(No content.)" } else { &card.body },
-                ) } else { format!(
-                    "# {}\n\n- 状態: 決めたこと\n- カードID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
-                    markdown_text(&card.title),
-                    markdown_text(&card.id),
-                    card.revision,
-                    if card.body.is_empty() {
-                        "（本文は未記入です。）"
-                    } else {
-                        &card.body
-                    },
-                ) },
+                header
+                    + &format!(
+                        "# {}\n\n{}\n",
+                        markdown_text(&card.title),
+                        if card.body.is_empty() {
+                            language.choose("（本文は未記入です。）", "(No content.)")
+                        } else {
+                            &card.body
+                        },
+                    ),
             ));
         }
         files.push(("index.md".into(), index));
@@ -397,8 +379,11 @@ mod tests {
             english
                 .files
                 .iter()
-                .any(|(_, content)| content.contains("- Status: Decided")
-                    && content.contains(&decided.body))
+                .any(|(_, content)| content.ends_with(&format!(
+                    "---\n\n# {}\n\n{}\n",
+                    markdown_text(&decided.title),
+                    decided.body
+                )))
         );
         // Every concept has metadata; only the bundle root declares the version.
         // Machine-readable fields are independent of the selected display language.
