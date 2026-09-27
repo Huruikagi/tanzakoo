@@ -55,6 +55,10 @@ macOS 26のARM64ランナーで以下を実行する。
 
 実機では審査用・通常認証でのカード操作に加え、外部の単一Markdownとフォルダーをそれぞれ選択し、AIの一覧・検索・読み取りを試す。終了・再起動・再接続後も選び直さず読めること、登録解除後は読めないこと、移動・削除時には再選択を案内することを確認する。Markdownエクスポートは毎回保存先を選ぶ。未確認の操作は成功扱いにしない。
 
+2026-09-27、コミット `0a295afcccce26e5313dc1af90be7c01bf51f3e4` の [Sandbox検証ビルド](https://github.com/Huruikagi/tanzakoo/actions/runs/36318725700) が成功した。63個のMach-Oとアプリを署名し、署名後と読み取り専用DMGの両方で親・Node・MCPからの未選択ファイルへのアクセス拒否、Node 24.21.0のJIT、Codex 0.156.1 / ACP 1.13.1の初期化、実際のcode-mode経由のカード作成・未承認提案・会話再開を確認した。公証ID `2fe29afa-b12e-4895-bd62-4561291783be` はAccepted、チケット添付とDMG・内包アプリのGatekeeper判定も通過した。[検証用DMGとSHA-256](https://github.com/Huruikagi/tanzakoo/actions/runs/36318725700/artifacts/10931661723) の保持期間は14日。
+
+同実行で通常のMac Rustテスト102件（別途1件ignored）、Sandboxの不正bookmark拒否テスト1件、Frontend107件とビルド・整形・lintが通過した。WindowsではRustテスト、許可レコードの非公開・解除テストとClippyを確認した。この証拠は **Sandbox検証版のGUI・通常ブラウザ認証・ネイティブ選択後の外部資料を再起動後に読む動作・エクスポートの実機確認をまだ含まない**。通常DMGでの過去の実機確認と区別する。
+
 ### 通常DMGと共通の確認
 
 1. 対象コミットのArtifactをダウンロードしてZIPを展開し、DMGを開く。`Tanzakoo.app` をApplicationsへコピーする。旧版が起動中なら先に終了する。
