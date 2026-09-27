@@ -198,7 +198,11 @@ pub async fn run(
     let permission_emit = emit.clone();
     let permission_id = conversation_id.clone();
     let permission_runtime = runtime.clone();
-    let launch = crate::agent_setup::launch_with_review(config, &store, review.is_some())?;
+    let launch = crate::agent_setup::launch_with_review(
+        config,
+        &store,
+        review.as_ref().map(|access| access.status.model.as_str()),
+    )?;
     let session_store = store.clone();
     let is_review = review.is_some();
     let job = agent_client_protocol::Client

@@ -33,14 +33,15 @@ pub fn managed_config() -> AgentConfig {
 }
 
 pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, String> {
-    launch_with_review(config, store, false)
+    launch_with_review(config, store, None)
 }
 
 pub fn launch_with_review(
     config: AgentConfig,
     store: &Store,
-    review: bool,
+    review_model: Option<&str>,
 ) -> Result<AcpAgentConfig, String> {
+    let review = review_model.is_some();
     // Only the pinned, app-owned runtime may receive review credentials.
     let config = if review { managed_config() } else { config };
     let managed = config.command == MANAGED;
@@ -89,7 +90,9 @@ pub fn launch_with_review(
         .args(args)
         .env("INITIAL_AGENT_MODE", "read-only");
     if managed {
-        launch = launch.env("NODE_OPTIONS", "");
+        launch = launch
+            .env("NODE_OPTIONS", "")
+            .env("TANZAKOO_REVIEW_MODEL", review_model.unwrap_or(""));
     }
     if config.id == "codex" {
         launch = launch.env(

@@ -1,6 +1,15 @@
 # Railwayで審査用サーバーを動かす
 
-Dockerfileを用意し、Railwayの初期設定を進めている段階。公開・有料API呼び出しはまだ行っていない。初回公開前に、利用モデル・予算管理・データ保持説明を決め、コンテナのCIを通す。アプリの制限は [README](README.md) を参照。
+Railwayに公開し、`gpt-6-luna` の実API応答を確認済み。ストア提出はまだ行っていない。アプリの制限は [README](README.md) を参照。
+
+## 現在の接続先と確認範囲（2026-09-27）
+
+- 公開origin: `https://review-relay-production-4f29.up.railway.app`
+- モデル: `gpt-6-luna` のみ。専用OpenAIプロジェクトの月額上限は$2、通知は$1、自動チャージOFFで設定を進め、ユーザーから設定完了の報告を受けた。管理画面の設定値自体は自動取得していない。
+- 公開URLで `/health` の200、コードなしの `/review/status` の401、発行済みコードによる状態取得を確認した。
+- 実Responses APIでSSEの完了イベントと応答、台帳の試行回数減算を確認した。隔離したボードで実Codex・ACP・MCPによる候補作成と未承認提案を確認し、元の本文を保持した。
+- 検証コードは24時間・20試行に限定した。ストア提出用は日程に合わせて別途発行する。コードやAPIキーはGitへ保存しない。
+- 実アプリ画面での接続・承認操作と、配布ビルドでの検証は残っている。
 
 ## 構成
 
@@ -43,13 +52,17 @@ Volumeを使うため、1リージョン・1インスタンスで運用する。
 | `TANZAKOO_RELAY_MODELS`               | 利用を決めたモデルID。初回は1モデルに限定する |
 | `TANZAKOO_RELAY_DB`                   | `/data/relay.sqlite`（Dockerfileの既定値）    |
 | `TANZAKOO_RELAY_HOST`                 | `0.0.0.0`（Dockerfileの既定値）               |
-| `PORT`                                | `8787`（Dockerfileの既定値）                  |
+| `PORT`                                | `8787`（Variablesにも明示して設定する）       |
 
 `RAILWAY_VOLUME_MOUNT_PATH` はRailwayが実際のVolumeから注入する値を使う。手動で追加して起動確認を回避しない。サーバー自身がVolumeの有無とDBの保存先を検証する。終了猶予とデプロイの重複時間はVariablesで設定する。[設定用変数](https://docs.railway.com/variables/reference)
+
+`PORT` はDockerfileの既定値だけに依存しない。Railwayの実行時環境変数で上書きされると、公開ドメインの転送先 `8787` と一致せず、デプロイ成功後でも502になる。VariablesとドメインのTarget Portを同じ値にし、変更をDeployしてから `/health` を再確認する。[502の対処](https://docs.railway.com/networking/troubleshooting/application-failed-to-respond)
 
 ## 審査用コードの発行と接続確認
 
 Railway管理画面のSSH接続コマンドで対象プロジェクト・環境・サービスを確認して接続する。以降はコンテナ内で実行する。`railway run` はローカル実行なので、台帳操作には使わない。
+
+Railway CLI 5.62.1ではログインに加えてSSH鍵の登録が必要。専用鍵を作り、`railway ssh keys add --key <鍵のパス> --name tanzakoo-railway-review` で公開鍵を登録し、接続時は `railway ssh -i <秘密鍵のパス> ...` を使う。Windowsでは `--key` に秘密鍵のWindows形式パスを指定すると、対応する `.pub` が登録された。秘密鍵そのものはアップロードしない。標準SSHを使う場合もホスト鍵の確認を維持する。[公式SSH手順](https://docs.railway.com/cli/ssh)
 
 ```text
 node /app/src/admin.mjs issue <モデルID> <ISO形式の有効期限> <最大試行回数>

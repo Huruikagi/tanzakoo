@@ -20,7 +20,7 @@ import { Ledger } from "../packages/review-relay/src/ledger.mjs";
 import { createRelay } from "../packages/review-relay/src/server.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-for (const route of ["gateway", "providers", "gateway-board"]) {
+for (const route of ["gateway", "providers", "gateway-board", "gateway-custom-model"]) {
   test(
     `review ${route}: fresh credentials and real ACP streaming`,
     { timeout: 60_000 },
@@ -30,12 +30,13 @@ for (const route of ["gateway", "providers", "gateway-board"]) {
       const home = join(dir, "home");
       const boardPath = join(dir, "board.db");
       const boardMode = route === "gateway-board";
+      const model = route === "gateway-custom-model" ? "review-fixture-model" : "gpt-6-astra";
       mkdirSync(home);
       const requests = [];
       const failures = [];
       const ledger = new Ledger(":memory:");
       const { token } = ledger.issue({
-        model: "gpt-6-astra",
+        model,
         expires: Date.now() + 60_000,
         maxRequests: 10,
       });
@@ -132,7 +133,7 @@ for (const route of ["gateway", "providers", "gateway-board"]) {
         relay = createRelay({
           ledger,
           apiKey: "fixture-upstream-key",
-          models: ["gpt-6-astra"],
+          models: [model],
           intervalMs: 0,
           testUpstream: `http://127.0.0.1:${server.address().port}/v1/responses`,
         });
@@ -142,6 +143,7 @@ for (const route of ["gateway", "providers", "gateway-board"]) {
             entry: join(root, "packages/agent-runtime/codex.mjs"),
             home,
             cwd: dir,
+            env: { TANZAKOO_REVIEW_MODEL: model },
             onRequest: (request) => {
               assert.equal(request.method, "session/request_permission");
               const option = request.params.options.find((o) => o.kind === "allow_once");
@@ -185,7 +187,7 @@ for (const route of ["gateway", "providers", "gateway-board"]) {
         await client.request("session/set_config_option", {
           sessionId: session.sessionId,
           configId: "model",
-          value: "gpt-6-astra",
+          value: model,
         });
         assert.equal(requests.length, 0, "connection check must not send a model request");
         const result = await client.request("session/prompt", {
@@ -195,6 +197,7 @@ for (const route of ["gateway", "providers", "gateway-board"]) {
         assert.equal(result.stopReason, "end_turn");
         assert.deepEqual(failures, []);
         assert.equal(requests.length, boardMode ? 3 : 1);
+        assert.ok(requests.every((request) => request.model === model));
         assert.ok(
           client.notifications.some((m) => m.params?.update?.content?.text === "REVIEW_OK"),
         );

@@ -294,7 +294,7 @@ mod tests {
         ));
         std::fs::create_dir_all(&directory).unwrap();
         let store = crate::store::Store::open(directory.join("project.db")).unwrap();
-        let body = serde_json::json!({"model":"gpt-6-astra", "expiresAt":now()+60000., "remainingRequests":50}).to_string();
+        let body = serde_json::json!({"model":"review-fixture-model", "expiresAt":now()+60000., "remainingRequests":50}).to_string();
         let (endpoint, task) = status_server(200, body, "");
         let access = ReviewSession::connect_to(endpoint, token())
             .await
@@ -306,7 +306,9 @@ mod tests {
             command: "must-not-execute".into(),
             args: vec![],
         };
-        let launch = crate::agent_setup::launch_with_review(config, &store, true).unwrap();
+        let launch =
+            crate::agent_setup::launch_with_review(config, &store, Some(&access.status.model))
+                .unwrap();
         let workspace = directory.clone();
         let job = agent_client_protocol::Client.builder().connect_with(
             AcpAgent::new(launch),
@@ -315,9 +317,19 @@ mod tests {
                     .block_task()
                     .await?;
                 access.authenticate(&cx).await?;
-                cx.send_request(NewSessionRequest::new(workspace))
+                let session = cx
+                    .send_request(NewSessionRequest::new(workspace))
                     .block_task()
                     .await?;
+                crate::chat_settings::apply(
+                    &cx,
+                    &session.session_id,
+                    &crate::model::ChatSettings {
+                        model: Some(access.status.model.clone()),
+                        reasoning_effort: None,
+                    },
+                )
+                .await?;
                 Ok(())
             },
         );
