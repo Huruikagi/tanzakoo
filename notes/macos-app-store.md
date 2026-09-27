@@ -8,7 +8,7 @@ Store専用のTauri設定・手動ワークフロー・署名スクリプトを�
 
 2026-09-28、利用者がApp IDと2種類の配布証明書、Mac App Store Connectプロファイルを作成した。テスト用Macは私用機ではないため、秘密鍵・CSR・パスワード付きp12はWindowsで作成した。アプリ用・インストーラー用の公開証明書はApple WWDR G3発行で、p12には同中間証明書も含めた。プロファイルはWindowsでBundle ID・アプリ用証明書・Team ID・配布種別・有効期限の一致を確認済み。CMSの署名をローカルで検証したが、Appleの証明書チェーンの信頼確認はMac署名ランナーに残る。
 
-同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、Macランナーでp12のパスワード・整合性・キーチェーンへのインポートとプロファイルの一致を確認した。`2cbaf63` から署名済みpkgの生成とローカル署名検証が成功した。その後、App Store Connectへの登録とTestFlightでの確認を進める依頼を受け、利用者がAppレコードを作成した。Apple側の検証・アップロードは下記の別ワークフローで進める。TestFlight実機検証・製品版の審査提出・公開は未実施。
+同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、Macランナーでp12のパスワード・整合性・キーチェーンへのインポートとプロファイルの一致を確認した。その後、App Store Connectへの登録とTestFlightでの確認を進める依頼を受け、利用者がAppレコードを作成した。初回Apple検証で見つかったファイル権限を修正し、`2a5adab` の0.1.0 / build 2がAppleの検証・アップロードに成功した。Apple側のビルド処理完了・TestFlight実機検証・製品版の審査提出・公開は未確認／未実施。
 
 ## Apple側の初回作業
 
@@ -98,14 +98,24 @@ gh workflow run macos-store.yml --ref main -f build_number=1 -f review_access=tr
 
 認証にはDMG公証で使用しているDeveloper権限のチームキー `APPLE_API_KEY`・`APPLE_API_ISSUER`・`APPLE_API_KEY_CONTENT` を使う。追加のキー発行は不要。秘密鍵はMacランナーの所有者だけが読める一時ディレクトリーへ置き、終了時に削除する。Appleの標準ツール `altool` を使い、新しい依存は追加しない。
 
+`NEW_SOURCE_RUN_ID` を、成功した新しいStoreビルドのrun番号に置き換える。
+
 ```sh
-gh workflow run macos-store-upload.yml --ref main -f source_run_id=36342814606 -f mode=validate
-gh workflow run macos-store-upload.yml --ref main -f source_run_id=36342814606 -f mode=upload
+gh workflow run macos-store-upload.yml --ref main -f source_run_id=NEW_SOURCE_RUN_ID -f mode=validate
+gh workflow run macos-store-upload.yml --ref main -f source_run_id=NEW_SOURCE_RUN_ID -f mode=upload
 ```
 
 既定の `validate` はAppleによるパッケージ検証のみ。`upload` は検証後に1回だけアップロードする。アップロードがタイムアウト等で失敗した場合、Apple側の受信状態を確認してから再試行する。コマンドの成功とApple側のビルド処理完了は別で、TestFlight画面で処理結果・暗号利用の申告を確認する。テスターへの配布や審査提出を自動では行わない。
 
 2026-09-28、[初回Apple検証](https://github.com/Huruikagi/tanzakoo/actions/runs/36344752076) は既存APIキーで認証できたが、build 1を `90255`（root以外が読めない同梱ファイル）で拒否した。署名後の公開アプリバンドルだけに `a+rX` を適用し、一般ユーザーの読み取り・ディレクトリー通過権限を検査してから署名を再検証するよう修正した。一時キーチェーンや秘密鍵の権限は変更しない。build 1はTestFlight確認には使わない。
+
+`2a5adab` の [build 2](https://github.com/Huruikagi/tanzakoo/actions/runs/36345112251) で修正後のpkg生成・署名検証が成功した。権限修正が必要だった実ファイルは、同梱ランタイム内の `pnpm-lock.yaml` と `node_modules/.pnpm-workspace-state-v1.json` の2件だった。秘密情報やプロファイルが原因ではなかった。
+
+同じコミットの [通常CI](https://github.com/Huruikagi/tanzakoo/actions/runs/36345104680) はWindows・macOS・仲介サーバーの全ジョブが成功した。成果物の出所・期限・重複・ハッシュ・provenance不一致を拒否する3テストも、Macのアップロード用ワークフローで通過した。
+
+2026-09-28 04:54 JST、[Appleへの検証・アップロード](https://github.com/Huruikagi/tanzakoo/actions/runs/36345683918) が `VERIFY SUCCEEDED with no errors` と `UPLOAD SUCCEEDED with no errors` を返した。対象は `Tanzakoo_0.1.0_2_aarch64.pkg`、ソース `2a5adab1365b2c239106af71662045442ff33180`、Delivery UUIDは `c3721f4a-96fd-402c-86fa-75567c25fa35`。[アップロードしたArtifact](https://github.com/Huruikagi/tanzakoo/actions/runs/36345112251/artifacts/10940268456) のZIP SHA-256は `c44e7491edf1e329e1966caf36224df21a74deed1fd22e405718db8dcaed629c`。build 2は送信済みのため、同じビルドを新規送信として再実行しない。
+
+次にApp Store ConnectのTanzakoo → TestFlight → macOSで `0.1.0 (2)` の処理状態と暗号利用の申告を確認する。内部テスター用の確認内容は [英語のWhat to Test案](store-review-notes.md#testflight-what-to-test-draft) を使う。アップロード成功だけで、Appleの処理完了や実機動作を確認済みとは扱わない。
 
 ## 検証と次段階
 

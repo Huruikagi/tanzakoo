@@ -40,6 +40,12 @@ Switching connections starts a new conversation. An existing conversation must b
 7. **Export:** Move a card to **Decided**, then select **Export → Choose location and export**. A new folder contains `index.md`, `project.md`, and a `decisions/` folder in OKF v0.2 format. Decision filenames retain their sequence number and title. Saved card and memory text is preserved verbatim; drafts, pending changes, and chat history are excluded.
 8. **Persistence and recovery:** Archive a card and restore it from **Archive**. Close and reopen the app to check saved cards and conversations. Re-enter the review code if testing AI again. Unsaved editor/chat drafts are not retained after exiting.
 
+## TestFlight: What to Test draft
+
+Use this text for internal testing after Apple has processed the selected build. It is a test plan, not a record of completed checks.
+
+> Test on Apple Silicon with macOS 26 or later. Create a separate test project and confirm manual card creation, editing, and Markdown export. Connect to Codex or use the privately supplied review access code, create a card through chat, and apply or reject a proposed change. Register a non-sensitive text file and folder, quit with Command-Q, reopen the app, and verify that references can still be listed, read, and searched. Modify a source file and confirm the latest contents can be read. Remove a reference and confirm future access is denied without deleting the source. Check saved cards and conversations after restarting. Report errors with the build number, steps, and error text; do not include private reference contents or credentials.
+
 ## Data handling and availability
 
 Cards, project memory, and conversations are stored locally. AI is optional. Review AI requests pass through the developer's relay server to OpenAI after explicit consent. The relay does not normally log conversation bodies or credentials. OpenAI's own data retention terms still apply; disabling storage in an API request is not a guarantee of zero retention.
