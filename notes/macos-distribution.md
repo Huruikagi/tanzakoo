@@ -57,7 +57,9 @@ macOS 26のARM64ランナーで以下を実行する。
 
 2026-09-27、コミット `0a295afcccce26e5313dc1af90be7c01bf51f3e4` の [Sandbox検証ビルド](https://github.com/Huruikagi/tanzakoo/actions/runs/36318725700) が成功した。63個のMach-Oとアプリを署名し、署名後と読み取り専用DMGの両方で親・Node・MCPからの未選択ファイルへのアクセス拒否、Node 24.21.0のJIT、Codex 0.156.1 / ACP 1.13.1の初期化、実際のcode-mode経由のカード作成・未承認提案・会話再開を確認した。公証ID `2fe29afa-b12e-4895-bd62-4561291783be` はAccepted、チケット添付とDMG・内包アプリのGatekeeper判定も通過した。[検証用DMGとSHA-256](https://github.com/Huruikagi/tanzakoo/actions/runs/36318725700/artifacts/10931661723) の保持期間は14日。
 
-同実行で通常のMac Rustテスト102件（別途1件ignored）、Sandboxの不正bookmark拒否テスト1件、Frontend107件とビルド・整形・lintが通過した。WindowsではRustテスト、許可レコードの非公開・解除テストとClippyを確認した。この証拠は **Sandbox検証版のGUI・通常ブラウザ認証・ネイティブ選択後の外部資料を再起動後に読む動作・エクスポートの実機確認をまだ含まない**。通常DMGでの過去の実機確認と区別する。
+同実行で通常のMac Rustテスト102件（別途1件ignored）、Sandboxの不正bookmark拒否テスト1件、Frontend107件とビルド・整形・lintが通過した。WindowsではRustテスト、許可レコードの非公開・解除テストとClippyを確認した。このCIの証拠自体は、Sandbox検証版のGUI・通常ブラウザ認証・ネイティブ選択後の外部資料を再起動後に読む動作・エクスポートの実機確認を含まない。通常DMGでの過去の実機確認と区別する。
+
+上記Sandbox検証版について、利用者から「Tanzakoo Sandboxを起動 → 参照資料としてファイルを登録 → チャットで中身を確認 → Command+Qで終了 → 再起動 → チャットで再度中身を確認」の全手順で参照できたとの報告を受けた。Sandbox版のGUI起動・単一ファイルの登録と、アプリ終了・再起動を挟んだチャットでの参照成功を実機報告として記録する。再起動後が新しいチャットか、元ファイルを更新して最新内容を取得したかは未確認。次に終了中に元ファイルへ追記し、再起動後の新しいチャットで追記内容を確認する。フォルダー登録・配下の一覧と検索・登録解除後の拒否・通常ブラウザ認証・エクスポートのSandbox実機確認も引き続き残る。
 
 ### 通常DMGと共通の確認
 
