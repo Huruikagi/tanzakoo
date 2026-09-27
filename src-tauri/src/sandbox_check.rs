@@ -13,7 +13,7 @@ pub fn denied(path: &str) -> io::Result<()> {
 
 pub fn run(canary: &str) -> io::Result<()> {
     denied(canary)?;
-    let context = tauri::generate_context!();
+    let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
     let data = crate::storage::macos_data_dir(&context.config().identifier)?;
     fs::create_dir_all(&data)?;
     let executable = std::env::current_exe()?;

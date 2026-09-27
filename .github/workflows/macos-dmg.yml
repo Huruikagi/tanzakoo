@@ -48,6 +48,9 @@ jobs:
         with:
           path: src-tauri/target
           key: dmg-macos-26-arm64-${{ inputs.sandbox }}-${{ steps.rust-version.outputs.fingerprint }}-${{ hashFiles('src-tauri/Cargo.lock', 'src-tauri/Cargo.toml', 'src-tauri/build.rs', 'src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            dmg-macos-26-arm64-${{ inputs.sandbox }}-${{ steps.rust-version.outputs.fingerprint }}-
+            dmg-macos-26-arm64-${{ steps.rust-version.outputs.fingerprint }}-
       - name: Frontend checks
         run: mise exec -- pnpm check
       - name: Rust tests
@@ -57,7 +60,7 @@ jobs:
         run: git diff --ignore-space-at-eol --exit-code -- src/bindings
       - name: Sandbox bookmark failure cases
         if: inputs.sandbox
-        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features app-sandbox --lib materials::scope
+        run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin --features app-sandbox --lib materials::scope
       - name: Stage bundled runtime
         run: mise exec -- pnpm runtime:stage
       - name: Build application bundle
@@ -71,7 +74,7 @@ jobs:
             --target aarch64-apple-darwin --bundles app "${configs[@]}" -- --locked
       # Save before any signing credentials or signed files enter the job.
       - name: Save unsigned Rust build cache
-        if: steps.rust-cache.outputs.cache-hit != 'true'
+        if: ${{ !cancelled() && steps.rust-cache.outcome == 'success' && steps.rust-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6.1.0
         with:
           path: src-tauri/target
