@@ -1,6 +1,6 @@
 # Railwayで審査用サーバーを動かす
 
-Dockerfileと設定を用意した段階。Railwayのプロジェクト作成・契約・公開、有料API呼び出しはまだ行っていない。初回公開前に、利用モデル・予算管理・データ保持説明を決め、コンテナのCIを通す。アプリの制限は [README](README.md) を参照。
+Dockerfileを用意し、Railwayの初期設定を進めている段階。公開・有料API呼び出しはまだ行っていない。初回公開前に、利用モデル・予算管理・データ保持説明を決め、コンテナのCIを通す。アプリの制限は [README](README.md) を参照。
 
 ## 構成
 
@@ -14,22 +14,38 @@ Volumeはビルド時・Pre-deploy時には使えない。発行・失効・バ�
 
 ## 初回設定
 
-1. Railwayに専用サービスを作成し、このリポジトリを接続する。最初のデプロイ前に以下を設定する。
-2. **Root Directoryはリポジトリのルートのまま**にする。Railway Config Fileには **`/packages/review-relay/railway.json`** を指定する。Dockerfileだけをサービスのルートにすると、共有ロックファイルを読めない。
-3. 専用Volumeを作成し、マウント先を **`/data`** にする。JSON設定はVolume自体を作成しない。
+新規サービスでは `railway.json` / `railway.toml` によるConfig as Codeを利用できないため、この手順ではサービス画面とVariablesを使う。既存サービス向けの旧JSON設定は削除した。将来コードで管理する場合はRailway IaCへ移行する。[公式の移行案内](https://docs.railway.com/config-as-code)
+
+1. Railwayに空のプロジェクトと専用のEmpty Serviceを作成し、最初のデプロイ前に以下を設定する。
+2. **Root Directoryはリポジトリのルートのまま**にする。Variablesの `RAILWAY_DOCKERFILE_PATH` でDockerfileを指定する。`packages/review-relay` をサービスのルートにすると、共有ロックファイルを読めない。[Dockerfileの指定](https://docs.railway.com/builds/dockerfiles)
+3. 専用Volumeを作成し、サービスへ接続してマウント先を **`/data`** にする。
 4. Variablesに下記を設定する。APIキーは管理画面から秘密情報として登録し、Git・Dockerfile・CLI引数へ書かない。
-5. 審査期間だけ手動で運用するため、GitHubのAutodeployは **Disable** にする。Build Command、Start Command、Pre-deploy Commandは空欄とし、DockerfileとJSONの指定を使う。
-6. コンテナCI成功を確認したコミットをデプロイし、NetworkingでRailwayの公開ドメインを生成する。転送ポートは `8787`。`PORT` を変える場合は転送ポートも合わせる。
+5. SettingsのDeployで下表の値を設定する。Build Command、Start Command、Pre-deploy Commandは空欄とし、Dockerfileの指定を使う。
+6. コードをGitHubへpushしてコンテナCIの成功を確認した後、SettingsのSourceからリポジトリを接続する。審査期間だけ手動で運用するため、GitHubのAutodeployは **Disable** にする。初回ビルドが自動で始まった場合は設定が揃っているか確認し、不足していればAbortしてから設定する。[自動デプロイの無効化](https://docs.railway.com/deployments/github-autodeploys)
+7. 確認済みコミットをデプロイし、NetworkingでRailwayの公開ドメインを生成する。転送ポートは `8787`。`PORT` を変える場合は転送ポートも合わせる。
 
-| Variable                | 設定値                                        |
-| ----------------------- | --------------------------------------------- |
-| `OPENAI_API_KEY`        | 審査用の専用APIキー                           |
-| `TANZAKOO_RELAY_MODELS` | 利用を決めたモデルID。初回は1モデルに限定する |
-| `TANZAKOO_RELAY_DB`     | `/data/relay.sqlite`（Dockerfileの既定値）    |
-| `TANZAKOO_RELAY_HOST`   | `0.0.0.0`（Dockerfileの既定値）               |
-| `PORT`                  | `8787`（Dockerfileの既定値）                  |
+| Settingsの項目      | 設定値       |
+| ------------------- | ------------ |
+| Healthcheck Path    | `/health`    |
+| Healthcheck Timeout | `30` 秒      |
+| Restart Policy      | `On Failure` |
+| Max Retries         | `3`          |
+| Enable Serverless   | OFF          |
 
-`RAILWAY_VOLUME_MOUNT_PATH` はRailwayが実際のVolumeから注入する値を使う。手動で追加して起動確認を回避しない。JSONは1レプリカ・`/data` 必須・起動ヘルスチェック30秒・異常終了時の再試行3回・終了猶予15秒を指定する。[設定ファイル](https://docs.railway.com/config-as-code/reference)、[自動デプロイの無効化](https://docs.railway.com/deployments/github-autodeploys)
+Volumeを使うため、1リージョン・1インスタンスで運用する。[Volumeの制約](https://docs.railway.com/volumes/reference)
+
+| Variable                              | 設定値                                        |
+| ------------------------------------- | --------------------------------------------- |
+| `RAILWAY_DOCKERFILE_PATH`             | `packages/review-relay/Dockerfile`            |
+| `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | `15`（終了処理の猶予）                        |
+| `RAILWAY_DEPLOYMENT_OVERLAP_SECONDS`  | `0`                                           |
+| `OPENAI_API_KEY`                      | 審査用の専用APIキー                           |
+| `TANZAKOO_RELAY_MODELS`               | 利用を決めたモデルID。初回は1モデルに限定する |
+| `TANZAKOO_RELAY_DB`                   | `/data/relay.sqlite`（Dockerfileの既定値）    |
+| `TANZAKOO_RELAY_HOST`                 | `0.0.0.0`（Dockerfileの既定値）               |
+| `PORT`                                | `8787`（Dockerfileの既定値）                  |
+
+`RAILWAY_VOLUME_MOUNT_PATH` はRailwayが実際のVolumeから注入する値を使う。手動で追加して起動確認を回避しない。サーバー自身がVolumeの有無とDBの保存先を検証する。終了猶予とデプロイの重複時間はVariablesで設定する。[設定用変数](https://docs.railway.com/variables/reference)
 
 ## 審査用コードの発行と接続確認
 
@@ -75,7 +91,7 @@ node /app/src/admin.mjs revoke <発行ID>
 
 ## 再審査で再開する
 
-同じサービスとVolumeを残している場合は、APIキー・許可モデル・Volume・設定ファイルを確認してデプロイし直す。`list` で過去の使用量・失効が残っていることを確認してから、新しい期限とコードを発行する。アプリに埋め込んだ公開originを維持する。
+同じサービスとVolumeを残している場合は、APIキー・許可モデル・Volume・サービス設定を確認してデプロイし直す。`list` で過去の使用量・失効が残っていることを確認してから、新しい期限とコードを発行する。アプリに埋め込んだ公開originを維持する。
 
 Volumeを作り直す場合は、停止時に取得した**失効済み台帳**を新しいVolumeへ復元し、DBの絶対パスを確認してから起動する。稼働中DBへの上書きや、古い有効コードを含むバックアップへの巻き戻しはしない。古い使用回数へ戻るため、復元後の再審査には必ず新しいコードを使う。
 
