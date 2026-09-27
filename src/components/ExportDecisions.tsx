@@ -86,6 +86,11 @@ export function ExportDecisions() {
         </ul>
         <p className="hint muted">
           {t(
+            "カードリンクは出力先ファイルへのMarkdownリンクに変換します。出力対象外の参照先は、理由を添えた文字として残します。",
+          )}
+        </p>
+        <p className="hint muted">
+          {t(
             "保存済みの内容を出力します。編集中の内容は先に保存してください。未適用の提案や会話履歴は含みません。 選択した保存先の中に、新しいフォルダーを作成します。",
           )}
         </p>

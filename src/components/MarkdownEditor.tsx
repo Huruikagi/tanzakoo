@@ -6,17 +6,22 @@ import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import type { Card } from "@/bindings/Card";
+import { cardLink } from "@/lib/card-links";
+import { CardLinkPicker } from "./CardLinkPicker";
 
 export function MarkdownEditor({
   value,
   onChange,
   onSelection,
   label = t("カード本文"),
+  linkCards,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSelection: (quote: string) => void;
   label?: string;
+  linkCards?: Card[];
 }) {
   useTranslation();
   const host = useRef<HTMLDivElement>(null);
@@ -81,5 +86,26 @@ export function MarkdownEditor({
       }
     }
   }, [value]);
-  return <div ref={host} className="markdown-editor" />;
+  return (
+    <>
+      {linkCards && (
+        <CardLinkPicker
+          cards={linkCards}
+          onClose={() => view.current?.focus()}
+          onSelect={(card) => {
+            const editor = view.current;
+            if (!editor) return;
+            const { from, to } = editor.state.selection.main;
+            const insert = cardLink(card.title, card.id);
+            editor.dispatch({
+              changes: { from, to, insert },
+              selection: { anchor: from + insert.length },
+              userEvent: "input",
+            });
+          }}
+        />
+      )}
+      <div ref={host} className="markdown-editor" />
+    </>
+  );
 }

@@ -8,6 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use ts_rs::TS;
+mod card_links;
 
 #[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -46,17 +47,38 @@ impl MarkdownExport {
             );
         }
         let project = &snapshot.project;
+        let filenames: std::collections::HashMap<_, _> = cards
+            .iter()
+            .enumerate()
+            .map(|(position, card)| {
+                (
+                    card.id.as_str(),
+                    format!(
+                        "decisions/{:04}-{}.md",
+                        position + 1,
+                        filename_part(&card.title)
+                    ),
+                )
+            })
+            .collect();
+        let project_memory = card_links::rewrite(
+            &project.memory,
+            &snapshot.cards,
+            &filenames,
+            false,
+            language,
+        );
         let mut index = String::from("---\nokf_version: \"0.2\"\n---\n\n");
         index.push_str(&if language == Language::En {
             format!(
-                "# {} — Decisions\n\nA snapshot of decisions saved in Tanzakoo.\n\n- Project ID: {}\n- Decided topics: {}\n\n## Starting development\n\n1. Read the [project background and context](project.md).\n2. Read the decisions below.\n3. Ask for clarification before proceeding if information is missing or contradictory.\n\nTreat unspecified behavior as undecided. Undecided cards, conversation history, unsaved edits, and pending proposals are excluded. Saved content is included verbatim.\n\n",
+                "# {} — Decisions\n\nA snapshot of decisions saved in Tanzakoo.\n\n- Project ID: {}\n- Decided topics: {}\n\n## Starting development\n\n1. Read the [project background and context](project.md).\n2. Read the decisions below.\n3. Ask for clarification before proceeding if information is missing or contradictory.\n\nTreat unspecified behavior as undecided. Undecided cards, conversation history, unsaved edits, and pending proposals are excluded. Saved content is included without summarization. Card references become Markdown links; references outside this export are annotated as text.\n\n",
                 markdown_text(&project.name),
                 markdown_text(&project.id),
                 cards.len(),
             )
         } else {
             format!(
-                "# {} — 決めたこと\n\nTanzakooに保存された決定事項のスナップショットです。\n\n- プロジェクトID: {}\n- 決定した話題: {}件\n\n## 開発を始めるとき\n\n1. [プロジェクトの背景・前提](project.md)を読む。\n2. 下記の決定事項を読む。\n3. 実装に必要な情報が足りない場合や、内容が矛盾する場合は、確認してから進める。\n\n記載のない仕様は未決定として扱ってください。未決定のカード・会話履歴・未保存の編集・未適用の変更提案は含みません。本文は保存済みの内容をそのまま収録しています。\n\n",
+                "# {} — 決めたこと\n\nTanzakooに保存された決定事項のスナップショットです。\n\n- プロジェクトID: {}\n- 決定した話題: {}件\n\n## 開発を始めるとき\n\n1. [プロジェクトの背景・前提](project.md)を読む。\n2. 下記の決定事項を読む。\n3. 実装に必要な情報が足りない場合や、内容が矛盾する場合は、確認してから進める。\n\n記載のない仕様は未決定として扱ってください。未決定のカード・会話履歴・未保存の編集・未適用の変更提案は含みません。保存済みの本文を要約せず収録しています。カード参照はMarkdownリンクに変換し、出力対象外の参照先は理由を添えた文字として残しています。\n\n",
                 markdown_text(&project.name),
                 markdown_text(&project.id),
                 cards.len(),
@@ -92,16 +114,13 @@ impl MarkdownExport {
                             "(No project memory.)",
                         )
                     } else {
-                        &project.memory
+                        &project_memory
                     },
                 ),
         )];
-        for (position, card) in cards.iter().enumerate() {
-            let filename = format!(
-                "decisions/{:04}-{}.md",
-                position + 1,
-                filename_part(&card.title)
-            );
+        for card in &cards {
+            let filename = filenames[card.id.as_str()].clone();
+            let body = card_links::rewrite(&card.body, &snapshot.cards, &filenames, true, language);
             index.push_str(&format!(
                 "- [{}]({})\n",
                 markdown_text(&card.title),
@@ -123,7 +142,7 @@ impl MarkdownExport {
                         if card.body.is_empty() {
                             language.choose("（本文は未記入です。）", "(No content.)")
                         } else {
-                            &card.body
+                            &body
                         },
                     ),
             ));

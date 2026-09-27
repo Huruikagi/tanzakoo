@@ -1,5 +1,7 @@
 use crate::model::{CardReference, Snapshot};
 
+const CARD_LINK_INSTRUCTIONS: &str = "カード本文から同じプロジェクトの別カードを参照するときは[カードタイトル](tanzakoo:card/カードID)を使えます。get_boardで実在するIDを確認し、タイトル内のMarkdown記号はエスケープしてください。表示名は参照先の最新の保存済みタイトルに追従します。リンクは関連する議論への参照であり、依存関係や採用を意味しません。既存カードへの追加・削除もpropose_card_changeで提案し、UI承認を待ちます。参照元一覧は保存済み本文から自動生成されるので、参照先へ逆向きのリンクを追加する必要はありません。";
+
 /// The current board is always sent; history is only needed for a fresh session.
 pub(super) struct Prompt {
     instructions: String,
@@ -45,7 +47,7 @@ impl Prompt {
             "{instructions}\nプロジェクトの名前とメモリは上記projectにあります。メモリは会話をまたぐ前提・進め方として参照し、過去の会話より現在の内容を優先してください。プロジェクトメモリの更新はget_boardで現行revisionを確認してpropose_memory_changeで提案してください。承認前に適用済みと言わないでください。個別の論点・結論はカードに残し、依頼なくメモリへ全履歴を重複保存しないでください。"
         );
         let instructions = format!(
-            "{instructions}\n{PROPOSAL_INSTRUCTIONS}\n{DISCUSSION_INSTRUCTIONS}\n{QUESTION_INSTRUCTIONS}\n{MATERIAL_INSTRUCTIONS}"
+            "{instructions}\n{PROPOSAL_INSTRUCTIONS}\n{DISCUSSION_INSTRUCTIONS}\n{QUESTION_INSTRUCTIONS}\n{MATERIAL_INSTRUCTIONS}\n{CARD_LINK_INSTRUCTIONS}"
         );
         Ok(Self {
             instructions,

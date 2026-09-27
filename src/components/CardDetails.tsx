@@ -19,6 +19,7 @@ import { Markdown } from "./Markdown";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { ProposalCard, Proposals } from "./Proposals";
 import { editDraft } from "@/lib/draft";
+import { CardBacklinks } from "./CardBacklinks";
 
 export function CardDetails() {
   useTranslation();
@@ -138,6 +139,9 @@ function Details({ card }: { card: Card }) {
                 value={value.body}
                 onChange={(body) => update({ body })}
                 onSelection={setQuote}
+                linkCards={snapshot.cards.filter(
+                  (candidate) => candidate.id !== card.id && !candidate.deleted,
+                )}
               />
             )}
           </TabsContent>
@@ -199,6 +203,7 @@ function Details({ card }: { card: Card }) {
             </Button>
           )}
         </div>
+        <CardBacklinks cardId={card.id} />
         <Proposals count={proposals.length}>
           {proposals.map((p) => (
             <ProposalCard

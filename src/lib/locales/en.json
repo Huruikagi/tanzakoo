@@ -1,4 +1,13 @@
 {
+  "カードリンクを挿入": "Insert card link",
+  "参照するカード": "Link to a card",
+  "カードを選ぶと、本文のカーソル位置にリンクを挿入します。": "Choose a card to insert a link at the cursor in the body.",
+  "カードを検索": "Search cards",
+  "該当するカードがありません。": "No matching cards.",
+  "このカードを参照しているカード": "Cards linking here",
+  "（参照先なし）": "(reference unavailable)",
+  "（アーカイブ済み）": "(archived)",
+  "カードリンクは出力先ファイルへのMarkdownリンクに変換します。出力対象外の参照先は、理由を添えた文字として残します。": "Card links become Markdown links to exported files. References to cards outside the export remain as text with a reason.",
   " · 実行中": " · Running",
   "未承認 {{value0}}": "Pending {{value0}}",
   "AIと考える": "Think with AI",
