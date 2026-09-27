@@ -1,85 +1,78 @@
-# 審査用仲介サーバー
+# Review relay server
 
-端末内のCodexからOpenAI Responses APIへの通信を中継する。カード・会話の正本やMCPは端末に残る。サーバー基盤とアプリの審査用接続画面を実装し、模擬APIとRailway上の実APIで検証している。[Railwayへの配置・停止・再開手順と確認範囲](RAILWAY.md) を参照。ストア提出と配布アプリの実画面検証はまだ行っていない。
+Relays model traffic from the device's Codex runtime to the OpenAI Responses API. The board, conversations, and MCP tools remain local. The relay and app connection have been tested with a mock API and the real API on Railway. See the [Railway deployment, shutdown, restart, and verification record](RAILWAY.md) for the exact scope. Store submission remains separate.
 
-## アプリからの接続
+## Reviewer instructions
 
-1. 「接続状況」または「エージェント設定」を開き、「審査用アクセスを利用する」を選ぶ。
-2. 審査用コードを貼り付け、Tanzakooの仲介サーバーとOpenAIへの送信説明を確認して同意する。
-3. 「同意して接続する」を押す。コードの確認は `/review/status` のみで、会話・ボードや参照資料を送らず、AI呼び出し枠も消費しない。
-4. 新しい会話から、普段と同じカード作成・変更提案・承認を試す。
+Use the English-only [Store review notes](../../notes/store-review-notes.md) for submission instructions and the end-to-end walkthrough. No Japanese copy is maintained. Provide current credentials, expiry, and a support contact privately in the store submission fields.
 
-接続画面で有効期限とモデルを確認し、「通常の接続に戻す」で解除する。コードと審査用の送信同意はRustのメモリにだけ保持し、アプリ再起動後は再入力する。通常接続の認証・送信同意・モデル設定は変更しない。別プロジェクトでも審査用接続を使う。通常接続と審査用接続の保存済み会話は相互に引き継がず、対応する接続に戻して再開する。
+In the app, open **Settings** or **Connection status**, select **Use review access**, enter the code, consent to sending data through the relay to OpenAI, and select **Agree and connect**. The status check calls only `/review/status`; it sends no project content and consumes no model request. Start a new conversation to test card creation, proposals, and approval.
 
-接続失敗・期限切れ・失効・利用上限では通常アカウントへ自動で戻さない。コードを再入力するか、明示的に通常接続へ戻す。カードや会話は保持する。審査用のCodex保存領域は通常接続とは別で、コードは設定ファイル・プロジェクトDB・ブラウザー保存領域へ保存しない。
+The panel displays the model and expiry. **Return to regular connection** disconnects review access. The code and consent remain only in Rust memory until the app exits and apply across projects. Regular authentication, consent, and model settings are preserved. Saved conversations must resume using their original connection. Connection failures, expiry, revocation, and exhausted limits never silently fall back to a personal account or delete local cards/conversations. Review Codex storage is separate, and the code is not saved in configuration files, project databases, or browser storage.
 
-接続先は **ビルド時の `TANZAKOO_REVIEW_URL`** にHTTPSのorigin（パス・クエリー・認証情報なし）を指定して固定する。現在の公開originは [Railway手順](RAILWAY.md) を参照。未設定なら、入口は表示するが接続時に未設定と案内する。debugビルドに限り同名の起動環境変数と `http://127.0.0.1:<port>` を使える。releaseは起動時の上書きを受け付けない。接続確認ではリダイレクトを拒否し、15秒・4KiBに制限する。
+The server is fixed at build time using **`TANZAKOO_REVIEW_URL`**, an HTTPS origin without a path, query, or credentials. See [Railway operations](RAILWAY.md) for the deployed origin. An unconfigured build still shows the entry point but reports that review access is unavailable when connecting. Debug builds may use the same environment variable at launch and `http://127.0.0.1:<port>`; release builds reject runtime overrides. Status checks reject redirects and enforce a 15-second timeout and 4 KiB response limit.
 
-審査接続では `/review/status` のモデルをCodex起動時に指定する。ACP 1.13.1 / Codex 0.156.1は審査用の `gpt-6-luna` を同梱カタログで認識する。同梱カタログにないモデルも、そのモデルを現在の設定としてACPへ渡せるが、Codexの汎用メタデータによる警告が表示される場合がある。通常接続のモデル設定とは分離する。
+Review access selects the model returned by `/review/status` when starting Codex. ACP 1.13.1 / Codex 0.156.1 recognizes the deployed `gpt-6-luna` model. A model absent from the bundled catalog can still be passed to ACP, but Codex may display a generic metadata warning. Review model selection is separate from regular connection settings.
 
-審査メモには入口・コード・通常接続との違い（開発者負担の期限付きAI、指定モデル、仲介経由）・確認手順を記す。審査期間中はコードとサーバーを有効に保つ。公開URL、予算管理、データ保持方針が決まってから提出情報を完成させる。
+## Supported behavior
 
-## できること
+- Issue and revoke review tokens with the admin CLI. Only SHA-256 token hashes are stored in SQLite.
+- Enforce each token's model, expiry, and cumulative request-attempt limit. Reserve attempts in SQLite before forwarding; failures and cancellation still count, and restarting does not reset the counter.
+- Restrict concurrent requests per token and require at least one second between requests. Revocation and expiry also stop active requests.
+- Forward streams and cancel upstream work on client disconnect or after 120 seconds. Accumulate input/output token usage when reported upstream.
+- `GET /review/status` returns the assigned model, expiry, and remaining attempts without calling AI.
 
-- 管理CLIで審査トークンを発行・失効する。DBにはトークンのSHA-256のみを保存する。
-- トークンごとのモデル・期限・累積試行回数を制限する。上流へ送る前にSQLiteで枠を消費し、再起動しても戻さない。通信失敗や中断も1回に数える。
-- 同一トークンの並行リクエストを制限し、最短1秒の間隔を設ける。失効・期限切れは実行中の通信にも反映する。
-- ストリームを中継し、端末の切断や120秒の期限で上流も中断する。使用量が返った場合は入力・出力トークンの累計を記録する。
-- 接続確認は `GET /review/status`。モデル・期限・残り試行回数を返し、AI呼び出しを行わない。
+The real API key stays on the server. The upstream URL is fixed to `https://api.openai.com/v1/responses`; client credentials and arbitrary destinations are not forwarded. Only tests may explicitly configure a loopback mock upstream. Normal request logging is disabled, and conversation bodies and tokens are not logged.
 
-本物のAPIキーはサーバーだけが保持する。上流URLは `https://api.openai.com/v1/responses` に固定し、クライアントの認証ヘッダーや任意の転送先を引き継がない。テストだけはコードから明示したloopbackの模擬APIを使える。通常ログは無効で、会話本文やトークンを出力しない。
+## Limitations
 
-## 現段階の制限
+- Railway deployment and real-API checks are recorded in [the operations guide](RAILWAY.md). Those checks do not establish store approval or validate every signed distribution package. Keep availability monitoring, credentials, budget settings, and data-handling disclosures current for submission.
+- Access currently uses expiring bearer credentials directly. Short-lived token exchange/refresh and OS credential-store integration are not implemented.
+- The relay does not guarantee a monetary cap. It limits attempts, 256 KiB of input, up to 8192 output tokens, and one assigned model per token. Provider budget settings are separate; do not describe the request limit as a guaranteed currency limit.
+- Only SSE for `POST /v1/responses` is supported. WebSockets, `/responses/compact`, upstream model listings, and restoration by upstream conversation ID are unavailable. Long-conversation compaction, API edge cases, and retry behavior after 429 need separate validation.
+- Input is text-oriented with local tools. Image/file inputs are rejected; hosted web search and remote MCP tool definitions are removed. Disclose these differences for review access.
+- Upstream requests use `store: false`, `background: false`, and `service_tier: default`. This does not guarantee zero retention by OpenAI.
+- The server is tested on Node 24.21.0. Its built-in `node:sqlite` is Release Candidate in Node 24; retain persistence and concurrent-use tests when updating. Server dependencies are not bundled with the desktop app.
 
-- **公開サービス・審査提出は未実施。** Railwayの配置設定を用意したが、公開URL、運用監視、秘密情報の登録、予算、データ保持説明は別途必要。
-- トークンは現在、期限付きのBearer資格情報を直接渡す形。短命トークンへの交換・更新とOS資格情報ストアは未実装。
-- 金額の上限を保証する実装ではない。制限は試行回数、256KiBの入力、最大8192出力トークン、単一の許可モデル。モデル単価と追加料金を確定して金額管理を追加するまで、有料APIの運用に進めない。
-- `POST /v1/responses` のSSEのみ。WebSocket、`/responses/compact`、上流のモデル一覧や会話IDによる復元は提供しない。長い会話の圧縮、実APIの細部、429後の再試行は実API検証が必要。
-- 文字列中心の入力と端末内ツールを対象とする。画像・ファイル入力を拒否し、上流のWeb検索やremote MCP等のホスト型ツール定義を除去する。これは審査用接続の制限として説明する必要がある。
-- 上流へは `store: false`、`background: false`、`service_tier: default` を指定する。OpenAI側のあらゆる保持を無効にする保証ではない。
-- Node 24.21.0に固定して検証している。台帳には標準の `node:sqlite` を使うが、Node 24ではRelease Candidate扱い。更新時は永続化・同時利用テストを必ず通す。デスクトップアプリにはこのサーバー依存を同梱しない。
+## Offline verification
 
-## 費用を使わない検証
-
-リポジトリのルートから実行する。WindowsまたはMacの開発環境と、`mise`・Rustビルド環境が必要。
+Run from the repository root with mise and the Windows or Mac Rust build prerequisites:
 
 ```powershell
 mise exec -- pnpm test:review
 ```
 
-現在のTanzakooをビルドし、サーバーの境界テストと、管理された起動ラッパー→固定ACP→固定Codex→ローカル仲介→模擬APIを通す。空の認証領域を使用し、開発者のChatGPTログインやAPIキーは使わない。実MCPの候補作成・変更提案を一時SQLiteで確認し、本文が未変更で提案が承認待ちであること、プロセス再起動後に会話を復元できること、審査トークンがCodex保存領域へ残らないことも確認する。
+This builds the current app and tests the server boundaries plus the managed wrapper → pinned ACP → pinned Codex → local relay → mock API path. It uses an empty authentication directory, with no developer ChatGPT login or real API key. Real MCP tools create candidates and pending proposals in temporary SQLite storage. Tests check that saved card content is unchanged before approval, conversations restore after restarting the process, and review tokens are not persisted in Codex storage.
 
-これはネイティブ画面操作、実AIの判断、App Sandbox内の動作を検証したものではない。UIの同意・接続失敗・解除・コード保持は `pnpm test`、Rustのコード確認・リダイレクト拒否・認証領域の分離と実ACP認証は `cargo test` でも検証する。CIでもMacの通常プロセスとして実行し、Sandbox検証とは分ける。
+This does not test native UI operation, real AI judgment, or App Sandbox behavior. `pnpm test` covers UI consent, failure, disconnection, and code handling. `cargo test` covers status checks, redirect rejection, separate authentication storage, and real ACP gateway authentication. CI runs ordinary Mac processes; Sandbox verification remains separate.
 
-## 有料API接続を準備するとき
+## Server operation
 
-以下は次段階の手順であり、今回実行していない。APIキー・公開先・金額管理を決めた後に使う。HTTPS終端はホスト側に用意し、受信ヘッダー・本文のログやストリームのバッファリングを無効にする。DBは専用ユーザーだけがアクセスできる永続領域へ置く。管理CLI用のHTTPエンドポイントは設けない。
+Use the [Railway operations guide](RAILWAY.md) for the deployed service. For another deployment, configure HTTPS termination, disable request/header/body logging and stream buffering, and store the database in a private persistent directory. There is no public HTTP admin endpoint.
 
-必要な環境変数：
+| Variable                | Purpose                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `TANZAKOO_RELAY_DB`     | Absolute path to persistent SQLite storage; create its parent directory first   |
+| `OPENAI_API_KEY`        | Secret for a dedicated API project; do not put it in files or command arguments |
+| `TANZAKOO_RELAY_MODELS` | Comma-separated allowlist of explicitly available model IDs                     |
+| `TANZAKOO_RELAY_HOST`   | Defaults to `127.0.0.1`; override only as required by the host                  |
+| `PORT`                  | Defaults to `8787`                                                              |
 
-| 名前                    | 用途                                                              |
-| ----------------------- | ----------------------------------------------------------------- |
-| `TANZAKOO_RELAY_DB`     | 永続SQLiteファイルの絶対パス。親ディレクトリーを事前に用意する    |
-| `OPENAI_API_KEY`        | 専用APIプロジェクトのSecret。ファイルやコマンド引数へ直書きしない |
-| `TANZAKOO_RELAY_MODELS` | 許可するモデルIDのカンマ区切り。実APIで利用可能なものを明示する   |
-| `TANZAKOO_RELAY_HOST`   | 既定 `127.0.0.1`。ホストが必要とする場合のみ変更する              |
-| `PORT`                  | 既定 `8787`                                                       |
-
-起動は `mise exec -- pnpm --filter @tanzakoo/review-relay start`。台帳操作は次の形で行う。
+Start with `mise exec -- pnpm --filter @tanzakoo/review-relay start`. Manage grants with:
 
 ```text
-mise exec -- pnpm --filter @tanzakoo/review-relay grant issue <モデルID> <ISO形式の有効期限> <最大試行回数>
+mise exec -- pnpm --filter @tanzakoo/review-relay grant issue <model-id> <ISO-expiry> <max-attempts>
 mise exec -- pnpm --filter @tanzakoo/review-relay grant list
-mise exec -- pnpm --filter @tanzakoo/review-relay grant revoke <発行ID>
+mise exec -- pnpm --filter @tanzakoo/review-relay grant revoke <grant-id>
 ```
 
-発行時のみトークンを標準出力へ表示する。審査提出先へ渡し、Git・通常ログ・共有チャットへ貼らない。`list`にはトークンを表示しない。延長や再審査は新しいトークンを発行し、不要なものを失効する。
+Issuing a token displays it once on stdout. Deliver it through the store's private submission fields; do not paste it into Git, normal logs, or shared chats. `list` does not display tokens. Issue a new token for extensions or re-review and revoke unused grants. Keep the server and valid credentials available throughout review and follow-up checks.
 
-## 依存の選定
+## Dependencies
 
-- Fastify 5.12.5（MIT）：HTTP受付・JSON Schema検証・入力サイズ制限。独自のHTTPルーターを作らず、Node 24.21.0で実際のストリーム転送を検証した。[公式サポート方針](https://fastify.dev/docs/latest/Reference/LTS/)
-- eventsource-parser 4.1.1（MIT、Node 22.12以上）：分割されたSSEの終端と使用量を読む。サイズ制限を設定し、ストリームパーサーを自作しない。
-- デスクトップ側はreqwest 0.13.5（MIT / Apache-2.0、Rust 1.85以上）を間接依存から直接利用へ追加。既存のTokio上で接続確認を行い、`native-tls` でWindows / MacのTLSを使う。リダイレクト制御とタイムアウトをライブラリに任せる。[公式ドキュメント](https://docs.rs/reqwest/0.13.5/reqwest/)
-- `node:sqlite`：固定Nodeに同梱される台帳。別のネイティブDBアドオンは追加しない。[Node 24のSQLite](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
+- Fastify 5.12.5 (MIT): HTTP routing, JSON Schema validation, and input limits. Stream forwarding was tested on Node 24.21.0. [Support policy](https://fastify.dev/docs/latest/Reference/LTS/)
+- eventsource-parser 4.1.1 (MIT, Node 22.12+): bounded parsing of split SSE events, completion, and usage.
+- Desktop reqwest 0.13.5 (MIT / Apache-2.0, Rust 1.85+): connection checks on the existing Tokio runtime, using `native-tls` on Windows and Mac. [Documentation](https://docs.rs/reqwest/0.13.5/reqwest/)
+- `node:sqlite`: ledger storage bundled with the pinned Node version, without another native database add-on. [Node 24 documentation](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
 
-設計全体とMacで残る確認は [検討文書](../../notes/store-review-relay.md) を参照。
+The internal [design discussion](../../notes/store-review-relay.md) records the architecture and remaining Mac investigation.

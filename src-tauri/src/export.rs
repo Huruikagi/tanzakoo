@@ -1,3 +1,4 @@
+use crate::language::Language;
 use crate::model::{CardStatus, Snapshot};
 use serde::Serialize;
 use std::{
@@ -25,6 +26,13 @@ pub struct MarkdownExport {
 
 impl MarkdownExport {
     pub fn from_snapshot(snapshot: Snapshot) -> Result<Self, String> {
+        Self::from_snapshot_in_language(snapshot, Language::Ja)
+    }
+
+    pub fn from_snapshot_in_language(
+        snapshot: Snapshot,
+        language: Language,
+    ) -> Result<Self, String> {
         let mut cards: Vec<_> = snapshot
             .cards
             .iter()
@@ -38,12 +46,21 @@ impl MarkdownExport {
             );
         }
         let project = &snapshot.project;
-        let mut readme = format!(
-            "# {} — 決めたこと\n\nTanzakooに保存された決定事項のスナップショットです。\n\n- プロジェクトID: {}\n- 決定した話題: {}件\n\n## 開発を始めるとき\n\n1. [プロジェクトの背景・前提](project.md)を読む。\n2. 下記の決定事項を読む。\n3. 実装に必要な情報が足りない場合や、内容が矛盾する場合は、確認してから進める。\n\n記載のない仕様は未決定として扱ってください。未決定のカード・会話履歴・未保存の編集・未適用の変更提案は含みません。本文は保存済みの内容をそのまま収録しています。\n\n",
-            markdown_text(&project.name),
-            markdown_text(&project.id),
-            cards.len(),
-        );
+        let mut readme = if language == Language::En {
+            format!(
+                "# {} — Decisions\n\nA snapshot of decisions saved in Tanzakoo.\n\n- Project ID: {}\n- Decided topics: {}\n\n## Starting development\n\n1. Read the [project background and context](project.md).\n2. Read the decisions below.\n3. Ask for clarification before proceeding if information is missing or contradictory.\n\nTreat unspecified behavior as undecided. Undecided cards, conversation history, unsaved edits, and pending proposals are excluded. Saved content is included verbatim.\n\n",
+                markdown_text(&project.name),
+                markdown_text(&project.id),
+                cards.len(),
+            )
+        } else {
+            format!(
+                "# {} — 決めたこと\n\nTanzakooに保存された決定事項のスナップショットです。\n\n- プロジェクトID: {}\n- 決定した話題: {}件\n\n## 開発を始めるとき\n\n1. [プロジェクトの背景・前提](project.md)を読む。\n2. 下記の決定事項を読む。\n3. 実装に必要な情報が足りない場合や、内容が矛盾する場合は、確認してから進める。\n\n記載のない仕様は未決定として扱ってください。未決定のカード・会話履歴・未保存の編集・未適用の変更提案は含みません。本文は保存済みの内容をそのまま収録しています。\n\n",
+                markdown_text(&project.name),
+                markdown_text(&project.id),
+                cards.len(),
+            )
+        };
         if snapshot
             .memory_proposals
             .iter()
@@ -53,22 +70,36 @@ impl MarkdownExport {
                 .iter()
                 .any(|p| p.state == "pending" && cards.iter().any(|card| card.id == p.card_id))
         {
-            readme.push_str("出力時点で、決定事項またはプロジェクトメモリに未適用の変更提案があります。この出力には適用前の内容を収録しています。\n\n");
+            readme.push_str(language.choose("出力時点で、決定事項またはプロジェクトメモリに未適用の変更提案があります。この出力には適用前の内容を収録しています。\n\n", "There are pending proposals for decisions or project memory. This export contains the saved content before those proposals are applied.\n\n"));
         }
-        readme.push_str("## 決定事項\n\n");
+        readme.push_str(language.choose("## 決定事項\n\n", "## Decisions\n\n"));
         let mut files = vec![(
             "project.md".into(),
-            format!(
-                "# プロジェクトの背景・前提\n\n- プロジェクト: {}\n- プロジェクトID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
-                markdown_text(&project.name),
-                markdown_text(&project.id),
-                project.revision,
-                if project.memory.is_empty() {
-                    "（プロジェクトメモリは未記入です。）"
-                } else {
-                    &project.memory
-                },
-            ),
+            if language == Language::En {
+                format!(
+                    "# Project background and context\n\n- Project: {}\n- Project ID: {}\n- Revision: {}\n\n---\n\n{}\n",
+                    markdown_text(&project.name),
+                    markdown_text(&project.id),
+                    project.revision,
+                    if project.memory.is_empty() {
+                        "(No project memory.)"
+                    } else {
+                        &project.memory
+                    },
+                )
+            } else {
+                format!(
+                    "# プロジェクトの背景・前提\n\n- プロジェクト: {}\n- プロジェクトID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
+                    markdown_text(&project.name),
+                    markdown_text(&project.id),
+                    project.revision,
+                    if project.memory.is_empty() {
+                        "（プロジェクトメモリは未記入です。）"
+                    } else {
+                        &project.memory
+                    },
+                )
+            },
         )];
         for (index, card) in cards.iter().enumerate() {
             let filename = format!(
@@ -83,7 +114,11 @@ impl MarkdownExport {
             ));
             files.push((
                 filename,
-                format!(
+                if language == Language::En { format!(
+                    "# {}\n\n- Status: Decided\n- Card ID: {}\n- Revision: {}\n\n---\n\n{}\n",
+                    markdown_text(&card.title), markdown_text(&card.id), card.revision,
+                    if card.body.is_empty() { "(No content.)" } else { &card.body },
+                ) } else { format!(
                     "# {}\n\n- 状態: 決めたこと\n- カードID: {}\n- リビジョン: {}\n\n---\n\n{}\n",
                     markdown_text(&card.title),
                     markdown_text(&card.id),
@@ -93,7 +128,7 @@ impl MarkdownExport {
                     } else {
                         &card.body
                     },
-                ),
+                ) },
             ));
         }
         files.push(("README.md".into(), readme));
@@ -287,6 +322,32 @@ mod tests {
             .append_message(&chat.id, "user", "会話だけの内容".into(), vec![])
             .unwrap();
         let mut bundle = MarkdownExport::from_snapshot(store.snapshot().unwrap()).unwrap();
+        let english =
+            MarkdownExport::from_snapshot_in_language(store.snapshot().unwrap(), Language::En)
+                .unwrap();
+        let readme_en = &english
+            .files
+            .iter()
+            .find(|(name, _)| name == "README.md")
+            .unwrap()
+            .1;
+        assert!(readme_en.contains("## Starting development"));
+        assert!(readme_en.contains("pending proposals"));
+        let memory_en = &english
+            .files
+            .iter()
+            .find(|(name, _)| name == "project.md")
+            .unwrap()
+            .1;
+        assert!(memory_en.starts_with("# Project background and context"));
+        assert!(memory_en.contains("# 目的\n\n家族で使う。"));
+        assert!(
+            english
+                .files
+                .iter()
+                .any(|(_, content)| content.contains("- Status: Decided")
+                    && content.contains(&decided.body))
+        );
         store
             .update_project("新しい名前".into(), "出力開始後のメモリ".into(), 2)
             .unwrap();

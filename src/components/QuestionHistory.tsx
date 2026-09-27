@@ -1,7 +1,10 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, MessageCircleQuestion, ChevronRight } from "lucide-react";
 import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
 
 export function QuestionHistory({ questions }: { questions: ChoiceQuestion[] }) {
+  useTranslation();
   return (
     <details className="chat-question-history">
       <summary>
@@ -12,12 +15,12 @@ export function QuestionHistory({ questions }: { questions: ChoiceQuestion[] }) 
         )}
         <span>
           {questions[0]?.state === "answered"
-            ? "回答済み"
+            ? t("回答済み")
             : questions[0]?.state === "cancelled"
-              ? "この質問は取り消されました"
-              : "会話を続けました"}
+              ? t("この質問は取り消されました")
+              : t("会話を続けました")}
         </span>
-        <span>{questions.length}問</span>
+        <span>{t("{{value0}}問", { value0: questions.length })}</span>
         <ChevronRight size={14} className="question-history-chevron" />
       </summary>
       <div className="chat-question-history-content">

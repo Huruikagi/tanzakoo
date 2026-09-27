@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { currentLocale } from "./i18n";
 import type { Snapshot } from "@/bindings/Snapshot";
 import type { BoardAction } from "@/bindings/BoardAction";
 import type { CardReference } from "@/bindings/CardReference";
@@ -49,11 +50,11 @@ export const api = {
     consent = false,
   ) => invoke<ReviewStatus | null>("review_connection", { projectId, action, code, consent }),
   addMaterials: (projectId: string, kind: "file" | "folder") =>
-    invoke<Snapshot>("add_reference_materials", { projectId, kind }),
+    invoke<Snapshot>("add_reference_materials", { projectId, kind, uiLanguage: currentLocale() }),
   removeMaterial: (projectId: string, materialId: string) =>
     invoke<Snapshot>("remove_reference_material", { projectId, materialId }),
   exportDecisions: (projectId: string) =>
-    invoke<ExportResult | null>("export_decisions", { projectId }),
+    invoke<ExportResult | null>("export_decisions", { projectId, uiLanguage: currentLocale() }),
   snapshot: () => (native ? invoke<Snapshot>("get_snapshot") : Promise.resolve(emptySnapshot)),
   action: (action: BoardAction, projectId: string) =>
     invoke<Snapshot>("board_action", { action, projectId }),
@@ -69,7 +70,14 @@ export const api = {
     projectId: string,
     questionAnswers?: QuestionAnswer[],
   ) =>
-    invoke<void>("send_prompt", { conversationId, text, references, projectId, questionAnswers }),
+    invoke<void>("send_prompt", {
+      conversationId,
+      text,
+      references,
+      projectId,
+      questionAnswers,
+      uiLanguage: currentLocale(),
+    }),
   setConsent: (agent: string, granted: boolean) =>
     invoke<Snapshot>("set_consent", { agent, granted }),
   connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>

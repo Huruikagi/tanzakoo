@@ -2,6 +2,7 @@ pub mod agent;
 pub mod agent_setup;
 pub mod chat_settings;
 pub mod export;
+pub mod language;
 pub mod materials;
 pub mod mcp;
 pub mod model;
@@ -55,6 +56,7 @@ async fn get_snapshot(state: State<'_, AppState>) -> Result<Snapshot, String> {
 async fn add_reference_materials(
     project_id: String,
     kind: MaterialKind,
+    ui_language: Option<language::Language>,
     state: State<'_, AppState>,
     window: tauri::WebviewWindow,
 ) -> Result<Snapshot, String> {
@@ -69,11 +71,12 @@ async fn add_reference_materials(
                 .map_err(|e| e.to_string())?;
             runtime.begin()?
         };
-        let picker = window
-            .dialog()
-            .file()
-            .set_parent(&window)
-            .set_title("AIが読み取れる参照資料を選択");
+        let picker = window.dialog().file().set_parent(&window).set_title(
+            ui_language.unwrap_or_default().choose(
+                "AIが読み取れる参照資料を選択",
+                "Select reference materials for AI to read",
+            ),
+        );
         let paths = match kind {
             MaterialKind::File => picker.blocking_pick_files(),
             MaterialKind::Folder => picker.blocking_pick_folders(),
@@ -118,6 +121,7 @@ async fn remove_reference_material(
 #[tauri::command]
 async fn export_decisions(
     project_id: String,
+    ui_language: Option<language::Language>,
     state: State<'_, AppState>,
     window: tauri::WebviewWindow,
 ) -> Result<Option<export::ExportResult>, String> {
@@ -129,13 +133,19 @@ async fn export_decisions(
             let store = projects
                 .require_active(&project_id)
                 .map_err(|e| e.to_string())?;
-            export::MarkdownExport::from_snapshot(store.snapshot().map_err(|e| e.to_string())?)?
+            export::MarkdownExport::from_snapshot_in_language(
+                store.snapshot().map_err(|e| e.to_string())?,
+                ui_language.unwrap_or_default(),
+            )?
         };
         let Some(parent) = window
             .dialog()
             .file()
             .set_parent(&window)
-            .set_title("決めたことの出力先フォルダーを選択")
+            .set_title(ui_language.unwrap_or_default().choose(
+                "決めたことの出力先フォルダーを選択",
+                "Choose a folder for exported decisions",
+            ))
             .blocking_pick_folder()
         else {
             return Ok(None);
@@ -247,12 +257,15 @@ async fn delete_project(
 }
 
 #[tauri::command]
+// Keep the existing IPC fields; State and AppHandle are injected by Tauri.
+#[allow(clippy::too_many_arguments)]
 async fn send_prompt(
     project_id: String,
     conversation_id: String,
     text: String,
     references: Vec<CardReference>,
     question_answers: Option<Vec<QuestionAnswer>>,
+    ui_language: Option<language::Language>,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
@@ -283,12 +296,13 @@ async fn send_prompt(
     };
     let runtime = state.runtime.clone();
     let message = store
-        .append_message_with_answer(
+        .append_message_with_answer_in_language(
             &conversation_id,
             "user",
             text,
             references.clone(),
             question_answers,
+            ui_language.unwrap_or_default(),
         )
         .map_err(|error| error.to_string())?;
     let emit: agent::Emit = Arc::new(move |event| {

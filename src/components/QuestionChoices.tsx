@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Check, MessageCircleQuestion } from "lucide-react";
 import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
@@ -16,6 +18,7 @@ export function QuestionChoices({
   disabled: boolean;
   running?: boolean;
 }) {
+  useTranslation();
   const {
     step,
     setStep,
@@ -51,27 +54,34 @@ export function QuestionChoices({
   return (
     <section
       className="chat-question chat-question-active"
-      aria-label={multiple ? "質問にまとめて回答" : "質問に回答"}
+      aria-label={multiple ? t("質問にまとめて回答") : t("質問に回答")}
     >
       <div className="chat-question-heading">
         <Badge>
           <MessageCircleQuestion />
-          {running ? "AI応答中" : answeredCount === questions.length ? "送信待ち" : "回答待ち"}
+          {running
+            ? t("AI応答中")
+            : answeredCount === questions.length
+              ? t("送信待ち")
+              : t("回答待ち")}
         </Badge>
         {multiple && (
           <span className="chat-question-counter">
-            質問 {step + 1} / {questions.length}
+            {t("質問 {{value0}} / {{value1}}", { value0: step + 1, value1: questions.length })}
           </span>
         )}
       </div>
       {multiple && (
-        <div className="chat-question-progress" aria-label="質問の切り替え">
+        <div className="chat-question-progress" aria-label={t("質問の切り替え")}>
           {questions.map((q, index) => (
             <Button
               key={q.id}
               size="sm"
               variant={step === index ? "default" : "ghost"}
-              aria-label={`質問${index + 1}${isAnswered(q.id) ? " 回答入力済み" : " 未回答"}`}
+              aria-label={t("質問{{value0}}{{value1}}", {
+                value0: index + 1,
+                value1: isAnswered(q.id) ? t(" 回答入力済み") : t(" 未回答"),
+              })}
               aria-current={step === index ? "step" : undefined}
               disabled={disabled}
               onClick={() => setStep(index)}
@@ -124,17 +134,17 @@ export function QuestionChoices({
               update({ ...draft, mode: "text" });
             }}
           >
-            自分で回答する
+            {t("自分で回答する")}
           </Button>
         </div>
         {draft.mode === "text" && (
           <div className="chat-question-free-text">
             <Textarea
               ref={input}
-              aria-label={`${question.question}への自由入力`}
+              aria-label={t("{{value0}}への自由入力", { value0: question.question })}
               value={draft.text}
               disabled={disabled}
-              placeholder="希望や条件を書いてください。「まだ決められない」でも大丈夫です。"
+              placeholder={t("希望や条件を書いてください。「まだ決められない」でも大丈夫です。")}
               onChange={(event) => update({ ...draft, text: event.target.value })}
               onCompositionStart={() => {
                 composing.current = true;
@@ -150,10 +160,14 @@ export function QuestionChoices({
               }}
             />
             <p className="muted chat-question-hint">
-              {[...draft.text].length} / 2000文字 · Ctrl + Enter で
-              {multiple && answeredCount !== questions.length ? "次の質問" : "送信"}
+              {t("{{value0}} / 2000文字 · Ctrl + Enter で{{value1}}", {
+                value0: [...draft.text].length,
+                value1: multiple && answeredCount !== questions.length ? t("次の質問") : t("送信"),
+              })}
             </p>
-            {[...draft.text].length > 2000 && <p role="alert">2000文字以内にしてください。</p>}
+            {[...draft.text].length > 2000 && (
+              <p role="alert">{t("2000文字以内にしてください。")}</p>
+            )}
           </div>
         )}
       </div>
@@ -161,7 +175,7 @@ export function QuestionChoices({
         <div className="chat-question-navigation">
           {step > 0 && (
             <Button variant="ghost" size="sm" disabled={disabled} onClick={() => setStep(step - 1)}>
-              戻る
+              {t("戻る")}
             </Button>
           )}
           {step < questions.length - 1 && (
@@ -171,7 +185,7 @@ export function QuestionChoices({
               disabled={disabled || !currentAnswered}
               onClick={() => setStep(step + 1)}
             >
-              次の質問
+              {t("次の質問")}
             </Button>
           )}
           <Button
@@ -179,16 +193,18 @@ export function QuestionChoices({
             disabled={disabled || answeredCount !== questions.length}
             onClick={submit}
           >
-            {multiple ? "まとめて送信" : "回答を送信"}
+            {multiple ? t("まとめて送信") : t("回答を送信")}
           </Button>
         </div>
         {(multiple || running) && (
           <output className="muted chat-question-hint">
             {running
-              ? "AIの応答が終わると回答できます。"
+              ? t("AIの応答が終わると回答できます。")
               : answeredCount === questions.length
-                ? "回答がそろいました。「まとめて送信」で会話を続けます。"
-                : `あと${questions.length - answeredCount}問に回答してください。`}
+                ? t("回答がそろいました。「まとめて送信」で会話を続けます。")
+                : t("あと{{value0}}問に回答してください。", {
+                    value0: questions.length - answeredCount,
+                  })}
           </output>
         )}
       </div>

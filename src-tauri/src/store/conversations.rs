@@ -39,9 +39,28 @@ impl Store {
         &self,
         conversation_id: &str,
         role: &str,
+        text: String,
+        references: Vec<CardReference>,
+        answer: Option<Vec<QuestionAnswer>>,
+    ) -> Result<Message> {
+        self.append_message_with_answer_in_language(
+            conversation_id,
+            role,
+            text,
+            references,
+            answer,
+            crate::language::Language::Ja,
+        )
+    }
+
+    pub fn append_message_with_answer_in_language(
+        &self,
+        conversation_id: &str,
+        role: &str,
         mut text: String,
         references: Vec<CardReference>,
         answer: Option<Vec<QuestionAnswer>>,
+        language: crate::language::Language,
     ) -> Result<Message> {
         if !["user", "assistant", "error"].contains(&role) || text.len() > 1_000_000 {
             return Err(invalid("メッセージが不正です。"));
@@ -50,7 +69,7 @@ impl Store {
         let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let mut c: Conversation = get(&tx, "conversation", conversation_id)?;
         if role == "user" {
-            text = questions::resolve_answer(&tx, conversation_id, text, answer)?;
+            text = questions::resolve_answer(&tx, conversation_id, text, answer, language)?;
         } else if answer.is_some() {
             return Err(invalid("選択肢への回答はユーザーのみ送信できます。"));
         }

@@ -1,3 +1,5 @@
+import { t, systemMessage } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ const effortNames: Record<string, string> = {
 };
 
 function ChatSettingsForm() {
+  useTranslation();
   const saved = useWorkspace((s) => s.snapshot.chatSettings);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
@@ -78,16 +81,18 @@ function ChatSettingsForm() {
       settings: { model, reasoningEffort: efforts ? effort : null },
     });
     setSaving(false);
-    if (result) setMessage("保存しました。次の送信から反映します。");
-    else setError("保存に失敗しました。もう一度お試しください。");
+    if (result) setMessage(t("保存しました。次の送信から反映します。"));
+    else setError(t("保存に失敗しました。もう一度お試しください。"));
   }
   return (
     <div className="agent-settings">
       <p className="hint muted">
-        現在の設定: {saved?.model ?? "Codexの既定値"} ·{" "}
-        {saved?.reasoningEffort
-          ? (effortNames[saved.reasoningEffort] ?? saved.reasoningEffort)
-          : "会話の既定の推論強度"}
+        {t("現在の設定: {{value0}} · {{value1}}", {
+          value0: saved?.model ?? t("Codexの既定値"),
+          value1: saved?.reasoningEffort
+            ? t(effortNames[saved.reasoningEffort] ?? saved.reasoningEffort)
+            : t("会話の既定の推論強度"),
+        })}
       </p>
       <div className="connection-actions">
         <Button
@@ -97,7 +102,7 @@ function ChatSettingsForm() {
           disabled={disabled}
           onClick={() => void load(model || null)}
         >
-          {busy?.kind === "settings" ? "選択肢を取得中…" : "選択肢を取得"}
+          {busy?.kind === "settings" ? t("選択肢を取得中…") : t("選択肢を取得")}
         </Button>
         {error && (
           <Button
@@ -107,7 +112,7 @@ function ChatSettingsForm() {
             disabled={disabled}
             onClick={() => void load(null, "")}
           >
-            既定のモデルで再取得
+            {t("既定のモデルで再取得")}
           </Button>
         )}
         {busy?.kind === "settings" && (
@@ -117,18 +122,18 @@ function ChatSettingsForm() {
             variant="ghost"
             onClick={() => void api.cancel().catch((e) => setError(String(e)))}
           >
-            取得を中止
+            {t("取得を中止")}
           </Button>
         )}
       </div>
       <p className="hint muted">
-        サインイン済みのCodexから取得します。この操作では会話やボードの内容は送信しません。
+        {t("サインイン済みのCodexから取得します。この操作では会話やボードの内容は送信しません。")}
       </p>
       {models && (
         <>
-          <label htmlFor={`${id}-model`}>モデル</label>
+          <label htmlFor={`${id}-model`}>{t("モデル")}</label>
           <Select value={model} disabled={disabled} onValueChange={(value) => void load(value)}>
-            <SelectTrigger id={`${id}-model`} aria-label="モデル" className="w-full">
+            <SelectTrigger id={`${id}-model`} aria-label={t("モデル")} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -141,7 +146,7 @@ function ChatSettingsForm() {
           </Select>
           {efforts ? (
             <>
-              <label htmlFor={`${id}-effort`}>推論強度</label>
+              <label htmlFor={`${id}-effort`}>{t("推論強度")}</label>
               <Select
                 value={effort}
                 disabled={disabled}
@@ -150,37 +155,38 @@ function ChatSettingsForm() {
                   setMessage("");
                 }}
               >
-                <SelectTrigger id={`${id}-effort`} aria-label="推論強度" className="w-full">
+                <SelectTrigger id={`${id}-effort`} aria-label={t("推論強度")} className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {efforts.options.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
-                      {effortNames[o.value] ?? o.name}
+                      {t(effortNames[o.value] ?? o.name)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </>
           ) : (
-            <p className="hint muted">このモデルでは推論強度を選択できません。</p>
+            <p className="hint muted">{t("このモデルでは推論強度を選択できません。")}</p>
           )}
           <Button type="button" size="sm" disabled={disabled || !valid} onClick={() => void save()}>
-            チャット設定を保存
+            {t("チャット設定を保存")}
           </Button>
         </>
       )}
       {error && (
         <p role="alert" className="chat-error">
-          {error}
+          {systemMessage(error)}
         </p>
       )}
-      {message && <output>{message}</output>}
+      {message && <output>{systemMessage(message)}</output>}
     </div>
   );
 }
 
 export function ChatSettings() {
+  useTranslation();
   const reviewAccess = useWorkspace((s) => s.reviewAccess);
   const snapshot = useWorkspace((s) => s.snapshot);
   const busy = useWorkspace((s) => s.busy);
@@ -201,29 +207,33 @@ export function ChatSettings() {
           size="sm"
           variant="ghost"
           disabled={!native || !!busy || switching}
-          aria-label="モデル・推論強度の設定"
+          aria-label={t("モデル・推論強度の設定")}
           className="max-w-full"
         >
           <SlidersHorizontal />
           <span className="truncate">
-            {reviewAccess?.model ?? settings?.model ?? "モデル・推論強度"}
+            {reviewAccess?.model ?? settings?.model ?? t("モデル・推論強度")}
             {!reviewAccess &&
               settings?.reasoningEffort &&
-              ` · ${effortNames[settings.reasoningEffort] ?? settings.reasoningEffort}`}
+              ` · ${t(effortNames[settings.reasoningEffort] ?? settings.reasoningEffort)}`}
           </span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>モデル・推論強度</DialogTitle>
+          <DialogTitle>{t("モデル・推論強度")}</DialogTitle>
           <DialogDescription>
             {reviewAccess
-              ? "審査用コードに指定されたモデルで接続します。"
-              : "このプロジェクトのすべてのCodex会話に、次の送信から反映します。"}
+              ? t("審査用コードに指定されたモデルで接続します。")
+              : t("このプロジェクトのすべてのCodex会話に、次の送信から反映します。")}
           </DialogDescription>
         </DialogHeader>
         {reviewAccess ? (
-          <p>審査用接続では {reviewAccess.model} を使います。通常接続の設定は保持されています。</p>
+          <p>
+            {t("審査用接続では {{value0}} を使います。通常接続の設定は保持されています。", {
+              value0: reviewAccess.model,
+            })}
+          </p>
         ) : (
           <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config])} />
         )}

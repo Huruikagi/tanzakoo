@@ -1,3 +1,5 @@
+import { t, currentLocale } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { FileText, MessageSquarePlus, Save, Archive, RotateCcw, Quote } from "lucide-react";
@@ -19,6 +21,7 @@ import { ProposalCard, Proposals } from "./Proposals";
 import { editDraft } from "@/lib/draft";
 
 export function CardDetails() {
+  useTranslation();
   const selected = useWorkspace((s) => s.selected);
   const card = useWorkspace((s) => s.snapshot.cards.find((c) => c.id === selected));
   if (!card)
@@ -26,7 +29,7 @@ export function CardDetails() {
       <section className="details-pane">
         <div className="pane-heading">
           <FileText size={16} />
-          <h2>カード詳細</h2>
+          <h2>{t("カード詳細")}</h2>
         </div>
         <div className="details-empty">
           <div className="paper-stack" aria-hidden="true">
@@ -36,13 +39,14 @@ export function CardDetails() {
               <FileText size={26} />
             </span>
           </div>
-          <p>カードを選ぶと、ここで編集できます。</p>
+          <p>{t("カードを選ぶと、ここで編集できます。")}</p>
         </div>
       </section>
     );
   return <Details key={card.id} card={card} />;
 }
 function Details({ card }: { card: Card }) {
+  useTranslation();
   const { drafts, draft, act, attach, snapshot } = useWorkspace(
     useShallow((s) => ({
       drafts: s.drafts,
@@ -72,12 +76,12 @@ function Details({ card }: { card: Card }) {
     <section className="details-pane">
       <div className="pane-heading">
         <FileText size={16} />
-        <h2>カード詳細</h2>
+        <h2>{t("カード詳細")}</h2>
       </div>
       <div className="details-scroll">
         {card.deleted && (
           <div className="notice">
-            このカードはアーカイブされています。
+            {t("このカードはアーカイブされています。")}
             <Button
               size="sm"
               variant="outline"
@@ -85,7 +89,7 @@ function Details({ card }: { card: Card }) {
               onClick={() => void useWorkspace.getState().setArchived(card.id, false)}
             >
               <RotateCcw />
-              戻す
+              {t("戻す")}
             </Button>
           </div>
         )}
@@ -97,20 +101,20 @@ function Details({ card }: { card: Card }) {
               void act({ type: "updateCard", card: { ...card, status: status as Card["status"] } })
             }
           >
-            <SelectTrigger size="sm" aria-label="カードの列">
+            <SelectTrigger size="sm" aria-label={t("カードの列")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {columns.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.title}
+                  {t(c.title)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <label className="field-label" htmlFor="card-title">
-          タイトル
+          {t("タイトル")}
         </label>
         <Input
           id="card-title"
@@ -122,8 +126,8 @@ function Details({ card }: { card: Card }) {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="editor-toolbar">
             <TabsList>
-              <TabsTrigger value="edit">編集</TabsTrigger>
-              <TabsTrigger value="preview">プレビュー</TabsTrigger>
+              <TabsTrigger value="edit">{t("編集")}</TabsTrigger>
+              <TabsTrigger value="preview">{t("プレビュー")}</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="edit">
@@ -139,17 +143,19 @@ function Details({ card }: { card: Card }) {
           </TabsContent>
           <TabsContent value="preview">
             <div className="preview-body">
-              <Markdown>{value.body || "まだ本文はありません。"}</Markdown>
+              <Markdown>{value.body || t("まだ本文はありません。")}</Markdown>
             </div>
           </TabsContent>
         </Tabs>
         {stale && (
           <p className="inline-error">
-            編集中にカードが更新されました。下書きを控えてから「取り消す」で最新の内容を確認してください。
+            {t(
+              "編集中にカードが更新されました。下書きを控えてから「取り消す」で最新の内容を確認してください。",
+            )}
           </p>
         )}
         <div className="editor-actions">
-          <span className="muted">{dirty && "未保存の変更"}</span>
+          <span className="muted">{dirty && t("未保存の変更")}</span>
           <Button
             size="sm"
             variant="ghost"
@@ -159,7 +165,7 @@ function Details({ card }: { card: Card }) {
               setQuote("");
             }}
           >
-            取り消す
+            {t("取り消す")}
           </Button>
           <Button
             size="sm"
@@ -167,7 +173,7 @@ function Details({ card }: { card: Card }) {
             onClick={() => void save()}
           >
             <Save />
-            保存
+            {t("保存")}
           </Button>
         </div>
         <div className="reference-actions">
@@ -175,11 +181,11 @@ function Details({ card }: { card: Card }) {
             variant="outline"
             size="sm"
             disabled={dirty || card.deleted}
-            title={dirty ? "保存すると参照できます" : undefined}
+            title={dirty ? t("保存すると参照できます") : undefined}
             onClick={() => attach(card)}
           >
             <MessageSquarePlus />
-            会話に参照
+            {t("会話に参照")}
           </Button>
           {quote && tab === "edit" && (
             <Button
@@ -189,7 +195,7 @@ function Details({ card }: { card: Card }) {
               onClick={() => attach(card, quote)}
             >
               <Quote />
-              選択範囲を参照
+              {t("選択範囲を参照")}
             </Button>
           )}
         </div>
@@ -199,8 +205,8 @@ function Details({ card }: { card: Card }) {
               key={p.id}
               reason={p.reason}
               fields={[
-                { label: "タイトル", before: p.beforeTitle, after: p.title },
-                { label: "本文", before: p.beforeBody, after: p.body },
+                { label: t("タイトル"), before: p.beforeTitle, after: p.title },
+                { label: t("本文"), before: p.beforeBody, after: p.body },
               ]}
               after={
                 <>
@@ -210,7 +216,7 @@ function Details({ card }: { card: Card }) {
               }
               outdated={
                 card.deleted || p.baseRevision !== card.revision
-                  ? "提案後にカードが変わったため適用できません。"
+                  ? t("提案後にカードが変わったため適用できません。")
                   : null
               }
               dirty={dirty}
@@ -220,13 +226,17 @@ function Details({ card }: { card: Card }) {
         </Proposals>
       </div>
       <footer className="details-footer">
-        <span className="muted">{new Date(card.updatedAt).toLocaleDateString("ja-JP")} 更新</span>
+        <span className="muted">
+          {t("{{value0}} 更新", {
+            value0: new Date(card.updatedAt).toLocaleDateString(currentLocale()),
+          })}
+        </span>
         <Button
           size="icon-sm"
           variant="ghost"
           disabled={card.deleted || dirty || archivePending}
-          aria-label="カードをアーカイブ"
-          title="アーカイブ"
+          aria-label={t("カードをアーカイブ")}
+          title={t("アーカイブ")}
           onClick={() => void useWorkspace.getState().setArchived(card.id, true)}
         >
           <Archive />

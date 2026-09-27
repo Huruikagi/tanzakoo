@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Check, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,12 +8,13 @@ import { TextDiff } from "./TextDiff";
 
 /** Pending AI proposals for one target. Renders nothing when there are none. */
 export function Proposals({ count, children }: { count: number; children: ReactNode }) {
+  useTranslation();
   if (count === 0) return null;
   return (
     <section className="proposals">
       <div className="section-label">
         <Sparkles size={14} />
-        <h3>AIの変更提案</h3>
+        <h3>{t("AIの変更提案")}</h3>
         <span>{count}</span>
       </div>
       {children}
@@ -41,20 +44,21 @@ export function ProposalCard({
   disabled?: boolean;
   onResolve: (apply: boolean) => void;
 }) {
+  useTranslation();
   return (
     <article className="proposal">
       <p className="proposal-reason">{reason}</p>
       <Tabs defaultValue="diff">
         <div className="proposal-view-switch">
-          <TabsList aria-label="変更提案の表示">
-            <TabsTrigger value="diff">差分</TabsTrigger>
-            <TabsTrigger value="after">変更後</TabsTrigger>
+          <TabsList aria-label={t("変更提案の表示")}>
+            <TabsTrigger value="diff">{t("差分")}</TabsTrigger>
+            <TabsTrigger value="after">{t("変更後")}</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="diff">
           <div className="diff-legend">
-            <span>− 削除</span>
-            <span>+ 追加</span>
+            <span>{t("− 削除")}</span>
+            <span>{t("+ 追加")}</span>
           </div>
           {fields.map((field) => (
             <TextDiff key={field.label} {...field} />
@@ -69,14 +73,14 @@ export function ProposalCard({
       ) : (
         dirty && (
           <p className="proposal-note hint muted">
-            適用する前に、下書きを保存するか取り消してください。
+            {t("適用する前に、下書きを保存するか取り消してください。")}
           </p>
         )
       )}
       <div className="proposal-actions">
         <Button variant="ghost" size="sm" disabled={disabled} onClick={() => onResolve(false)}>
           <X />
-          却下
+          {t("却下")}
         </Button>
         <Button
           size="sm"
@@ -84,7 +88,7 @@ export function ProposalCard({
           onClick={() => onResolve(true)}
         >
           <Check />
-          適用する
+          {t("適用する")}
         </Button>
       </div>
     </article>

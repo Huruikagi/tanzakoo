@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { api } from "../api";
 import type { WorkspaceSlice, Workspace, Busy, Permission } from "./types";
 import type { Snapshot } from "@/bindings/Snapshot";
@@ -54,7 +55,7 @@ export const createAgentSlice: WorkspaceSlice<
     set({
       busy: { kind: "connecting", agent: "codex" },
       reviewError: null,
-      activity: "審査用接続を確認しています…",
+      activity: t("審査用接続を確認しています…"),
     });
     try {
       const reviewAccess = await api.reviewConnection(
@@ -92,7 +93,9 @@ export const createAgentSlice: WorkspaceSlice<
       busy: { kind: "connecting", agent },
       chatError: null,
       activity:
-        action === "login" ? "ブラウザでサインインを完了してください…" : "接続を確認しています…",
+        action === "login"
+          ? t("ブラウザでサインインを完了してください…")
+          : t("接続を確認しています…"),
     });
     try {
       const status = await api.connection(get().snapshot.project.id, agent, action);
@@ -104,9 +107,9 @@ export const createAgentSlice: WorkspaceSlice<
     }
   },
   loadChatOptions: async (model) => {
-    if (get().busy || get().switching) throw new Error("処理が終わってから設定してください。");
+    if (get().busy || get().switching) throw new Error(t("処理が終わってから設定してください。"));
     const projectId = get().snapshot.project.id;
-    set({ busy: { kind: "settings" }, activity: "モデルの選択肢を確認しています…" });
+    set({ busy: { kind: "settings" }, activity: t("モデルの選択肢を確認しています…") });
     try {
       return await api.chatOptions(projectId, model);
     } finally {
@@ -133,7 +136,7 @@ export const createAgentSlice: WorkspaceSlice<
     get().setChatOpen(true);
     const reference = { cardId: card.id, title: card.title, revision: card.revision, quote };
     if (get().references.length >= 20) {
-      set({ error: "参照は20件までです。" });
+      set({ error: t("参照は20件までです。") });
       return;
     }
     if (
@@ -148,24 +151,25 @@ export const createAgentSlice: WorkspaceSlice<
   broadenTopics: () => {
     if (get().busy || get().switching) return Promise.resolve(false);
     get().setChatOpen(true);
-    return get().send(BROADEN_TOPICS_PROMPT, "codex", { useReferences: false });
+    return get().send(t(BROADEN_TOPICS_PROMPT), "codex", { useReferences: false });
   },
   send: async (text, agent, { useReferences = true, questionAnswers } = {}) => {
     if (get().busy || get().switching || !text.trim()) return false;
     const activeAgent =
       get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
     if (activeAgent !== "codex") {
-      set({ chatError: "この会話は閲覧のみです。新しい会話をCodexで始めてください。" });
+      set({ chatError: t("この会話は閲覧のみです。新しい会話をCodexで始めてください。") });
       return false;
     }
     if (!get().reviewAccess && !get().snapshot.consents.includes(activeAgent)) {
-      set({ chatError: "AIへの送信に同意してください。" });
+      set({ chatError: t("AIへの送信に同意してください。") });
       return false;
     }
     if (get().reviewAccess && get().reviewAccess!.expiresAt <= Date.now()) {
       set({
-        chatError:
+        chatError: t(
           "審査用コードの有効期限が切れています。接続状況から新しいコードを入力してください。",
+        ),
       });
       return false;
     }
@@ -173,7 +177,7 @@ export const createAgentSlice: WorkspaceSlice<
     set({
       busy: { kind: "chat", conversation: get().conversation },
       stream: "",
-      activity: "接続しています…",
+      activity: t("接続しています…"),
       error: null,
       chatError: null,
     });
@@ -207,13 +211,13 @@ export const createAgentSlice: WorkspaceSlice<
     const busy = get().busy;
     if (busy?.kind !== "chat" || busy.conversation !== event.conversationId) return;
     if (event.kind === "delta")
-      set({ stream: get().stream + event.text, activity: "応答しています…" });
+      set({ stream: get().stream + event.text, activity: t("応答しています…") });
     if (event.kind === "activity") set({ activity: event.text });
     if (event.kind === "permission" && event.detail && typeof event.detail === "object") {
       const detail = event.detail as Omit<Permission, "title">;
       set({
         permissions: [...get().permissions, { ...detail, title: event.text }],
-        activity: "操作の確認を待っています",
+        activity: t("操作の確認を待っています"),
       });
     }
   },

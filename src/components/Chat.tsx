@@ -1,3 +1,5 @@
+import { t, systemMessage } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { Fragment, useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ArrowUp, Square, Plus, MessageCircle, X, Paperclip, ChevronRight } from "lucide-react";
@@ -21,6 +23,7 @@ import { QuestionChoices } from "./QuestionChoices";
 import { useChatDraft } from "@/lib/use-chat-draft";
 
 export function Chat() {
+  useTranslation();
   const {
     snapshot,
     conversation,
@@ -87,14 +90,14 @@ export function Chat() {
     <section className="chat-pane" data-answering={!!questionTurn}>
       <div className="pane-heading">
         <MessageCircle size={16} />
-        <h2>壁打ち</h2>
+        <h2>{t("壁打ち")}</h2>
         {selectedAgent === "codex" && (
           <AgentConnectionDialog key={snapshot.project.id} agent={selectedAgent} />
         )}
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label="チャットを閉じる"
+          aria-label={t("チャットを閉じる")}
           onClick={() => useWorkspace.getState().setChatOpen(false)}
         >
           <X />
@@ -102,7 +105,7 @@ export function Chat() {
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label="新しい会話"
+          aria-label={t("新しい会話")}
           disabled={!!busy || !native}
           onClick={() => {
             useWorkspace.getState().selectConversation(null);
@@ -120,7 +123,7 @@ export function Chat() {
               disabled={!!busy}
               onValueChange={(id) => useWorkspace.getState().selectConversation(id)}
             >
-              <SelectTrigger size="sm" aria-label="会話履歴">
+              <SelectTrigger size="sm" aria-label={t("会話履歴")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -144,38 +147,38 @@ export function Chat() {
                   useWorkspace.getState().selectConversation(snapshot.conversations.at(-1)!.id)
                 }
               >
-                履歴へ
+                {t("履歴へ")}
               </Button>
             )}
           </>
         )}
       </div>
-      <div className="chat-history" aria-label="会話メッセージ">
+      <div className="chat-history" aria-label={t("会話メッセージ")}>
         {unavailable && <AgentConnection agent={selectedAgent} />}
         {chatError && (
           <p className="chat-error" role="alert">
-            {chatError}
+            {systemMessage(chatError)}
           </p>
         )}
         {messages.length === 0 && !isThisBusy && !unavailable && (
           <div className="chat-welcome">
-            <p>作りたいものを、曖昧なままで話してください。論点はカードにしていきます。</p>
+            <p>{t("作りたいものを、曖昧なままで話してください。論点はカードにしていきます。")}</p>
             <button
               className="suggestion"
               disabled={!native}
               onClick={() =>
-                setText("個人用のTODOアプリを作りたい。まだぼんやりしているので、一緒に考えて。")
+                setText(t("個人用のTODOアプリを作りたい。まだぼんやりしているので、一緒に考えて。"))
               }
             >
-              個人用のTODOアプリを作りたい
+              {t("個人用のTODOアプリを作りたい")}
               <ChevronRight size={14} />
             </button>
             <button
               className="suggestion"
               disabled={!native}
-              onClick={() => setText("アイデアを整理したい。まず何から話そう？")}
+              onClick={() => setText(t("アイデアを整理したい。まず何から話そう？"))}
             >
-              アイデアを整理するところから
+              {t("アイデアを整理するところから")}
               <ChevronRight size={14} />
             </button>
           </div>
@@ -185,9 +188,9 @@ export function Chat() {
             <article className={`message message-${m.role}`}>
               <div className="message-label">
                 {m.role === "user"
-                  ? "あなた"
+                  ? t("あなた")
                   : m.role === "error"
-                    ? "エラー"
+                    ? t("エラー")
                     : agentLabel(active?.agent)}
               </div>
               {m.references.length > 0 && (
@@ -201,12 +204,12 @@ export function Chat() {
                     >
                       <Paperclip size={11} />
                       {r.title}
-                      {r.quote && " · 引用"}
+                      {r.quote && t(" · 引用")}
                     </button>
                   ))}
                 </div>
               )}
-              <Markdown>{m.text}</Markdown>
+              <Markdown>{m.role === "error" ? systemMessage(m.text) : m.text}</Markdown>
             </article>
             {snapshot.discussions
               .filter((d) => d.conversationId === conversation && d.messageId === m.id)
@@ -228,16 +231,22 @@ export function Chat() {
               {agentLabel(active?.agent)}
               <span className="thinking-dot" />
             </div>
-            {stream ? <Markdown>{stream}</Markdown> : <p className="muted">{activity}</p>}
+            {stream ? (
+              <Markdown>{stream}</Markdown>
+            ) : (
+              <p className="muted">{systemMessage(activity)}</p>
+            )}
           </article>
         )}
         {isThisBusy &&
           permissions.map((p) => (
             <div className="permission" key={p.id}>
-              <strong>{agentLabel(active?.agent)}が操作の許可を求めています</strong>
+              <strong>
+                {t("{{value0}}が操作の許可を求めています", { value0: agentLabel(active?.agent) })}
+              </strong>
               <p>{p.title}</p>
               <details>
-                <summary>操作の詳細</summary>
+                <summary>{t("操作の詳細")}</summary>
                 <pre>{JSON.stringify(p.request.toolCall, null, 2)}</pre>
               </details>
               <div className="permission-actions">
@@ -252,7 +261,7 @@ export function Chat() {
                   </Button>
                 ))}
                 <Button variant="ghost" size="sm" onClick={() => void answer(p.id, null)}>
-                  キャンセル
+                  {t("キャンセル")}
                 </Button>
               </div>
             </div>
@@ -273,14 +282,16 @@ export function Chat() {
         {!unavailable && !consented && (
           <div className="ai-consent">
             <p>
-              話しかけると、そのプロジェクトのボード・メモリ・会話と、登録した参照資料のうちAIが読む箇所がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。
+              {t(
+                "話しかけると、そのプロジェクトのボード・メモリ・会話と、登録した参照資料のうちAIが読む箇所がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。",
+              )}
             </p>
             <Button
               size="sm"
               disabled={!native || !!busy}
               onClick={() => void useWorkspace.getState().setConsent(selectedAgent, true)}
             >
-              同意して使う
+              {t("同意して使う")}
             </Button>
           </div>
         )}
@@ -292,10 +303,10 @@ export function Chat() {
                   <Paperclip size={11} />
                   <span>
                     {r.title}
-                    {r.quote && " · 引用"}
+                    {r.quote && t(" · 引用")}
                   </span>
                   <button
-                    aria-label={`${r.title}の参照を外す`}
+                    aria-label={t("{{value0}}の参照を外す", { value0: r.title })}
                     onClick={() => useWorkspace.getState().detach(index)}
                   >
                     <X size={12} />
@@ -305,8 +316,8 @@ export function Chat() {
             </div>
           )}
           <Textarea
-            aria-label="エージェントへのメッセージ"
-            placeholder="どんなものを作りたい？"
+            aria-label={t("エージェントへのメッセージ")}
+            placeholder={t("どんなものを作りたい？")}
             value={text}
             onChange={(e) => setText(e.target.value)}
             disabled={!native}
@@ -331,16 +342,16 @@ export function Chat() {
           <div className="composer-bottom">
             <span>
               {unavailable
-                ? "履歴の閲覧のみ"
+                ? t("履歴の閲覧のみ")
                 : busy
-                  ? activity || "検討しています…"
-                  : "Ctrl + Enter で送信"}
+                  ? systemMessage(activity) || t("検討しています…")
+                  : t("Ctrl + Enter で送信")}
             </span>
             {isThisBusy ? (
               <Button
                 size="icon-sm"
                 variant="secondary"
-                aria-label="応答を停止"
+                aria-label={t("応答を停止")}
                 onClick={() =>
                   void api
                     .cancel()
@@ -352,7 +363,7 @@ export function Chat() {
             ) : (
               <Button
                 size="icon-sm"
-                aria-label="メッセージを送信"
+                aria-label={t("メッセージを送信")}
                 disabled={!text.trim() || !native || !!busy || unavailable || !consented}
                 onClick={submit}
               >

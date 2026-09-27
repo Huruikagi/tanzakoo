@@ -120,6 +120,7 @@ pub(super) fn resolve_answer(
     conversation_id: &str,
     mut text: String,
     answers: Option<Vec<QuestionAnswer>>,
+    language: crate::language::Language,
 ) -> Result<String> {
     if let Some(answers) = answers {
         let latest = list::<Message>(db, "message")?
@@ -174,7 +175,12 @@ pub(super) fn resolve_answer(
                     ));
                 }
             };
-            parts.push(format!("「{}」への回答：{}", q.question, content));
+            parts.push(match language {
+                crate::language::Language::Ja => format!("「{}」への回答：{}", q.question, content),
+                crate::language::Language::En => {
+                    format!("Question: {}\nAnswer: {}", q.question, content)
+                }
+            });
             q.state = QuestionState::Answered;
             q.selected_option = answer.option_index;
             q.answer_text = answer.text.as_ref().map(|value| value.trim().to_owned());

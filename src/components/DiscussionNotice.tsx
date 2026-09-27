@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { Discussion } from "@/bindings/Discussion";
 import type { DiscussionResolution } from "@/bindings/DiscussionResolution";
@@ -6,6 +8,7 @@ import { native } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 
 export function DiscussionNotice({ discussion: d }: { discussion: Discussion }) {
+  useTranslation();
   const snapshot = useWorkspace((s) => s.snapshot);
   const act = useWorkspace((s) => s.act);
   const select = useWorkspace((s) => s.select);
@@ -31,18 +34,18 @@ export function DiscussionNotice({ discussion: d }: { discussion: Discussion }) 
           「{d.title}」
         </button>
         {d.state === "undone"
-          ? "の移動を取り消しました"
+          ? t("の移動を取り消しました")
           : d.state === "dismissed"
-            ? "の案内を見送りました"
+            ? t("の案内を見送りました")
             : d.state === "superseded"
-              ? "の案内後にカードが整理されました"
+              ? t("の案内後にカードが整理されました")
               : suggested
                 ? d.previousStatus === "decided"
-                  ? "をもう一度話し合いますか？"
-                  : "について話しますか？"
+                  ? t("をもう一度話し合いますか？")
+                  : t("について話しますか？")
                 : d.automatic
-                  ? "を「話し合う」へ移しました"
-                  : "を「話し合う」へ移しました（選択済み）"}
+                  ? t("を「話し合う」へ移しました")
+                  : t("を「話し合う」へ移しました（選択済み）")}
       </p>
       {suggested && <p className="discussion-reason">{d.reason}</p>}
       {(suggested || moved) && (
@@ -56,12 +59,12 @@ export function DiscussionNotice({ discussion: d }: { discussion: Discussion }) 
             >
               {suggested
                 ? d.previousStatus === "decided"
-                  ? "再検討する"
-                  : "このカードについて話す"
-                : "元に戻す"}
+                  ? t("再検討する")
+                  : t("このカードについて話す")
+                : t("元に戻す")}
             </Button>
           ) : (
-            <span>カードが更新されています。列の変更はカード詳細から行えます。</span>
+            <span>{t("カードが更新されています。列の変更はカード詳細から行えます。")}</span>
           )}
           {suggested && (
             <Button
@@ -70,7 +73,7 @@ export function DiscussionNotice({ discussion: d }: { discussion: Discussion }) 
               disabled={!native || saving}
               onClick={() => void resolve("dismiss")}
             >
-              今は移さない
+              {t("今は移さない")}
             </Button>
           )}
         </div>

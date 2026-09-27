@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { api } from "../api";
 import type { WorkspaceSlice } from "./types";
 import type { Card } from "@/bindings/Card";
@@ -31,7 +32,7 @@ export const createBoardSlice: WorkspaceSlice<
         const draft = state.drafts[id];
         if (archived && draft && (draft.title !== card.title || draft.body !== card.body)) {
           set({
-            error: "未保存の編集があります。保存するか取り消してからアーカイブしてください。",
+            error: t("未保存の編集があります。保存するか取り消してからアーカイブしてください。"),
           });
           return;
         }
@@ -67,13 +68,13 @@ export const createBoardSlice: WorkspaceSlice<
         if (action.type === "applyProposals") {
           const state = get();
           if (state.snapshot.project.id !== projectId)
-            throw new Error("プロジェクトが変わっています。");
+            throw new Error(t("プロジェクトが変わっています。"));
           for (const id of action.ids) {
             const proposal = state.snapshot.proposals.find(
               (p) => p.id === id && p.state === "pending",
             );
             if (!proposal)
-              throw new Error("提案が更新されています。最新の提案を確認してください。");
+              throw new Error(t("提案が更新されています。最新の提案を確認してください。"));
             const reason = proposalBlockReason(
               proposal,
               state.snapshot.cards.find((c) => c.id === proposal.cardId),
@@ -95,7 +96,7 @@ export const createBoardSlice: WorkspaceSlice<
               [agent]: {
                 status: {
                   state: "unknown",
-                  message: "設定を変更しました。接続を確認してください。",
+                  message: t("設定を変更しました。接続を確認してください。"),
                   canLogin: false,
                 },
                 launch: launchKey(snapshot, agent),

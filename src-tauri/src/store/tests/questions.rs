@@ -1,5 +1,56 @@
 use super::*;
 
+#[test]
+fn english_answers_preserve_question_and_user_content_across_reopen() {
+    let f = Fixture::new();
+    let c = f.store.create_conversation("codex").unwrap();
+    let m = f
+        .store
+        .append_message(&c.id, "user", "Help me decide".into(), vec![])
+        .unwrap();
+    let question = f
+        .store
+        .present_questions(
+            &c.id,
+            &m.id,
+            vec![QuestionInput {
+                question: "Who is it for?".into(),
+                options: options(),
+            }],
+        )
+        .unwrap()
+        .remove(0);
+    let reply = f
+        .store
+        .append_message_with_answer_in_language(
+            &c.id,
+            "user",
+            "Answers to questions".into(),
+            vec![],
+            Some(vec![QuestionAnswer {
+                question_id: question.id.clone(),
+                option_index: None,
+                text: Some("家族 / family".into()),
+            }]),
+            crate::language::Language::En,
+        )
+        .unwrap();
+    assert_eq!(
+        reply.text,
+        "Question: Who is it for?\nAnswer: 家族 / family"
+    );
+    let saved = Store::open(f.dir.join("board.db"))
+        .unwrap()
+        .snapshot()
+        .unwrap();
+    assert!(saved.messages.iter().any(|m| m.text == reply.text));
+    assert_eq!(saved.questions[0].question, "Who is it for?");
+    assert_eq!(
+        saved.questions[0].answer_text.as_deref(),
+        Some("家族 / family")
+    );
+}
+
 fn options() -> Vec<QuestionOption> {
     vec![
         QuestionOption {

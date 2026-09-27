@@ -1,3 +1,5 @@
+import { t, systemMessage } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { X, RefreshCw, MessageCircle } from "lucide-react";
@@ -14,6 +16,7 @@ import { useWorkspace } from "@/lib/workspace";
 import { api, native } from "@/lib/api";
 
 export default function App() {
+  useTranslation();
   const { error, busy, loaded, refresh, projectId, switching, chatOpen, setChatOpen } =
     useWorkspace(
       useShallow((s) => ({
@@ -90,21 +93,28 @@ export default function App() {
             aria-pressed={chatOpen}
           >
             <MessageCircle />
-            AIと考える{busy ? " · 実行中" : ""}
-            {pendingCount > 0 && <span className="proposal-count">未承認 {pendingCount}</span>}
+            {t("AIと考える")}
+            {busy ? t(" · 実行中") : ""}
+            {pendingCount > 0 && (
+              <span className="proposal-count">
+                {t("未承認 {{value0}}", { value0: pendingCount })}
+              </span>
+            )}
           </Button>
         </div>
       </header>
       {!native && (
-        <div className="preview-notice">ブラウザプレビューのため、保存とAI接続は使えません。</div>
+        <div className="preview-notice">
+          {t("ブラウザプレビューのため、保存とAI接続は使えません。")}
+        </div>
       )}
       {error && (
         <div className="error-banner" role="alert">
-          <span>{error}</span>
+          <span>{systemMessage(error)}</span>
           <Button
             size="icon-xs"
             variant="ghost"
-            aria-label="最新の状態を読み込む"
+            aria-label={t("最新の状態を読み込む")}
             onClick={() => void refresh()}
           >
             <RefreshCw />
@@ -112,7 +122,7 @@ export default function App() {
           <Button
             size="icon-xs"
             variant="ghost"
-            aria-label="エラー表示を閉じる"
+            aria-label={t("エラー表示を閉じる")}
             onClick={() => useWorkspace.setState({ error: null })}
           >
             <X />
@@ -120,7 +130,7 @@ export default function App() {
         </div>
       )}
       {!loaded ? (
-        <div className="loading-state">ボードを開いています…</div>
+        <div className="loading-state">{t("ボードを開いています…")}</div>
       ) : (
         <main className="workspace" inert={switching} aria-busy={switching}>
           <ResizablePanelGroup orientation="horizontal" id="tanzakoo-workspace">

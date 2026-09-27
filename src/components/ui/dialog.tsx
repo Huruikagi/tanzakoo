@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useTranslation } from "react-i18next";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
@@ -47,6 +49,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  useTranslation();
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -63,7 +66,7 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button variant="ghost" className="absolute top-2 right-2" size="icon-sm">
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("閉じる")}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -86,6 +89,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
+  useTranslation();
   return (
     <div
       data-slot="dialog-footer"
@@ -98,7 +102,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{t("閉じる")}</Button>
         </DialogPrimitive.Close>
       )}
     </div>

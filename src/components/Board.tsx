@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState, type Ref } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { DragDropProvider, DragOverlay, useDroppable, type DragEndEvent } from "@dnd-kit/react";
@@ -19,6 +21,7 @@ import { native } from "@/lib/api";
 import { ArchiveShelf, ARCHIVE_TARGET } from "./ArchiveShelf";
 
 function Topic({ card, index }: { card: Card; index: number }) {
+  useTranslation();
   const { ref, handleRef, isDragging, isDropTarget } = useSortable({
     id: card.id,
     index,
@@ -44,13 +47,18 @@ function TopicView({
   handleRef?: Ref<HTMLButtonElement>;
   className?: string;
 }) {
+  useTranslation();
   const selected = useWorkspace((s) => s.selected === card.id);
   const proposals = useWorkspace(
     (s) => s.snapshot.proposals.filter((p) => p.cardId === card.id && p.state === "pending").length,
   );
   return (
     <article ref={ref} className={`topic ${selected ? "selected" : ""} ${className}`}>
-      <button ref={handleRef} className="drag-handle" aria-label={`${card.title}を並べ替える`}>
+      <button
+        ref={handleRef}
+        className="drag-handle"
+        aria-label={t("{{value0}}を並べ替える", { value0: card.title })}
+      >
         <GripVertical size={14} />
       </button>
       <button
@@ -63,24 +71,25 @@ function TopicView({
       </button>
       {proposals > 0 && (
         <div className="topic-bottom">
-          <span className="proposal-dot">{proposals}件の変更提案</span>
+          <span className="proposal-dot">{t("{{value0}}件の変更提案", { value0: proposals })}</span>
         </div>
       )}
     </article>
   );
 }
 function Column({ column, cards }: { column: (typeof columns)[number]; cards: Card[] }) {
+  useTranslation();
   const { ref, isDropTarget } = useDroppable({ id: column.id });
   return (
     <section
       ref={ref}
       className={`board-column column-${column.id} ${isDropTarget ? "drop-target" : ""}`}
-      aria-label={column.title}
+      aria-label={t(column.title)}
     >
       <header className="column-header">
         <div>
           <span className="column-number">{column.number}</span>
-          <h2>{column.title}</h2>
+          <h2>{t(column.title)}</h2>
           <span className="column-count">{cards.length}</span>
         </div>
         {column.id === "idea" && <BroadenTopics />}
@@ -95,6 +104,7 @@ function Column({ column, cards }: { column: (typeof columns)[number]; cards: Ca
   );
 }
 function BroadenTopics() {
+  useTranslation();
   const { busy, switching, broadenTopics } = useWorkspace(
     useShallow((s) => ({ busy: s.busy, switching: s.switching, broadenTopics: s.broadenTopics })),
   );
@@ -104,15 +114,16 @@ function BroadenTopics() {
       variant="outline"
       size="sm"
       disabled={!native || !!busy || switching}
-      title="既存カードを見て、新しい切り口の候補を3〜5枚ほど追加します"
+      title={t("既存カードを見て、新しい切り口の候補を3〜5枚ほど追加します")}
       onClick={() => void broadenTopics()}
     >
       <Sparkles />
-      話題を広げる
+      {t("話題を広げる")}
     </Button>
   );
 }
 export function Board() {
+  useTranslation();
   const { snapshot, act } = useWorkspace(useShallow((s) => ({ snapshot: s.snapshot, act: s.act })));
   const empty = snapshot.cards.every((c) => c.deleted);
   const [search, setSearch] = useState("");
@@ -189,8 +200,8 @@ export function Board() {
         <div className="search-field">
           <Search size={14} />
           <Input
-            aria-label="カードを検索"
-            placeholder="カードを探す"
+            aria-label={t("カードを検索")}
+            placeholder={t("カードを探す")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -199,13 +210,13 @@ export function Board() {
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" disabled={!native}>
               <Plus />
-              カード
+              {t("カード")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>新しいカード</DialogTitle>
-              <DialogDescription>タイトルだけでも追加できます。</DialogDescription>
+              <DialogTitle>{t("新しいカード")}</DialogTitle>
+              <DialogDescription>{t("タイトルだけでも追加できます。")}</DialogDescription>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -214,15 +225,15 @@ export function Board() {
               }}
             >
               <Input
-                aria-label="新しいカードのタイトル"
-                placeholder="例：どんな場面で使う？"
+                aria-label={t("新しいカードのタイトル")}
+                placeholder={t("例：どんな場面で使う？")}
                 maxLength={200}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
               <div className="dialog-actions">
                 <Button type="submit" disabled={!title.trim()}>
-                  追加
+                  {t("追加")}
                 </Button>
               </div>
             </form>
@@ -231,17 +242,17 @@ export function Board() {
       </div>
       {empty && (
         <div className="board-welcome">
-          <p>カードを作るか、AIと話して論点を出してみましょう。</p>
+          <p>{t("カードを作るか、AIと話して論点を出してみましょう。")}</p>
           <div className="connection-actions">
             <Button size="sm" disabled={!native} onClick={() => setOpen(true)}>
-              最初のカードを作る
+              {t("最初のカードを作る")}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => useWorkspace.getState().setChatOpen(true)}
             >
-              AIと考える
+              {t("AIと考える")}
             </Button>
           </div>
         </div>

@@ -1,8 +1,12 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { buildTextDiff, type DiffBlock } from "@/lib/text-diff";
 
 function DiffRow({ block }: { block: DiffBlock }) {
-  const label = block.kind === "removed" ? "削除" : block.kind === "added" ? "追加" : "変更なし";
+  useTranslation();
+  const label =
+    block.kind === "removed" ? t("削除") : block.kind === "added" ? t("追加") : t("変更なし");
   return (
     <div className={`diff-row diff-${block.kind}`}>
       <span className="sr-only">{label}：</span>
@@ -23,6 +27,7 @@ function DiffRow({ block }: { block: DiffBlock }) {
 }
 
 function Context({ text, first, last }: { text: string; first: boolean; last: boolean }) {
+  useTranslation();
   const lines = text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
   const head = first ? 0 : 2;
   const tail = last ? 0 : 2;
@@ -35,7 +40,7 @@ function Context({ text, first, last }: { text: string; first: boolean; last: bo
     <>
       {head > 0 && row(lines.slice(0, head).join(""))}
       <details className="diff-context">
-        <summary>変更のない{end - head}行を表示</summary>
+        <summary>{t("変更のない{{value0}}行を表示", { value0: end - head })}</summary>
         {row(lines.slice(head, end).join(""))}
       </details>
       {tail > 0 && row(lines.slice(end).join(""))}
@@ -52,14 +57,15 @@ export function TextDiff({
   before: string;
   after: string;
 }) {
+  useTranslation();
   const blocks = useMemo(() => buildTextDiff(before, after), [before, after]);
   const unchanged = blocks.every((block) => block.kind === "same");
   const newlineChanged = before.endsWith("\n") !== after.endsWith("\n");
   return (
-    <section className="diff-field" aria-label={`${label}の差分`}>
+    <section className="diff-field" aria-label={t("{{value0}}の差分", { value0: label })}>
       <h4 className="diff-label">
         {label}
-        {unchanged && <span>変更なし</span>}
+        {unchanged && <span>{t("変更なし")}</span>}
       </h4>
       {!unchanged &&
         blocks.map((block, index) =>
@@ -75,7 +81,9 @@ export function TextDiff({
           ),
         )}
       {newlineChanged && (
-        <p className="diff-newline">末尾の改行を{after.endsWith("\n") ? "追加" : "削除"}</p>
+        <p className="diff-newline">
+          {t("末尾の改行を{{value0}}", { value0: after.endsWith("\n") ? t("追加") : t("削除") })}
+        </p>
       )}
     </section>
   );

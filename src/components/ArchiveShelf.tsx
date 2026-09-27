@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useDroppable } from "@dnd-kit/react";
 import { Archive, RotateCcw } from "lucide-react";
@@ -17,6 +19,7 @@ import { useWorkspace } from "@/lib/workspace";
 export const ARCHIVE_TARGET = "board-archive";
 
 export function ArchiveShelf({ dragging }: { dragging: boolean }) {
+  useTranslation();
   const { snapshot, archiveNotice, archivePending, setArchived, switching } = useWorkspace(
     useShallow((s) => ({
       snapshot: s.snapshot,
@@ -50,7 +53,7 @@ export function ArchiveShelf({ dragging }: { dragging: boolean }) {
     <footer className="board-footer">
       {noticeCard && (
         <div className="archive-notice">
-          <output>アーカイブしました</output>
+          <output>{t("アーカイブしました")}</output>
           <Button
             size="sm"
             variant="ghost"
@@ -62,33 +65,35 @@ export function ArchiveShelf({ dragging }: { dragging: boolean }) {
             onClick={() => void setArchived(noticeCard.id, false)}
           >
             <RotateCcw />
-            元に戻す
+            {t("元に戻す")}
           </Button>
         </div>
       )}
       <div className="board-footer-summary">
-        <span>{snapshot.cards.length - archived.length}枚のカード</span>
-        {pending > 0 && <span>{pending}件の変更提案</span>}
+        <span>
+          {t("{{value0}}枚のカード", { value0: snapshot.cards.length - archived.length })}
+        </span>
+        {pending > 0 && <span>{t("{{value0}}件の変更提案", { value0: pending })}</span>}
         <Dialog>
           <DialogTrigger asChild>
             <Button
               className="ml-auto"
               variant="ghost"
               size="sm"
-              aria-label={`アーカイブ ${archived.length}件`}
+              aria-label={t("アーカイブ {{value0}}件", { value0: archived.length })}
             >
               <Archive />
-              アーカイブ · {archived.length}
+              {t("アーカイブ · {{value0}}", { value0: archived.length })}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>アーカイブ</DialogTitle>
-              <DialogDescription>必要になったら、元の列へ戻せます。</DialogDescription>
+              <DialogTitle>{t("アーカイブ")}</DialogTitle>
+              <DialogDescription>{t("必要になったら、元の列へ戻せます。")}</DialogDescription>
             </DialogHeader>
             <div className="archive-list">
               {archived.length === 0 ? (
-                <p className="muted">アーカイブしたカードはありません。</p>
+                <p className="muted">{t("アーカイブしたカードはありません。")}</p>
               ) : (
                 archived.map((card) => (
                   <div className="archive-row" key={card.id}>
@@ -97,11 +102,11 @@ export function ArchiveShelf({ dragging }: { dragging: boolean }) {
                       variant="outline"
                       size="sm"
                       disabled={disabled}
-                      aria-label={`${card.title}を元の列へ戻す`}
+                      aria-label={t("{{value0}}を元の列へ戻す", { value0: card.title })}
                       onClick={() => void setArchived(card.id, false)}
                     >
                       <RotateCcw />
-                      戻す
+                      {t("戻す")}
                     </Button>
                   </div>
                 ))
@@ -115,7 +120,7 @@ export function ArchiveShelf({ dragging }: { dragging: boolean }) {
         className={`archive-drop ${dragging ? "visible" : ""} ${isDropTarget ? "drop-target" : ""}`}
       >
         <Archive size={20} />
-        <span>{isDropTarget ? "離してアーカイブ" : "ここに置いてアーカイブ"}</span>
+        <span>{isDropTarget ? t("離してアーカイブ") : t("ここに置いてアーカイブ")}</span>
       </div>
     </footer>
   );

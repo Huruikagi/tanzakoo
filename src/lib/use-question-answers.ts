@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { useState } from "react";
 import type { ChoiceQuestion } from "@/bindings/ChoiceQuestion";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
@@ -49,7 +50,7 @@ export function useQuestionAnswers(questions: ChoiceQuestion[], disabled: boolea
         text: value.mode === "text" ? value.text.trim() : null,
       };
     });
-    void state.send("質問への回答", "codex", { useReferences: false, questionAnswers: answers });
+    void state.send(t("質問への回答"), "codex", { useReferences: false, questionAnswers: answers });
   }
   function advanceOrSubmit() {
     if (disabled || !pending || !complete(draft)) return;

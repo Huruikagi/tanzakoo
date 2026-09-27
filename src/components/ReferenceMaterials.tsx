@@ -1,3 +1,5 @@
+import { t, systemMessage } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { FileText, FolderOpen, BookOpen } from "lucide-react";
@@ -18,6 +20,7 @@ function displayPath(path: string) {
 }
 
 export function ReferenceMaterials() {
+  useTranslation();
   const { snapshot, busy, switching, loaded, updateMaterials } = useWorkspace(
     useShallow((s) => ({
       snapshot: s.snapshot,
@@ -34,7 +37,7 @@ export function ReferenceMaterials() {
   async function change(value: { kind: "file" | "folder" } | { remove: string }) {
     setError("");
     if (!(await updateMaterials(value)))
-      setError(useWorkspace.getState().error ?? "参照資料を更新できませんでした。");
+      setError(useWorkspace.getState().error ?? t("参照資料を更新できませんでした。"));
   }
   return (
     <Dialog
@@ -49,20 +52,24 @@ export function ReferenceMaterials() {
       <DialogTrigger asChild>
         <Button size="sm" variant="ghost" disabled={!native || !loaded || switching}>
           <BookOpen />
-          参照資料
+          {t("参照資料")}
           {materials.length > 0 && <span className="proposal-count">{materials.length}</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[640px]" showCloseButton={!switching}>
         <DialogHeader>
-          <DialogTitle>参照資料</DialogTitle>
+          <DialogTitle>{t("参照資料")}</DialogTitle>
           <DialogDescription>
-            {snapshot.project.name}
-            の壁打ちで、AIが読み取れるソースコードやMarkdownを登録します。編集やコマンド実行はできません。
+            {t(
+              "{{value0}}の壁打ちで、AIが読み取れるソースコードやMarkdownを登録します。編集やコマンド実行はできません。",
+              { value0: snapshot.project.name },
+            )}
           </DialogDescription>
         </DialogHeader>
         <p className="hint muted">
-          会話に必要な箇所を読む際、その内容がOpenAIへ送信されます。登録だけでは送信しません。元ファイルの変更は次の読み取りに反映されます。
+          {t(
+            "会話に必要な箇所を読む際、その内容がOpenAIへ送信されます。登録だけでは送信しません。元ファイルの変更は次の読み取りに反映されます。",
+          )}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -72,7 +79,7 @@ export function ReferenceMaterials() {
             onClick={() => void change({ kind: "file" })}
           >
             <FileText />
-            ファイルを追加
+            {t("ファイルを追加")}
           </Button>
           <Button
             size="sm"
@@ -81,13 +88,13 @@ export function ReferenceMaterials() {
             onClick={() => void change({ kind: "folder" })}
           >
             <FolderOpen />
-            フォルダーを追加
+            {t("フォルダーを追加")}
           </Button>
         </div>
         {materials.length === 0 ? (
-          <p className="muted">参照資料はまだありません。</p>
+          <p className="muted">{t("参照資料はまだありません。")}</p>
         ) : (
-          <ul className="max-h-64 space-y-2 overflow-y-auto" aria-label="登録済みの参照資料">
+          <ul className="max-h-64 space-y-2 overflow-y-auto" aria-label={t("登録済みの参照資料")}>
             {materials.map((material) => (
               <li key={material.id} className="flex items-start gap-2 rounded-md border p-3">
                 {material.kind === "folder" ? (
@@ -99,36 +106,42 @@ export function ReferenceMaterials() {
                   <p className="break-all text-sm">{displayPath(material.path)}</p>
                   <p className="hint muted">
                     {material.kind === "folder"
-                      ? "フォルダー配下・読み取り専用"
-                      : "このファイルのみ・読み取り専用"}
+                      ? t("フォルダー配下・読み取り専用")
+                      : t("このファイルのみ・読み取り専用")}
                   </p>
                 </div>
                 <Button
                   size="sm"
                   variant="ghost"
                   disabled={disabled}
-                  aria-label={`${displayPath(material.path)}の参照を解除`}
+                  aria-label={t("{{value0}}の参照を解除", { value0: displayPath(material.path) })}
                   onClick={() => void change({ remove: material.id })}
                 >
-                  解除
+                  {t("解除")}
                 </Button>
               </li>
             ))}
           </ul>
         )}
         <p className="hint muted">
-          UTF-8のテキスト（1ファイル1MiB以下）に対応します。.git・node_modules・ビルド成果物・.env・秘密鍵・リンクなどは対象外です。
+          {t(
+            "UTF-8のテキスト（1ファイル1MiB以下）に対応します。.git・node_modules・ビルド成果物・.env・秘密鍵・リンクなどは対象外です。",
+          )}
         </p>
         <p className="hint muted">
-          登録はこのプロジェクトで次の会話にも引き継ぎます。解除しても元ファイルは消えず、過去の会話に渡した内容は残ります。
+          {t(
+            "登録はこのプロジェクトで次の会話にも引き継ぎます。解除しても元ファイルは消えず、過去の会話に渡した内容は残ります。",
+          )}
         </p>
         {busy && (
-          <p className="hint muted">AIの処理を停止するか、完了を待つと追加・解除できます。</p>
+          <p className="hint muted">
+            {t("AIの処理を停止するか、完了を待つと追加・解除できます。")}
+          </p>
         )}
-        {switching && <output>参照資料を更新しています…</output>}
+        {switching && <output>{t("参照資料を更新しています…")}</output>}
         {error && (
           <p role="alert" className="break-all">
-            {error}
+            {systemMessage(error)}
           </p>
         )}
       </DialogContent>
