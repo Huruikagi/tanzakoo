@@ -2,6 +2,12 @@ name: macOS signed DMG
 
 on:
   workflow_dispatch:
+    inputs:
+      review_access:
+        description: Include the Tanzakoo review relay connection
+        type: boolean
+        default: false
+        required: true
 
 permissions:
   contents: read
@@ -47,6 +53,8 @@ jobs:
       - name: Stage bundled runtime
         run: mise exec -- pnpm runtime:stage
       - name: Build application bundle
+        env:
+          TANZAKOO_REVIEW_URL: ${{ inputs.review_access && 'https://review-relay-production-4f29.up.railway.app' || '' }}
         run: >-
           mise exec -- pnpm tauri build --ci --no-sign
           --target aarch64-apple-darwin --bundles app
@@ -73,7 +81,7 @@ jobs:
       - name: Upload verified DMG
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: Tanzakoo-macos-arm64-${{ github.sha }}
+          name: Tanzakoo-macos-arm64-${{ github.sha }}-${{ inputs.review_access && 'review' || 'standard' }}
           path: |
             .local/macos-dist/*.dmg
             .local/macos-dist/*.sha256
