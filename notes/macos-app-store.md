@@ -8,7 +8,7 @@ Store専用のTauri設定・手動ワークフロー・署名スクリプトを�
 
 2026-09-28、利用者がApp IDと2種類の配布証明書、Mac App Store Connectプロファイルを作成した。テスト用Macは私用機ではないため、秘密鍵・CSR・パスワード付きp12はWindowsで作成した。アプリ用・インストーラー用の公開証明書はApple WWDR G3発行で、p12には同中間証明書も含めた。プロファイルはWindowsでBundle ID・アプリ用証明書・Team ID・配布種別・有効期限の一致を確認済み。CMSの署名をローカルで検証したが、Appleの証明書チェーンの信頼確認はMac署名ランナーに残る。
 
-同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、Macランナーでp12のパスワード・整合性・キーチェーンへのインポートとプロファイルの一致を確認した。`2cbaf63` から署名済みpkgの生成とローカル署名検証が成功した。ワークフローは成果物をGitHub Actionsに保存するところまでで、App Store Connectへのアップロード・Apple側の検証・TestFlight配布・審査提出・公開は未実施。
+同日、下記5件の `MAS_*` Actions Secretsの登録を利用者が完了し、Macランナーでp12のパスワード・整合性・キーチェーンへのインポートとプロファイルの一致を確認した。`2cbaf63` から署名済みpkgの生成とローカル署名検証が成功した。その後、App Store Connectへの登録とTestFlightでの確認を進める依頼を受け、利用者がAppレコードを作成した。Apple側の検証・アップロードは下記の別ワークフローで進める。TestFlight実機検証・製品版の審査提出・公開は未実施。
 
 ## Apple側の初回作業
 
@@ -92,6 +92,19 @@ gh workflow run macos-store.yml --ref main -f build_number=1 -f review_access=tr
 
 成果物は `Tanzakoo-macos-store-<commit>-<build>` Artifact、保持14日。pkg・SHA-256・provenanceだけを保存する。プロファイルはAppleへの提出に必要なアプリ内のものだけがpkgに含まれる。p12やそのパスワード、デコードしたプロファイル単体はArtifactに含めない。
 
+## App Store Connectへの検証・アップロード
+
+`macos-store-upload.yml` は成功済み `macos-store.yml` のArtifactを取得する。元のワークフロー・リポジトリ・mainブランチ・成功状態を確認し、provenanceのコミット・run・build番号とpkgのSHA-256が一致する場合だけAppleへ送る。再ビルドや再署名は行わない。
+
+認証にはDMG公証で使用しているDeveloper権限のチームキー `APPLE_API_KEY`・`APPLE_API_ISSUER`・`APPLE_API_KEY_CONTENT` を使う。追加のキー発行は不要。秘密鍵はMacランナーの所有者だけが読める一時ディレクトリーへ置き、終了時に削除する。Appleの標準ツール `altool` を使い、新しい依存は追加しない。
+
+```sh
+gh workflow run macos-store-upload.yml --ref main -f source_run_id=36342814606 -f mode=validate
+gh workflow run macos-store-upload.yml --ref main -f source_run_id=36342814606 -f mode=upload
+```
+
+既定の `validate` はAppleによるパッケージ検証のみ。`upload` は検証後に1回だけアップロードする。アップロードがタイムアウト等で失敗した場合、Apple側の受信状態を確認してから再試行する。コマンドの成功とApple側のビルド処理完了は別で、TestFlight画面で処理結果・暗号利用の申告を確認する。テスターへの配布や審査提出を自動では行わない。
+
 ## 検証と次段階
 
 2026-09-27、Windowsでプロファイル検証の4テスト（期限・対象OS・配布種別・App ID・Team ID・証明書の不一致等の拒否条件を含む）、Bash構文、マージしたTauri設定のスキーマとYAML構文、Rustの整形、`app-sandbox` / `sandbox-validation` 各featureの `cargo check --locked` を確認した。署名・productbuild・Appleの検証はmacOSと実際の証明書が必要なので、ローカルテストで通過扱いにしない。
@@ -112,4 +125,6 @@ Store配布署名のpkgは、これまでの直接インストール用DMGとは
 - [Apple: Register an App ID](https://developer.apple.com/help/account/identifiers/register-an-app-id)
 - [Apple: Certificates overview](https://developer.apple.com/help/account/create-certificates/certificates-overview)
 - [Apple: Packaging Mac software](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)
+- [Apple: Upload builds](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds)
+- [Apple: APIキーのaltool・notarytoolでの共用](https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool)
 - [Apple: Provisioning profilesの内容と識別子](https://developer.apple.com/documentation/technotes/tn3125-inside-code-signing-provisioning-profiles)

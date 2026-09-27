@@ -1,0 +1,54 @@
+name: macOS Store upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful macOS Store package run ID
+        type: string
+        required: true
+      mode:
+        description: Validate only, or validate then upload to App Store Connect
+        type: choice
+        options: [validate, upload]
+        default: validate
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: macos-store-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check artifact verification and upload syntax
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_macos_store_artifact.py'
+          bash -n scripts/upload-macos-store.sh
+      - name: Download and verify Store package
+        id: package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: python3 scripts/fetch-macos-store-artifact.py
+      - name: Validate with Apple and optionally upload
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          PACKAGE_PATH: ${{ steps.package.outputs.package }}
+          UPLOAD_MODE: ${{ inputs.mode }}
+        run: bash scripts/upload-macos-store.sh "$PACKAGE_PATH" "$UPLOAD_MODE"

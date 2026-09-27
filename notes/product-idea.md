@@ -29,6 +29,7 @@
 - Mac版はApple Siliconのみ、macOS 26 Tahoe以上を対象にする。将来のMicrosoft Store配布も考慮する。
 - 2026-09-27、Mac App Storeの実現性検証として、App Sandbox内のAI接続・子プロセスと参照資料の永続許可を実装し、別名・別保存領域の検証用DMGを作る。通常DMGは維持する。Developer IDでの検証であり、Storeへの提出・TestFlight配布・審査通過を意味しない。
 - 同日、Sandbox版の主要な実機確認後、Mac App Store用の署名・プロビジョニングと提出用パッケージの準備を進める依頼を受けた。既存の `dev.huruikagi.tanzakoo` を使い、Store専用の手動ワークフローで署名済みpkgを作る。Apple側のApp ID・証明書・プロファイル作成を案内する。App Store Connectへのアップロード・TestFlight配布・審査提出は別段階として扱う。
+- 2026-09-28、署名済みpkgの生成後、App Store Connectへの登録とTestFlightでの確認を進める依頼を受け、利用者がAppレコードを作成した。既存のDeveloper権限のチームAPIキーを使い、成功したStoreビルドの成果物をGitHub Actionsから検証・アップロードする。App Storeでの公開・製品版の審査提出は含まない。
 - DB・認証・エージェント作業領域はOSが提供するユーザー単位のアプリデータ領域に置き、インストール先の同梱ランタイムと分離する。WindowsはLocal AppData、MacはFoundationから取得するApplication Supportを使い、App Sandboxではコンテナ内に保存する。
 - 未リリースのため、保存先の変更に伴う旧配置の検出・コピー・移行処理は不要。旧データは自動で移動・削除しない。開発用の保存先指定 `TANZAKOO_DATA_DIR` は維持する。
 - 外部への書き込みは、ユーザーが毎回ネイティブダイアログで選ぶエクスポート先を使う。外部の読み取りは下記「参照資料」でユーザーが登録した範囲に限定し、全ディスクへのアクセス許可は求めない（2026-09-27更新）。
