@@ -6,6 +6,7 @@ pub mod materials;
 pub mod mcp;
 pub mod model;
 pub mod projects;
+pub mod review;
 pub mod storage;
 pub mod store;
 
@@ -175,6 +176,10 @@ async fn board_action(
             BoardAction::ResolveDiscussion { id, action } => store.resolve_discussion(&id, action),
             BoardAction::NewConversation { agent } => store.create_conversation(&agent).map(|_| ()),
             BoardAction::ConfigureAgent { config } => {
+                runtime.ensure_idle()?;
+                if runtime.review_session()?.is_some() {
+                    return Err("審査用接続を解除してから起動設定を変更してください。".into());
+                }
                 // A changed launch command may send data elsewhere, so ask again.
                 let agent = config.id.clone();
                 store
@@ -183,6 +188,9 @@ async fn board_action(
             }
             BoardAction::ConfigureChat { settings } => {
                 runtime.ensure_idle()?;
+                if runtime.review_session()?.is_some() {
+                    return Err("審査用接続では指定されたモデルを使います。".into());
+                }
                 store.set_chat_settings(settings)
             }
         };
@@ -260,7 +268,11 @@ async fn send_prompt(
         let conversation = store
             .conversation(&conversation_id)
             .map_err(|e| e.to_string())?;
-        if !projects
+        let review = state.runtime.review_session()?;
+        review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
+        if let Some(access) = &review {
+            access.ensure_usable()?;
+        } else if !projects
             .consented(&conversation.agent)
             .map_err(|e| e.to_string())?
         {
@@ -314,7 +326,12 @@ async fn set_consent(
     if agent != "codex" && granted {
         return Err("この接続先には送信できません。".into());
     }
+    let runtime = state.runtime.clone();
     with_projects(&state, move |projects| {
+        runtime.ensure_idle()?;
+        if runtime.review_session()?.is_some() {
+            return Err("審査用接続の同意は、接続を解除すると取り消されます。".into());
+        }
         projects
             .set_consent(&agent, granted)
             .map_err(|e| e.to_string())
@@ -349,7 +366,75 @@ async fn agent_connection(
             .map_err(|e| e.to_string())?;
         (store, state.runtime.begin()?)
     };
+    if let Some(access) = state.runtime.review_session()? {
+        if agent != "codex" || action != "check" {
+            return Err("先に審査用接続を解除してください。".into());
+        }
+        let mut cancel = cancel;
+        let status = tokio::select! {
+            result = access.check() => result,
+            _ = &mut cancel => Err("接続確認を中止しました。".into()),
+        };
+        return Ok(ConnectionStatus {
+            state: if status.is_ok() { "ready" } else { "error" }.into(),
+            message: status
+                .map(|_| "審査用接続を確認しました。".into())
+                .unwrap_or_else(|e| e),
+            can_login: false,
+        });
+    }
     Ok(agent_setup::probe(store, agent, action, cancel).await)
+}
+
+#[tauri::command]
+fn get_review_status(state: State<'_, AppState>) -> Result<Option<review::ReviewStatus>, String> {
+    Ok(state.runtime.review_session()?.map(|r| r.status))
+}
+
+#[tauri::command]
+async fn review_connection(
+    project_id: String,
+    action: String,
+    code: Option<String>,
+    consent: bool,
+    state: State<'_, AppState>,
+) -> Result<Option<review::ReviewStatus>, String> {
+    let (_guard, mut cancel) = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        projects
+            .require_active(&project_id)
+            .map_err(|e| e.to_string())?;
+        state.runtime.begin()?
+    };
+    if action == "disconnect" {
+        *state.runtime.review.lock().map_err(|e| e.to_string())? = None;
+        return Ok(None);
+    }
+    let access = match action.as_str() {
+        "connect" => {
+            if !consent {
+                return Err("仲介サーバーとOpenAIへの送信に同意してください。".into());
+            }
+            tokio::select! {
+                result = review::ReviewSession::connect(code.ok_or("審査用コードを入力してください。")?) => result?,
+                _ = &mut cancel => return Err("審査用接続を中止しました。".into()),
+            }
+        }
+        "check" => {
+            let Some(mut access) = state.runtime.review_session()? else {
+                return Ok(None);
+            };
+            access.status = tokio::select! {
+                result = access.check() => result?,
+                _ = &mut cancel => return Err("接続確認を中止しました。".into()),
+            };
+            access
+        }
+        _ => return Err("接続操作が不正です。".into()),
+    };
+    let status = access.status.clone();
+    *state.runtime.review.lock().map_err(|e| e.to_string())? = Some(access);
+    Ok(Some(status))
 }
 
 #[tauri::command]
@@ -365,6 +450,16 @@ async fn chat_options(
             .map_err(|e| e.to_string())?;
         (store, state.runtime.begin()?)
     };
+    if let Some(access) = state.runtime.review_session()? {
+        return Ok(vec![ChatOption {
+            id: "model".into(),
+            current_value: access.status.model.clone(),
+            options: vec![ChatOptionValue {
+                value: access.status.model.clone(),
+                name: access.status.model,
+            }],
+        }]);
+    }
     chat_settings::discover(store, model, cancel).await
 }
 
@@ -394,6 +489,8 @@ pub fn run() {
             cancel_prompt,
             answer_permission,
             agent_connection,
+            review_connection,
+            get_review_status,
             chat_options
         ])
         .on_window_event(|window, event| {

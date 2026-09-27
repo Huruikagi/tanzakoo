@@ -48,6 +48,12 @@ export default function App() {
       })
       .catch((error) => useWorkspace.setState({ error: String(error) }));
     void refresh();
+    void api
+      .reviewStatus()
+      .then((reviewAccess) => {
+        if (!disposed) useWorkspace.setState({ reviewAccess });
+      })
+      .catch((error) => useWorkspace.setState({ error: String(error) }));
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => {

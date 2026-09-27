@@ -24,6 +24,9 @@ export function chatRunning(busy: Busy | null, conversation: string | null) {
 }
 
 export const createAgentSlice: WorkspaceSlice<
+  | "reviewAccess"
+  | "reviewError"
+  | "reviewConnect"
   | "chatError"
   | "connections"
   | "setConsent"
@@ -44,6 +47,32 @@ export const createAgentSlice: WorkspaceSlice<
   | "event"
   | "answer"
 > = (set, get) => ({
+  reviewAccess: null,
+  reviewError: null,
+  reviewConnect: async (action, code, consent = false) => {
+    if (get().busy || get().switching) return false;
+    set({
+      busy: { kind: "connecting", agent: "codex" },
+      reviewError: null,
+      activity: "審査用接続を確認しています…",
+    });
+    try {
+      const reviewAccess = await api.reviewConnection(
+        get().snapshot.project.id,
+        action,
+        code ?? null,
+        consent,
+      );
+      set({ reviewAccess, connections: {}, chatError: null });
+      if (action !== "check") set({ conversation: null, references: [], stream: "" });
+      return true;
+    } catch (error) {
+      set({ reviewError: String(error) });
+      return false;
+    } finally {
+      set({ busy: null, activity: "" });
+    }
+  },
   chatError: null,
   connections: {},
   setConsent: async (agent, granted) =>
@@ -129,8 +158,15 @@ export const createAgentSlice: WorkspaceSlice<
       set({ chatError: "この会話は閲覧のみです。新しい会話をCodexで始めてください。" });
       return false;
     }
-    if (!get().snapshot.consents.includes(activeAgent)) {
+    if (!get().reviewAccess && !get().snapshot.consents.includes(activeAgent)) {
       set({ chatError: "AIへの送信に同意してください。" });
+      return false;
+    }
+    if (get().reviewAccess && get().reviewAccess!.expiresAt <= Date.now()) {
+      set({
+        chatError:
+          "審査用コードの有効期限が切れています。接続状況から新しいコードを入力してください。",
+      });
       return false;
     }
     // Lock before creating the first conversation to prevent duplicate sends on double click.

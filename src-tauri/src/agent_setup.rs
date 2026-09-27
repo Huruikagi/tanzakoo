@@ -33,6 +33,16 @@ pub fn managed_config() -> AgentConfig {
 }
 
 pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, String> {
+    launch_with_review(config, store, false)
+}
+
+pub fn launch_with_review(
+    config: AgentConfig,
+    store: &Store,
+    review: bool,
+) -> Result<AcpAgentConfig, String> {
+    // Only the pinned, app-owned runtime may receive review credentials.
+    let config = if review { managed_config() } else { config };
     let managed = config.command == MANAGED;
     let mut command = config.command.clone();
     let mut args = config.args;
@@ -90,6 +100,7 @@ pub fn launch(config: AgentConfig, store: &Store) -> Result<AcpAgentConfig, Stri
             .get()
             .map(|p| p.1.clone())
             .unwrap_or_else(|| store.path().parent().unwrap().to_owned());
+        let data = if review { data.join("review") } else { data };
         let home = crate::storage::credential_dir(&data).map_err(|e| e.to_string())?;
         launch = launch.env("CODEX_HOME", home.to_string_lossy());
     }

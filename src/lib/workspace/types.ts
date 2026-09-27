@@ -7,6 +7,7 @@ import type { CardReference } from "@/bindings/CardReference";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import type { ChatOption } from "@/bindings/ChatOption";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
+import type { ReviewStatus } from "@/bindings/ReviewStatus";
 
 export type Permission = {
   id: string;
@@ -27,6 +28,13 @@ type Connection = { status: ConnectionStatus; launch: string };
 export type ProjectDraft = { name: string; memory: string; revision: number };
 export type QuestionDraft = { mode: "option" | "text"; optionIndex: number | null; text: string };
 export type Workspace = {
+  reviewAccess: ReviewStatus | null;
+  reviewError: string | null;
+  reviewConnect: (
+    action: "connect" | "check" | "disconnect",
+    code?: string,
+    consent?: boolean,
+  ) => Promise<boolean>;
   questionDrafts: Record<string, Record<string, QuestionDraft>>;
   chatOpen: boolean;
   setChatOpen: (open: boolean) => void;

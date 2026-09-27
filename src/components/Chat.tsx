@@ -50,7 +50,8 @@ export function Chat() {
   const composing = useRef(false);
   const active = snapshot.conversations.find((c) => c.id === conversation);
   const selectedAgent = active?.agent ?? agent;
-  const consented = snapshot.consents.includes(selectedAgent);
+  const reviewAccess = useWorkspace((s) => s.reviewAccess);
+  const consented = !!reviewAccess || snapshot.consents.includes(selectedAgent);
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);

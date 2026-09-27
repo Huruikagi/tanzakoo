@@ -21,16 +21,25 @@ pub(super) async fn prepare(
     workspace: PathBuf,
     mcp: McpServer,
     replaying: &AtomicBool,
+    review: Option<&crate::review::ReviewSession>,
 ) -> Result<PreparedSession, agent_client_protocol::Error> {
     let initialized = cx
         .send_request(InitializeRequest::new(ProtocolVersion::V1))
         .block_task()
         .await?;
+    if let Some(access) = review {
+        access.authenticate(cx).await?;
+    }
+    let prefix = if review.is_some() {
+        crate::review::SESSION_PREFIX
+    } else {
+        "tanzakoo-v1:"
+    };
     // Sessions created before app-owned credentials live in the user's
     // CLI home. Keep the chat history, but start a fresh app-owned session.
     let saved_session = conversation.session_id.clone().and_then(|id| {
         if conversation.agent == "codex" {
-            id.strip_prefix("tanzakoo-v1:").map(str::to_owned)
+            id.strip_prefix(prefix).map(str::to_owned)
         } else {
             Some(id)
         }
@@ -54,7 +63,7 @@ pub(super) async fn prepare(
             .save_session(
                 &conversation.id,
                 if conversation.agent == "codex" {
-                    format!("tanzakoo-v1:{}", response.session_id)
+                    format!("{prefix}{}", response.session_id)
                 } else {
                     response.session_id.to_string()
                 },

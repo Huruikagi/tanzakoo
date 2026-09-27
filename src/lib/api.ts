@@ -8,6 +8,7 @@ import type { ChatOption } from "@/bindings/ChatOption";
 import type { ExportResult } from "@/bindings/ExportResult";
 import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
+import type { ReviewStatus } from "@/bindings/ReviewStatus";
 
 export type AgentEvent = {
   conversationId: string;
@@ -39,6 +40,14 @@ export const emptySnapshot: Snapshot = {
   consents: [],
 };
 export const api = {
+  reviewStatus: () =>
+    native ? invoke<ReviewStatus | null>("get_review_status") : Promise.resolve(null),
+  reviewConnection: (
+    projectId: string,
+    action: "connect" | "check" | "disconnect",
+    code: string | null = null,
+    consent = false,
+  ) => invoke<ReviewStatus | null>("review_connection", { projectId, action, code, consent }),
   addMaterials: (projectId: string, kind: "file" | "folder") =>
     invoke<Snapshot>("add_reference_materials", { projectId, kind }),
   removeMaterial: (projectId: string, materialId: string) =>

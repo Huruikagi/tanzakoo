@@ -181,6 +181,7 @@ function ChatSettingsForm() {
 }
 
 export function ChatSettings() {
+  const reviewAccess = useWorkspace((s) => s.reviewAccess);
   const snapshot = useWorkspace((s) => s.snapshot);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
@@ -205,8 +206,9 @@ export function ChatSettings() {
         >
           <SlidersHorizontal />
           <span className="truncate">
-            {settings?.model ?? "モデル・推論強度"}
-            {settings?.reasoningEffort &&
+            {reviewAccess?.model ?? settings?.model ?? "モデル・推論強度"}
+            {!reviewAccess &&
+              settings?.reasoningEffort &&
               ` · ${effortNames[settings.reasoningEffort] ?? settings.reasoningEffort}`}
           </span>
         </Button>
@@ -215,10 +217,16 @@ export function ChatSettings() {
         <DialogHeader>
           <DialogTitle>モデル・推論強度</DialogTitle>
           <DialogDescription>
-            このプロジェクトのすべてのCodex会話に、次の送信から反映します。
+            {reviewAccess
+              ? "審査用コードに指定されたモデルで接続します。"
+              : "このプロジェクトのすべてのCodex会話に、次の送信から反映します。"}
           </DialogDescription>
         </DialogHeader>
-        <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config])} />
+        {reviewAccess ? (
+          <p>審査用接続では {reviewAccess.model} を使います。通常接続の設定は保持されています。</p>
+        ) : (
+          <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config])} />
+        )}
       </DialogContent>
     </Dialog>
   );

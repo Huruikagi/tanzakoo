@@ -1100,6 +1100,9 @@ summary:focus-visible {
   font-size: 11px;
   margin: 10px 0 6px;
 }
+.review-access .hint {
+  font-size: 12px;
+}
 .settings-save {
   display: flex;
   align-items: center;

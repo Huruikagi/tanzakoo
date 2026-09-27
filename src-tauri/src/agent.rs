@@ -30,6 +30,7 @@ pub struct AgentEvent {
 pub type Emit = Arc<dyn Fn(AgentEvent) + Send + Sync>;
 #[derive(Default)]
 pub struct AgentRuntime {
+    pub review: Mutex<Option<crate::review::ReviewSession>>,
     busy: AtomicBool,
     cancel: Mutex<Option<oneshot::Sender<()>>>,
     permissions: Mutex<HashMap<String, oneshot::Sender<Option<String>>>>,
@@ -44,6 +45,12 @@ impl Drop for OperationGuard {
     }
 }
 impl AgentRuntime {
+    pub fn review_session(&self) -> Result<Option<crate::review::ReviewSession>, String> {
+        self.review
+            .lock()
+            .map(|v| v.clone())
+            .map_err(|_| "審査用接続を読み込めません。".into())
+    }
     pub fn ensure_idle(&self) -> Result<(), String> {
         if self.busy.load(Ordering::SeqCst) {
             Err("エージェントの応答を待つか、停止してからプロジェクトを切り替えてください。".into())
@@ -135,6 +142,16 @@ pub async fn run(
     let conversation = store
         .conversation(&conversation_id)
         .map_err(|e| e.to_string())?;
+    let mut review = runtime.review_session()?;
+    crate::review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
+    if let Some(access) = &mut review {
+        access.ensure_usable()?;
+        access.status = tokio::select! {
+            result = access.check() => result?,
+            _ = &mut cancel => return Err("応答を停止しました。".into()),
+        };
+        *runtime.review.lock().map_err(|e| e.to_string())? = Some(access.clone());
+    }
     let snapshot = store.snapshot().map_err(|e| e.to_string())?;
     let message_id = snapshot
         .messages
@@ -181,8 +198,9 @@ pub async fn run(
     let permission_emit = emit.clone();
     let permission_id = conversation_id.clone();
     let permission_runtime = runtime.clone();
-    let launch = crate::agent_setup::launch(config, &store)?;
+    let launch = crate::agent_setup::launch_with_review(config, &store, review.is_some())?;
     let session_store = store.clone();
+    let is_review = review.is_some();
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
@@ -217,12 +235,22 @@ pub async fn run(
                     workspace,
                     mcp,
                     &session_notifications.replaying,
+                    review.as_ref(),
                 )
                 .await?;
                 let session_id = prepared.id;
                 let input = prompt.into_input(prepared.restoring);
                 if conversation.agent == "codex" {
-                    crate::chat_settings::apply(&cx, &session_id, &snapshot.chat_settings).await?;
+                    let settings = review.as_ref().map(|r| ChatSettings {
+                        model: Some(r.status.model.clone()),
+                        reasoning_effort: None,
+                    });
+                    crate::chat_settings::apply(
+                        &cx,
+                        &session_id,
+                        settings.as_ref().unwrap_or(&snapshot.chat_settings),
+                    )
+                    .await?;
                 }
                 cx.send_request(PromptRequest::new(
                     session_id,
@@ -235,9 +263,9 @@ pub async fn run(
         );
     let result = tokio::select! {
         result = tokio::time::timeout(Duration::from_secs(600), job) => match result {
-            Ok(result) => result.map_err(|e| format!(
-                "エージェント接続に失敗しました: {e}. ログインと起動設定を確認してください。"
-            )),
+            Ok(result) => result.map_err(|e| if is_review {
+                "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。".into()
+            } else { format!("エージェント接続に失敗しました: {e}. ログインと起動設定を確認してください。") }),
             Err(_) => Err("応答が10分以内に完了しませんでした。".into()),
         },
         _ = &mut cancel => Err("応答を停止しました。".into()),

@@ -21,6 +21,7 @@ function AgentSettings({ config }: { config: AgentConfig }) {
   const [message, setMessage] = useState("");
   const consented = useWorkspace((s) => s.snapshot.consents.includes(config.id));
   const busy = useWorkspace((s) => s.busy);
+  const reviewAccess = useWorkspace((s) => s.reviewAccess);
   async function save() {
     try {
       const parsed: unknown = JSON.parse(args);
@@ -49,7 +50,7 @@ function AgentSettings({ config }: { config: AgentConfig }) {
       }}
     >
       <AgentConnection agent={config.id} />
-      {consented && (
+      {consented && !reviewAccess && (
         <div className="settings-save">
           <span className="hint muted">OpenAIへの送信に同意済み（全プロジェクト共通）</span>
           <Button
@@ -63,36 +64,42 @@ function AgentSettings({ config }: { config: AgentConfig }) {
           </Button>
         </div>
       )}
-      <details>
-        <summary>詳細な起動設定</summary>
-        <label htmlFor={`${config.id}-command`}>実行ファイル</label>
-        <Input
-          id={`${config.id}-command`}
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
-        />
-        <label htmlFor={`${config.id}-args`}>引数（JSON配列）</label>
-        <Textarea id={`${config.id}-args`} value={args} onChange={(e) => setArgs(e.target.value)} />
-        <div className="settings-save">
-          <output>{message}</output>
-          <Button size="sm" type="submit" disabled={!command.trim()}>
-            設定を保存
-          </Button>
-        </div>
-        {config.id === "codex" && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCommand("@tanzakoo/managed");
-              setArgs("[]");
-            }}
-          >
-            同梱版の設定に戻す
-          </Button>
-        )}
-      </details>
+      {!reviewAccess && (
+        <details>
+          <summary>詳細な起動設定</summary>
+          <label htmlFor={`${config.id}-command`}>実行ファイル</label>
+          <Input
+            id={`${config.id}-command`}
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+          />
+          <label htmlFor={`${config.id}-args`}>引数（JSON配列）</label>
+          <Textarea
+            id={`${config.id}-args`}
+            value={args}
+            onChange={(e) => setArgs(e.target.value)}
+          />
+          <div className="settings-save">
+            <output>{message}</output>
+            <Button size="sm" type="submit" disabled={!command.trim()}>
+              設定を保存
+            </Button>
+          </div>
+          {config.id === "codex" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCommand("@tanzakoo/managed");
+                setArgs("[]");
+              }}
+            >
+              同梱版の設定に戻す
+            </Button>
+          )}
+        </details>
+      )}
     </form>
   );
 }

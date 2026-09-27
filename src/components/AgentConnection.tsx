@@ -11,8 +11,10 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { connectionStatus, useWorkspace } from "@/lib/workspace";
 import { agentUnavailable, api, native } from "@/lib/api";
+import { ReviewAccess } from "./ReviewAccess";
 
 export function AgentConnectionDialog({ agent }: { agent: string }) {
+  const review = useWorkspace((s) => s.reviewAccess);
   const status = useWorkspace((s) => connectionStatus(s, agent));
   const connecting = useWorkspace((s) => s.busy?.kind === "connecting" && s.busy.agent === agent);
   const needsAttention = status && status.state !== "ready";
@@ -24,7 +26,9 @@ export function AgentConnectionDialog({ agent }: { agent: string }) {
           size="icon-sm"
           variant="ghost"
           aria-label="接続状況"
-          title={connecting ? "接続処理中" : (status?.message ?? "接続状況")}
+          title={
+            connecting ? "接続処理中" : review ? "審査用接続" : (status?.message ?? "接続状況")
+          }
         >
           {connecting ? (
             <LoaderCircle className="animate-spin" />
@@ -42,7 +46,9 @@ export function AgentConnectionDialog({ agent }: { agent: string }) {
             接続の確認やサインインでは、プロジェクトの内容は送信しません。
           </DialogDescription>
         </DialogHeader>
-        <AgentConnection agent={agent} />
+        <div className="settings-scroll">
+          <AgentConnection agent={agent} />
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -62,6 +68,7 @@ export function AgentConnection({
       activity: s.activity,
       connect: s.connect,
       connections: s.connections,
+      reviewAccess: s.reviewAccess,
     })),
   );
   const { snapshot, busy, activity, connect } = workspace;
@@ -73,6 +80,7 @@ export function AgentConnection({
         <output>この会話は閲覧のみです。新しい会話はCodexで始められます。</output>
       </div>
     );
+  if (workspace.reviewAccess) return hideWhenReady ? null : <ReviewAccess />;
   if (agentUnavailable(snapshot, agent) || status?.state === "unsupported")
     return (
       <div className="agent-connection">
@@ -127,6 +135,7 @@ export function AgentConnection({
           </Button>
         )}
       </div>
+      {!hideWhenReady && <ReviewAccess />}
     </div>
   );
 }
