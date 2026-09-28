@@ -1,6 +1,6 @@
 import { t, currentLocale } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { FileText, MessageSquarePlus, Save, Archive, RotateCcw, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,9 @@ function Details({ card }: { card: Card }) {
   const [quote, setQuote] = useState("");
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("edit");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const proposalsRef = useRef<HTMLElement>(null);
+  const proposalNavigation = useWorkspace((s) => s.proposalNavigation);
   const archivePending = useWorkspace((s) => s.archivePending);
   const { value, dirty, stale, update, reset } = editDraft(
     { title: card.title, body: card.body, revision: card.revision },
@@ -67,6 +70,31 @@ function Details({ card }: { card: Card }) {
     (next) => draft(card.id, next),
   );
   const proposals = snapshot.proposals.filter((p) => p.cardId === card.id && p.state === "pending");
+  useLayoutEffect(() => {
+    if (
+      !proposalNavigation ||
+      proposalNavigation.cardId !== card.id ||
+      proposalNavigation.projectId !== snapshot.project.id
+    )
+      return;
+    const frame = requestAnimationFrame(() => {
+      const scroll = scrollRef.current;
+      const target = proposalsRef.current;
+      if (scroll && target) {
+        scroll.scrollTo({
+          top:
+            target.getBoundingClientRect().top -
+            scroll.getBoundingClientRect().top +
+            scroll.scrollTop -
+            20,
+          behavior: "instant",
+        });
+      }
+      // Consume the click so incoming proposals and edits do not move the reader again.
+      useWorkspace.setState({ proposalNavigation: null });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [proposalNavigation, card.id, snapshot.project.id]);
   async function save() {
     setSaving(true);
     const result = await act({ type: "updateCard", card: { ...card, ...value } });
@@ -75,11 +103,16 @@ function Details({ card }: { card: Card }) {
   }
   return (
     <section className="details-pane">
-      <div className="pane-heading">
+      <div className="pane-heading details-heading">
         <FileText size={16} />
-        <h2>{t("カード詳細")}</h2>
+        <h2>
+          <span>{t("カード詳細")}</span>
+          <span className="details-heading-title" title={value.title}>
+            {value.title}
+          </span>
+        </h2>
       </div>
-      <div className="details-scroll">
+      <div className="details-scroll" ref={scrollRef}>
         {card.deleted && (
           <div className="notice">
             {t("このカードはアーカイブされています。")}
@@ -204,7 +237,7 @@ function Details({ card }: { card: Card }) {
           )}
         </div>
         <CardBacklinks cardId={card.id} />
-        <Proposals count={proposals.length}>
+        <Proposals count={proposals.length} ref={proposalsRef}>
           {proposals.map((p) => (
             <ProposalCard
               key={p.id}

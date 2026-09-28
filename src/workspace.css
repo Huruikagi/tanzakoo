@@ -467,6 +467,23 @@ summary:focus-visible {
   text-align: center;
   padding-bottom: 70px;
 }
+.details-heading > svg {
+  flex-shrink: 0;
+}
+.details-heading h2 {
+  min-width: 0;
+  flex: 1;
+}
+.details-heading h2 > span {
+  display: block;
+}
+.details-heading-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--foreground);
+}
 .details-empty p {
   font-size: 11px;
   line-height: 2;

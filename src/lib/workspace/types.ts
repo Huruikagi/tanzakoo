@@ -53,6 +53,7 @@ export type Workspace = {
   deleteProject: (id: string) => Promise<boolean>;
   updateMaterials: (change: { kind: "file" | "folder" } | { remove: string }) => Promise<boolean>;
   selected: string | null;
+  proposalNavigation: { projectId: string; cardId: string } | null;
   conversation: string | null;
   references: CardReference[];
   drafts: Record<string, Draft>;
@@ -61,7 +62,7 @@ export type Workspace = {
   stream: string;
   activity: string;
   permissions: Permission[];
-  select: (id: string) => void;
+  select: (id: string, target?: "proposals") => void;
   selectConversation: (id: string | null) => void;
   refresh: () => Promise<void>;
   act: (action: BoardAction) => Promise<Snapshot | null>;

@@ -89,7 +89,7 @@ export function PendingProposals({ questionTurn }: { questionTurn?: string }) {
                     disabled={!card}
                     aria-labelledby={`${listId}-${proposal.id}-title`}
                     aria-describedby={`${listId}-${proposal.id}-reason`}
-                    onClick={() => useWorkspace.getState().select(proposal.cardId)}
+                    onClick={() => useWorkspace.getState().select(proposal.cardId, "proposals")}
                     title={card?.title ?? proposal.title}
                   >
                     <span className="pending-proposal-heading">
