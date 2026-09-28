@@ -52,6 +52,22 @@ python3 scripts/capture-macos-store.py --app "/Applications/Tanzakoo.app" --lang
 
 撮影中は全画面表示を解除し、メインウィンドウを1枚だけ表示する。別のコピーの同じアプリが動いている場合は停止する。ファイル選択等のネイティブダイアログは閉じる。スクリプトはアプリを終了したり、元のウィンドウ配置に戻したりはしない。
 
+## Macの権限設定
+
+許可する対象は `.py` や `.js` ファイルではなく、コマンドを実行する **Terminal（ターミナル）**。iTermやVS Codeの内蔵ターミナルを使う場合は、そのアプリを許可する。
+
+「システム設定 → プライバシーとセキュリティ」で次を設定する。
+
+1. **画面収録とシステムオーディオ録音**: Terminalの画面収録をオンにする。表示されなければ「＋」で `/System/Applications/Utilities/Terminal.app` を追加する。
+2. **アクセシビリティ**: Terminalをオンにする。表示されなければ「＋」で同じアプリを追加する。ウィンドウの位置・大きさの調整に使う。
+3. **オートメーション**: 実行時にSystem Eventsの操作許可が表示されたら許可する。既に拒否した場合は、この設定内のTerminal → System Eventsをオンにする。要求前は一覧に表示されないことがある。
+
+Terminalの終了・再起動を求められたら従い、撮影コマンドを再実行する。ローカル開発アプリも終了した場合は、先に `mise exec -- pnpm tauri dev` で起動し直す。`python3` で実行するため、スクリプトへの `chmod +x` は不要。
+
+`CGPreflightScreenCaptureAccess is undefined` は権限拒否とは異なり、JXAがC関数を公開していない場合に起きる。修正版では関数を明示的にバインドする。古いスクリプトで出る場合は更新する。権限を許可するだけではこのエラーは解消しない。
+
+参照: Appleの[画面収録の許可](https://support.apple.com/ja-jp/guide/mac-help/mchld6aa7d23/mac)、[アクセシビリティの許可](https://support.apple.com/ja-jp/guide/mac-help/mh43185/mac)。
+
 ## ほかの撮り方
 
 ```sh

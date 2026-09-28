@@ -31,7 +31,13 @@ function run(argv) {
     app.activateWithOptions($.NSApplicationActivateIgnoringOtherApps);
     return JSON.stringify({ pid: app.processIdentifier });
   }
+  // JXA's framework metadata can omit these newer C functions. Bind their
+  // native bool(void) signatures explicitly when import did not expose them.
+  if (typeof $.CGPreflightScreenCaptureAccess !== "function")
+    ObjC.bindFunction("CGPreflightScreenCaptureAccess", ["bool", []]);
   if (!$.CGPreflightScreenCaptureAccess()) {
+    if (typeof $.CGRequestScreenCaptureAccess !== "function")
+      ObjC.bindFunction("CGRequestScreenCaptureAccess", ["bool", []]);
     $.CGRequestScreenCaptureAccess();
     throw new Error(
       "Allow Screen Recording for your terminal, restart it if requested, and retry.",

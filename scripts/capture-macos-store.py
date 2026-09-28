@@ -266,5 +266,5 @@ if __name__ == "__main__":
         sys.exit(130)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         detail = getattr(error, "stderr", None) or str(error)
-        print(f"撮影できませんでした: {detail}\n権限を許可した後にTerminalを再起動し、アプリの全画面表示を解除して再試行してください。", file=sys.stderr)
+        print(f"撮影できませんでした: {detail}\n上記の原因を確認してください。権限の設定手順は notes/app-store/screenshots/mac-capture.md を参照してください。", file=sys.stderr)
         sys.exit(1)
