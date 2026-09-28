@@ -2,6 +2,8 @@
 
 This document is the English-only source for reviewer instructions. Before submission, supply the current review access code, its expiry, and a monitored support contact in the store's private review fields. Do not commit credentials to this document. Confirm these steps against the exact submitted build; this document does not record a completed store submission.
 
+A [compact copy-ready draft](app-store/review-notes.txt) is available for version 0.1.0 (2), source `2a5adab`. The public support address approved by the developer is **huruikagi@gmail.com**. Enter actual reviewer contact details separately in App Store Connect. Replace the private code and expiry placeholders only in the submission fields, after checking remaining usage and availability.
+
 ## What the app does
 
 Tanzakoo is a free, local desktop app for developing product ideas. Users organize ideas on a board, optionally discuss them with AI, and review proposed changes before applying them.
@@ -21,7 +23,7 @@ Review access provides real AI functionality using an expiring code supplied pri
 5. Select **Agree and connect**. The connection panel displays the assigned model and expiry.
 6. Open **Think with AI** and start a new conversation.
 
-Checking the code does not send board, conversation, memory, or reference content and does not call an AI model. Sending a conversation shares its context and any reference excerpts read by AI through Tanzakoo's relay server to OpenAI.
+Checking the code does not send board, conversation, memory, or reference content and does not call an AI model. Sending a conversation shares its context, the current board, project memory, pending proposals, registered reference paths, and any reference excerpts read by AI through Tanzakoo's relay server to OpenAI.
 
 The same local board, conversation, card tools, and approval controls are used for regular and review access. Differences are the developer-funded model connection, relay routing, an assigned model, and expiry/usage limits. Review access supports text and local card/reference tools; it does not provide image/file uploads, hosted web search, or remote MCP tools.
 
@@ -44,11 +46,13 @@ Switching connections starts a new conversation. An existing conversation must b
 
 Use this text for internal testing after Apple has processed the selected build. It is a test plan, not a record of completed checks.
 
+On September 28, 2026, the developer chose to defer installation and launch through TestFlight rather than sign in with a personal Apple Account on a borrowed Mac. Earlier testing of the separate Sandbox validation app is not confirmation that the Store-distributed build was installed and tested. This status note is internal preparation context, not copy for the What to Test field.
+
 > Test on Apple Silicon with macOS 26 or later. Create a separate test project and confirm manual card creation, editing, and Markdown export. Connect to Codex or use the privately supplied review access code, create a card through chat, and apply or reject a proposed change. Register a non-sensitive text file and folder, quit with Command-Q, reopen the app, and verify that references can still be listed, read, and searched. Modify a source file and confirm the latest contents can be read. Remove a reference and confirm future access is denied without deleting the source. Check saved cards and conversations after restarting. Report errors with the build number, steps, and error text; do not include private reference contents or credentials.
 
 ## Data handling and availability
 
-Cards, project memory, and conversations are stored locally. AI is optional. Review AI requests pass through the developer's relay server to OpenAI after explicit consent. The relay does not normally log conversation bodies or credentials. OpenAI's own data retention terms still apply; disabling storage in an API request is not a guarantee of zero retention.
+Cards, project memory, and conversations are stored locally. AI is optional. Review AI requests pass through the developer's relay server to OpenAI after explicit consent. The relay does not normally log conversation bodies or credentials. It retains hashed code/access records and usage counts, and hosting infrastructure may retain operational request logs. OpenAI's own data retention terms still apply; disabling storage in an API request is not a guarantee of zero retention.
 
 Reference materials are read only as needed. The initial scope is UTF-8 text up to 1 MiB per file, with up to 32 registered files/folders per project. Excluded paths include `.git`, `node_modules`, build outputs, `.env`, private keys, and links. PDFs and images are not supported as reference materials.
 

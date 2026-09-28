@@ -1,0 +1,21 @@
+Tanzakoo 0.1.0 (2) is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI uses the user's own Codex account through ChatGPT sign-in, subject to the external service's plan and limits. Tanzakoo does not sell AI credits or subscriptions.
+
+For review, we provide developer-funded AI access so you do not need a personal ChatGPT account or API key. It uses the same local board, tools, and approval flow as regular AI access. The differences are relay routing, an assigned model, and expiry/usage limits. This is a visible option in Settings, not a hidden review mode.
+
+PRIVATE REVIEW ACCESS — replace the two placeholders before submitting:
+Code: [ENTER CURRENT CODE ONLY IN APP STORE CONNECT]
+Valid until: [ENTER EXPIRY WITH TIME ZONE]
+Support: huruikagi@gmail.com
+
+1. Open the gear button (Settings). If needed, set Display language to English.
+2. Select Use review access, enter the code, read the disclosure, select I agree to send data through the relay server to OpenAI, then Agree and connect.
+3. Open Think with AI and start a new conversation. Ask: "Help me explore a personal to-do app and create three candidate cards."
+4. Select one card, choose Reference in chat, and ask: "Propose a clearer description for this card." Review Changes or Result, then Apply or Reject. Saved content remains unchanged until Apply.
+5. Move a card to Decided, then choose Export > Choose location and export. The selected location receives a new folder with index.md, project.md, and decisions/.
+6. Optionally register a non-sensitive UTF-8 text file or folder under Reference materials, then ask AI to read it. Access is read-only and restricted to registered materials. PDFs and images are unsupported.
+
+The review code and consent last only for the running app session. Enter them again after quitting and reopening. Cards and conversations stay saved locally. Return to regular connection ends review access; switching connections starts a new conversation. Contact us if the code is expired or exhausted. We will keep valid review access available throughout review and follow-up checks.
+
+AI is optional and requires explicit consent before sharing. Requests include conversation context, current board cards, project memory, registered reference paths, and any excerpts read through reference tools. Review requests pass through our relay to OpenAI. The relay does not persist conversation bodies, but stores access-control and usage records; infrastructure and OpenAI retention also apply.
+
+Requires Apple Silicon and macOS 26 or later. The app supports English and Japanese. There are no ads or in-app purchases.

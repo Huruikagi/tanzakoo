@@ -115,7 +115,11 @@ gh workflow run macos-store-upload.yml --ref main -f source_run_id=NEW_SOURCE_RU
 
 2026-09-28 04:54 JST、[Appleへの検証・アップロード](https://github.com/Huruikagi/tanzakoo/actions/runs/36345683918) が `VERIFY SUCCEEDED with no errors` と `UPLOAD SUCCEEDED with no errors` を返した。対象は `Tanzakoo_0.1.0_2_aarch64.pkg`、ソース `2a5adab1365b2c239106af71662045442ff33180`、Delivery UUIDは `c3721f4a-96fd-402c-86fa-75567c25fa35`。[アップロードしたArtifact](https://github.com/Huruikagi/tanzakoo/actions/runs/36345112251/artifacts/10940268456) のZIP SHA-256は `c44e7491edf1e329e1966caf36224df21a74deed1fd22e405718db8dcaed629c`。build 2は送信済みのため、同じビルドを新規送信として再実行しない。
 
-次にApp Store ConnectのTanzakoo → TestFlight → macOSで `0.1.0 (2)` の処理状態と暗号利用の申告を確認する。内部テスター用の確認内容は [英語のWhat to Test案](store-review-notes.md#testflight-what-to-test-draft) を使う。アップロード成功だけで、Appleの処理完了や実機動作を確認済みとは扱わない。
+同日、利用者はApp Store Connectで暗号利用の質問に回答し、build 2が「提出準備完了」になったと報告した。フランスでの配信には「いいえ」と回答したため、実際の配信地域からもフランスを外す。質問への回答だけで配信地域が変更されたとは扱わない。
+
+借用Macへの個人のApple Accountログインを避けるため、利用者はTestFlight経由のインストール・起動確認を今回は見送る判断をした。内部テスター用の [英語のWhat to Test案](store-review-notes.md#testflight-what-to-test-draft) は、確認を再開する場合に使う。アップロードの成功や別のSandbox版での確認を、Store配信ビルドの実機確認済みとは扱わない。
+
+次の [掲載資料](app-store/README.md) に、build 2を対象とした日英の説明文、スクリーンショット構図案、プライバシー・サポートページ原稿、申告案、英文審査メモをまとめた。公開URL・アプリ内ポリシーリンク・提出用Mac画像等の未完了項目も同資料で管理する。
 
 ## 検証と次段階
 
@@ -127,7 +131,7 @@ gh workflow run macos-store-upload.yml --ref main -f source_run_id=NEW_SOURCE_RU
 
 同じソースの [通常CI](https://github.com/Huruikagi/tanzakoo/actions/runs/36342808833) はWindows・macOS・仲介サーバーの全ジョブが成功した。初回Windows CIで発生したテスト終了時の `taskkill` 競合には、子プロセスとパイプの実際の終了を待って判定する修正を `511fced` で追加した。終了を確認できない場合は失敗を維持し、この分岐の3テストと実ACP/MCP検証も通過している。
 
-Store配布署名のpkgは、これまでの直接インストール用DMGとは用途が異なる。署名検証の成功は、そのまま起動して動くことやAppleの受理を保証しない。次段階でApp Store Connectへのアップロードを進めるときに、Appレコード・暗号利用の申告・プライバシー情報・サポートURL・スクリーンショット・英語審査メモを用意し、Appleが処理したビルドをTestFlight等で検証する。暗号利用の申告値は未判断なので `ITSAppUsesNonExemptEncryption` を便宜的に固定しない。
+Store配布署名のpkgは、これまでの直接インストール用DMGとは用途が異なる。署名検証の成功は、そのまま起動して動くことを保証しない。Appレコード作成・build 2のアップロード・暗号利用の質問への回答後、掲載資料の準備を進めている。暗号化には同梱Node/OpenSSL等も関係するため、画面の要約文だけから「暗号を使っていない」と解釈しない。`ITSAppUsesNonExemptEncryption` は今回の資料準備では変更していない。
 
 参照元の移動・削除、エクスポートの失敗条件など、Sandbox実機検証で未確認のケースも残る。提出前に必要な確認を終える。審査用接続は、審査期間をカバーする有効期限・残数で別途用意する。
 
