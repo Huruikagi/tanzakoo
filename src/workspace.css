@@ -938,27 +938,51 @@ summary:focus-visible {
   gap: 4px;
 }
 .pending-proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   list-style: none;
   margin: 6px 0;
-  padding: 0;
+  padding: 3px;
   max-height: 160px;
   overflow: auto;
 }
-.pending-proposals-list li + li {
-  border-top: 1px solid var(--border);
-}
 .pending-proposals-list button {
   width: 100%;
-  justify-content: space-between;
+  padding: 8px 10px;
+  gap: 3px;
+  font-size: 12px;
+  background: var(--background);
+  cursor: pointer;
 }
-.pending-proposals-list button span {
+.pending-proposals-list button:hover:not(:disabled) {
+  background: var(--muted);
+}
+.pending-proposal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.pending-proposal-title {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pending-proposals-list p {
-  margin: 0 8px 6px;
+.pending-proposal-action {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  color: var(--primary);
   font-size: 11px;
+}
+.pending-proposal-reason {
+  font-size: 11px;
+  font-weight: 400;
   color: var(--muted-foreground);
   overflow-wrap: anywhere;
 }

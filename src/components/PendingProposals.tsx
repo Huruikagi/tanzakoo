@@ -84,16 +84,33 @@ export function PendingProposals({ questionTurn }: { questionTurn?: string }) {
               {pending.map(({ proposal, card, blocked }) => (
                 <li key={proposal.id}>
                   <Button
-                    variant="ghost"
-                    size="sm"
+                    variant="outline"
+                    size="choice"
                     disabled={!card}
+                    aria-labelledby={`${listId}-${proposal.id}-title`}
+                    aria-describedby={`${listId}-${proposal.id}-reason`}
                     onClick={() => useWorkspace.getState().select(proposal.cardId)}
                     title={card?.title ?? proposal.title}
                   >
-                    <span>{card?.title ?? proposal.title}</span>
-                    <ChevronRight />
+                    <span className="pending-proposal-heading">
+                      <span
+                        id={`${listId}-${proposal.id}-title`}
+                        className="pending-proposal-title"
+                      >
+                        {card?.title ?? proposal.title}
+                      </span>
+                      <span className="pending-proposal-action" aria-hidden="true">
+                        {t("確認")}
+                        <ChevronRight />
+                      </span>
+                    </span>
+                    <span
+                      id={`${listId}-${proposal.id}-reason`}
+                      className="pending-proposal-reason"
+                    >
+                      {blocked ?? proposal.reason}
+                    </span>
                   </Button>
-                  <p>{blocked ?? proposal.reason}</p>
                 </li>
               ))}
             </ul>

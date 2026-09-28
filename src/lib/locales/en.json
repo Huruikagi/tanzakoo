@@ -160,6 +160,7 @@
   "承認中…": "Approving…",
   "まとめて承認 ({{value0}})": "Approve all ({{value0}})",
   "このプロジェクト全体 · カードを開いて差分を確認": "Across this project · Open a card to review changes",
+  "確認": "Review",
   "承認できないカードは一覧に残ります。": "Cards that cannot be approved stay in this list.",
   "AIの応答中はプロジェクトを切り替えられません": "Wait for AI to finish before switching projects",
   "プロジェクト": "Project",
