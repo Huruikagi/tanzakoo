@@ -1,10 +1,41 @@
 # Mac実機の撮影スクリプト
 
-MacにCodexを入れる必要はない。**インストール済みのTanzakoo、Python 3、macOS標準のコマンドだけ**で撮影できる。Node・Rust・Playwright、アプリの再ビルドは不要。Python 3の有無は `python3 --version` で確認する。見つからない場合は、Gitを使うためのCommand Line Toolsに含まれるPythonが利用できるか確認する。
+MacにCodexを入れる必要はない。**起動中のTanzakoo、Python 3、macOS標準のコマンド**で撮影できる。インストールした.appと、クローン先から `pnpm tauri dev` で起動したネイティブアプリの両方に対応する。撮影処理にNode・Rust・Playwrightは不要だが、ローカルビルドで起動する場合は通常の開発環境が必要。Python 3の有無は `python3 --version` で確認する。
 
 スクリプトはウィンドウの大きさ・位置の調整、アプリを前面にする操作、撮影、サイズ検査、記録保存を行う。**言語変更、カードや変更提案の準備、撮る画面を開く操作は手動**。画面ごとにTerminalでEnterを押すと撮影する。DBを書き込んだり、AIの返答を注入したりしない。
 
 ## 実行
+
+### クローンしてローカル起動したアプリを撮る
+
+通常の開発環境を用意したMacで、クローン先のルートから起動する。既に起動中なら、もう一度起動する必要はない。
+
+```sh
+# Terminal 1: ネイティブアプリを起動したままにする
+mise exec -- pnpm tauri dev
+```
+
+別のTerminalで、同じクローン先から撮影する。
+
+```sh
+# Terminal 2: まず日本語ボード1枚
+python3 scripts/capture-macos-store.py --running --languages ja --scenes board
+
+# 日英の全画面を順に撮る場合
+python3 scripts/capture-macos-store.py --running
+```
+
+`--running` は、撮影スクリプトを置いたリポジトリの `src-tauri/target/debug/tanzakoo` と実行ファイルのパスが一致するプロセスだけを選ぶ。インストール済み.appを起動し直さず、ローカルアプリの保存先や起動環境も引き継いだまま撮影する。標準と異なるビルド先なら、次のように実行ファイルを明示する。
+
+```sh
+python3 scripts/capture-macos-store.py --running ./src-tauri/target/release/tanzakoo --languages ja
+```
+
+同じ実行ファイルから複数のアプリが動いている場合は、撮影対象を1つにする。撮影中はコードの変更・再ビルドを止める。実行ファイルが更新された場合やPIDが変わった場合は撮影を中止し、スクリプトを再実行する。フロントエンドだけのホットリロードはPIDで検知できないため、撮影中は編集しない。`pnpm dev` のブラウザープレビューは対象外。
+
+ローカル画像には `-local.jpg` を付け、記録には `kind: local-native-capture`、実行ファイルのSHA-256、撮影開始時のチェックアウトのコミットと未コミット変更の有無を残す。このコミットが実行ファイルのビルド元と一致する保証はなく、Storeの版・ビルド番号も推測しない。**提出前に最終提出ビルドと表示・機能が一致することを確認する。**
+
+### インストールした.appを撮る
 
 このスクリプトを含むリビジョンのリポジトリをMacに取得し、そのディレクトリで実行する。既に取得済みなら、そのリビジョンまで更新する。撮影キットZIPでも同じ構成で動く。
 
@@ -37,7 +68,7 @@ python3 scripts/capture-macos-store.py --app "/Applications/Tanzakoo.app" --size
 python3 scripts/capture-macos-store.py --app "/Applications/Tanzakoo Sandbox.app" --languages ja --scenes board
 ```
 
-ビルド番号の指定は任意。上記の `2` は既存のアップロード済みビルドの例で、最終提出ビルドが変わったら置き換える。Sandbox版の撮影成功はStoreビルドの確認を意味しない。
+ビルド番号の指定は.app用の任意指定で、`--running` とは併用できない。上記の `2` は既存のアップロード済みビルドの例で、最終提出ビルドが変わったら置き換える。Sandbox版の撮影成功はStoreビルドの確認を意味しない。
 
 ## サイズと保存先
 
@@ -71,6 +102,6 @@ AIを使う場合も、CodexアプリをMacに別途インストールする必�
 
 ## 検証範囲
 
-Windowsで、誤ったアプリ・複数ウィンドウ・画面サイズ不足・アルファ付き画像・指定外寸法の拒否、既存画像の保持、失敗画像の分離、撮影記録を単体検証した。macOS上の権限ダイアログ、JXA/AppleScript、実ウィンドウ撮影はまだ未検証。最初は1枚で確認する。
+Windowsで、誤ったアプリ・複数ウィンドウ・画面サイズ不足・アルファ付き画像・指定外寸法の拒否、既存画像の保持、失敗画像の分離、撮影記録を単体検証した。ローカル対象のパス照合、複数候補の拒否、再起動・再ビルドの拒否もテストしている。macOS上の権限ダイアログ、実際のJXA/AppleScriptと実ウィンドウ撮影はまだ未検証。最初は1枚で確認する。
 
 参照: [AppleのMac自動化ガイド](https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/HowMacScriptingWorks.html)、[App Store画像仕様](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)。

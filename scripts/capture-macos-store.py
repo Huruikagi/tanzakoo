@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive capture of an installed Tanzakoo window. Python standard library only."""
+"""Capture an installed or locally running Tanzakoo window. Python standard library only."""
 
 import argparse
 import datetime as dt
@@ -63,11 +63,32 @@ def app_info(path):
     if path not in executable.parents or not executable.is_file():
         raise ValueError("Executable is outside the app bundle")
     return path, {
+        "targetMode": "bundle",
         "bundleID": info["CFBundleIdentifier"],
         "version": str(info.get("CFBundleShortVersionString", "")),
         "build": str(info.get("CFBundleVersion", "")),
         "executableSHA256": hashlib.sha256(executable.read_bytes()).hexdigest(),
     }
+
+
+def running_info(path):
+    path = path.expanduser().resolve(strict=True)
+    if not path.is_file() or path.name != "tanzakoo":
+        raise ValueError("ローカル起動中のtanzakoo実行ファイルを指定してください。ブラウザープレビューは対象外です。")
+    return path, {
+        "targetMode": "executable", "bundleID": None, "version": None, "build": None,
+        "executableSHA256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def checkout_context():
+    # The current checkout is context, not proof of the executable's build source.
+    try:
+        commit = command(["git", "-C", HERE.parent, "rev-parse", "HEAD"])
+        dirty = bool(command(["git", "-C", HERE.parent, "status", "--porcelain"]))
+        return {"commit": commit, "dirty": dirty, "isBuildProvenance": False}
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def select_window(state):
@@ -89,7 +110,24 @@ def placement(window, displays, width, height):
 
 
 def inspect(path, info, action="inspect"):
-    return json.loads(command(["/usr/bin/osascript", "-l", "JavaScript", HERE / "macos-capture-window.js", info["bundleID"], path, action]))
+    mode = info.get("targetMode", "bundle")
+    result = json.loads(command([
+        "/usr/bin/osascript", "-l", "JavaScript", HERE / "macos-capture-window.js",
+        mode, info.get("bundleID") or "", path, action, info.get("capturePID", ""),
+    ]))
+    pid = result["pid"]
+    if "capturePID" in info and info["capturePID"] != pid:
+        raise ValueError("撮影中にTanzakooが再起動されました。撮影スクリプトも再実行してください。")
+    info["capturePID"] = pid
+    return result
+
+
+def start_target(path, info):
+    if info.get("targetMode") == "executable":
+        # Attach only; never launch a second copy or replace the developer's environment.
+        inspect(path, info, "activate")
+    else:
+        command(["/usr/bin/open", "-a", path])
 
 
 def prepare_window(path, info, width, height):
@@ -118,6 +156,8 @@ def parse_image_info(text):
 
 
 def capture(path, info, output, width, height):
+    if info.get("targetMode") == "executable" and hashlib.sha256(path.read_bytes()).hexdigest() != info["executableSHA256"]:
+        raise ValueError("撮影中に実行ファイルが更新されました。撮影スクリプトを再実行してください。")
     state, window = prepare_window(path, info, width, height)
     # Reserve a new filename. Never overwrite an existing capture.
     output.touch(exist_ok=False)
@@ -146,7 +186,9 @@ def save_manifest(directory, manifest):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--app", type=Path, required=True, help="Installed .app, e.g. /Applications/Tanzakoo.app")
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--app", type=Path, help="Installed .app, e.g. /Applications/Tanzakoo.app")
+    target.add_argument("--running", nargs="?", type=Path, const=HERE.parent / "src-tauri/target/debug/tanzakoo", metavar="EXECUTABLE", help="Attach to a locally running executable (default: src-tauri/target/debug/tanzakoo)")
     parser.add_argument("--languages", nargs="+", choices=["ja", "en"], default=["ja", "en"])
     parser.add_argument("--scenes", nargs="+", choices=list(SCENES), default=list(SCENES))
     parser.add_argument("--size", choices=["1280x800", "1440x900"], default="1280x800", help="Logical window size, no resampling")
@@ -158,7 +200,10 @@ def main():
         parser.error("この撮影スクリプトはMac専用です。")
     if not sys.stdin.isatty():
         parser.error("Terminalから対話形式で実行してください。")
-    path, info = app_info(args.app)
+    local = args.running is not None
+    if local and (args.expected_version is not None or args.expected_build is not None):
+        parser.error("--expected-version/--expected-build は --app 用です。ローカル実行ファイルからStoreの版・ビルドは判断しません。")
+    path, info = running_info(args.running) if local else app_info(args.app)
     for key, expected in [("version", args.expected_version), ("build", args.expected_build)]:
         if expected is not None and info[key] != expected:
             parser.error(f"対象の{key}が違います: expected {expected}, actual {info[key]}")
@@ -167,21 +212,26 @@ def main():
     width, height = map(int, args.size.split("x"))
     args.output.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix=dt.datetime.now().strftime("%Y%m%d-%H%M%S-"), dir=args.output.resolve()))
-    sandbox = info["bundleID"].endswith(".sandbox-test")
+    sandbox = (info["bundleID"] or "").endswith(".sandbox-test")
+    kind = "local-native-capture" if local else "sandbox-preview" if sandbox else "native-capture"
     manifest = {
-        "app": info, "macOS": platform.mac_ver(), "kind": "sandbox-preview" if sandbox else "native-capture",
+        "app": info, "macOS": platform.mac_ver(), "kind": kind,
+        "checkoutAtStart": checkout_context() if local else None,
         "contentReview": "pending", "submissionBuildMatch": "not-verified",
-        "note": "Real installed app window. The capture script does not inject data, call AI, or resample images. Inspect images and match the final submission build before use.",
+        "note": "Native Tanzakoo window. The capture script does not inject data, call AI, or resample images. Inspect images and match the final submission build before use.",
         "status": "in-progress", "captures": [],
     }
     save_manifest(directory, manifest)
-    print(f"対象: {path}\nVersion {info['version']} / Build {info['build']}\n保存先: {directory}", flush=True)
+    label = "ローカル起動中の実行ファイル" if local else f"Version {info['version']} / Build {info['build']}"
+    print(f"対象: {path}\n{label}\n保存先: {directory}", flush=True)
     print("普段のプロジェクトではなく、撮影用プロジェクトを画面で用意してください。DB・認証・アプリ本体は変更しません。")
     print("Macから求められた場合、Terminalの画面収録・アクセシビリティ・System Eventsの操作を許可してください。")
     if sandbox:
         print("Sandbox検証版のため、画像名にsandbox-previewを付けます。提出用ビルドの画像としては扱いません。")
+    if local:
+        print("撮影中はコードを変更・再ビルドしないでください。画像名にlocalを付け、Storeビルドとの一致は別途確認します。")
     try:
-        command(["/usr/bin/open", "-a", path])
+        start_target(path, info)
         input("アプリが開いたらEnter。Ctrl+Cで中止できます: ")
         prepare_window(path, info, width, height)
         for language in args.languages:
@@ -192,7 +242,7 @@ def main():
                 print(f"\n{language} {index}: {SCENES[scene]}")
                 print("個人情報・審査コード・エラー・開発用表示が写らないことを確認してください。")
                 input("画面を整えたら、このTerminalに戻ってEnterで撮影: ")
-                suffix = "-sandbox-preview" if sandbox else ""
+                suffix = "-local" if local else "-sandbox-preview" if sandbox else ""
                 output = directory / f"{language}-{index:02d}-{scene}{suffix}.jpg"
                 shot = capture(path, info, output, width, height)
                 manifest["captures"].append({**shot, "language": language, "scene": scene})

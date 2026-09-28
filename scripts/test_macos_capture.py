@@ -14,6 +14,55 @@ spec.loader.exec_module(capture)
 
 
 class CaptureTests(unittest.TestCase):
+    def test_running_target_does_not_invent_bundle_version_or_build(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "tanzakoo"
+            executable.write_bytes(b"local executable fixture")
+            path, info = capture.running_info(executable)
+            self.assertEqual(path, executable.resolve())
+            self.assertEqual(info["targetMode"], "executable")
+            self.assertIsNone(info["bundleID"])
+            self.assertIsNone(info["version"])
+            self.assertIsNone(info["build"])
+            with self.assertRaises(ValueError):
+                capture.running_info(Path(temporary))
+            other = Path(temporary) / "another-app"
+            other.write_bytes(b"other")
+            with self.assertRaises(ValueError):
+                capture.running_info(other)
+
+    def test_attach_only_and_reject_process_restart(self):
+        info = {"targetMode": "executable", "bundleID": None}
+        path = Path("clone/src-tauri/target/debug/tanzakoo")
+        with patch.object(capture, "command", side_effect=['{"pid": 20}', '{"pid": 21}']) as run:
+            capture.start_target(path, info)
+            arguments = run.call_args.args[0]
+            self.assertEqual(arguments[0], "/usr/bin/osascript")
+            self.assertEqual(arguments[4:8], ["executable", "", path, "activate"])
+            self.assertEqual(info["capturePID"], 20)
+            with self.assertRaises(ValueError):
+                capture.inspect(path, info)
+            self.assertEqual(run.call_args.args[0][-1], 20)
+
+    def test_rebuilt_local_executable_stops_before_capture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "tanzakoo"
+            executable.write_bytes(b"first build")
+            path, info = capture.running_info(executable)
+            executable.write_bytes(b"new build")
+            output = Path(temporary) / "image.jpg"
+            with patch.object(capture, "prepare_window") as prepare:
+                with self.assertRaises(ValueError):
+                    capture.capture(path, info, output, 1280, 800)
+                prepare.assert_not_called()
+            self.assertFalse(output.exists())
+
+    def test_missing_git_keeps_checkout_provenance_unknown(self):
+        with patch.object(capture, "command", side_effect=FileNotFoundError("git")):
+            self.assertIsNone(capture.checkout_context())
+        with patch.object(capture, "command", side_effect=["a" * 40, " M src/App.tsx"]):
+            self.assertEqual(capture.checkout_context(), {"commit": "a" * 40, "dirty": True, "isBuildProvenance": False})
+
     def test_refuses_wrong_app_and_executable_path_escape(self):
         with tempfile.TemporaryDirectory() as temporary:
             app = Path(temporary) / "Example.app"

@@ -5,16 +5,31 @@ ObjC.import("CoreGraphics");
 
 // eslint-disable-next-line no-unused-vars -- Entry point invoked by osascript.
 function run(argv) {
-  const [bundleID, expectedPath, action] = argv;
-  if (!bundleID || !expectedPath) throw new Error("Missing application identity");
-  const running = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(bundleID);
-  if (running.count !== 1) throw new Error("Keep exactly one copy of the selected app running.");
-  const app = running.objectAtIndex(0);
-  const path = ObjC.unwrap(app.bundleURL.path);
-  if (path !== expectedPath) throw new Error("A different copy of this app is running: " + path);
+  const [mode, bundleID, expectedPath, action, expectedPID] = argv;
+  if (!expectedPath || !["bundle", "executable"].includes(mode))
+    throw new Error("Missing application identity");
+  const running =
+    mode === "bundle"
+      ? $.NSRunningApplication.runningApplicationsWithBundleIdentifier(bundleID)
+      : $.NSWorkspace.sharedWorkspace.runningApplications;
+  const matches = [];
+  for (let i = 0; i < running.count; i++) {
+    const candidate = running.objectAtIndex(i);
+    const url = mode === "bundle" ? candidate.bundleURL : candidate.executableURL;
+    if (url.isNil()) continue;
+    const path = ObjC.unwrap(url.URLByResolvingSymlinksInPath.path);
+    if (path === expectedPath) matches.push(candidate);
+  }
+  if (matches.length !== 1)
+    throw new Error(
+      "Keep exactly one app running from the specified path. For --running, start pnpm tauri dev first.",
+    );
+  const app = matches[0];
+  if (expectedPID && app.processIdentifier !== Number(expectedPID))
+    throw new Error("The app restarted during capture. Restart the capture script.");
   if (action === "activate") {
     app.activateWithOptions($.NSApplicationActivateIgnoringOtherApps);
-    return "{}";
+    return JSON.stringify({ pid: app.processIdentifier });
   }
   if (!$.CGPreflightScreenCaptureAccess()) {
     $.CGRequestScreenCaptureAccess();
