@@ -58,9 +58,17 @@ it("exports the current project's saved decisions and reports the actual output"
   await act(async () => {
     finish({ path: "C:\\exports\\app", cardCount: 2 });
   });
-  expect(screen.getByRole("status")).toHaveTextContent(
-    "2件の決定事項を出力しました。保存先: C:\\exports\\app",
-  );
+  expect(screen.getByRole("dialog", { name: "エクスポートが完了しました" })).toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent("2件の決定事項を出力しました。");
+  expect(screen.getByRole("status")).toHaveTextContent("C:\\exports\\app");
+  expect(screen.queryByRole("button", { name: "保存先を選んで出力" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "完了" })).toHaveFocus();
+  await user.keyboard("{Enter}");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(api.exportDecisions).toHaveBeenCalledTimes(1);
+  await user.click(screen.getByRole("button", { name: "エクスポート" }));
+  expect(screen.getByRole("button", { name: "保存先を選んで出力" })).toBeEnabled();
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });
 it("allows retry after cancellation or failure without claiming success", async () => {
   const user = userEvent.setup();

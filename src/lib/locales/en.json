@@ -1,4 +1,9 @@
 {
+  "エクスポートが完了しました": "Export complete",
+  "出力したフォルダーを、開発の入力として使えます。": "The exported folder is ready to use as input for development.",
+  "{{value0}}件の決定事項を出力しました。": "Exported {{value0}} decisions.",
+  "保存先": "Saved to",
+  "完了": "Done",
   "カードリンクを挿入": "Insert card link",
   "参照するカード": "Link to a card",
   "カードを選ぶと、本文のカーソル位置にリンクを挿入します。": "Choose a card to insert a link at the cursor in the body.",
