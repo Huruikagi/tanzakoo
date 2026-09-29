@@ -204,7 +204,9 @@ test(
     function run() {
       ObjC.import("CoreFoundation");
       const array = $(${JSON.stringify(fixture)});
-      const reference = $.CFArrayCreateCopy(null, ObjC.castObjectToRef(array));
+      // CFArrayCreateCopy accepts the toll-free bridged NSArray directly.
+      // castObjectToRef produces a generic pointer with an incompatible type.
+      const reference = $.CFArrayCreateCopy(null, array);
       return JSON.stringify({
         fromReference: unwrapWindowList(reference),
         fromArray: unwrapWindowList(array)
