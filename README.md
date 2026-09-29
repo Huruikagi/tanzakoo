@@ -137,6 +137,7 @@ tanzakoo-プロジェクト名-出力時刻/
 ```powershell
 mise exec -- pnpm check
 mise exec -- pnpm test:runtime
+mise exec -- pnpm test:plan
 mise exec -- pnpm test:review
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
@@ -163,6 +164,7 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test age
 
 公開済みの配布物はまだありません。ソースから起動するか、Macの署名・公証ワークフローの検証済み成果物を使用してください。
 詳細な検証結果と残りの確認は [実装・検証メモ](notes/implementation-progress.md) を参照してください。
+Sign in with ChatGPTの実験実装は、通常配布では無効です。起動手順と残項目は [ChatGPTプラン接続のプレビュー](notes/chatgpt-plan-preview.md) を参照してください。
 
 ## 依存関係の更新
 

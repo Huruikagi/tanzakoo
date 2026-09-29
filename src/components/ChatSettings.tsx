@@ -36,6 +36,7 @@ const effortNames: Record<string, string> = {
 function ChatSettingsForm() {
   useTranslation();
   const saved = useWorkspace((s) => s.snapshot.chatSettings);
+  const usingPlan = useWorkspace((s) => !!s.planStatus?.active && !s.reviewAccess);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
   const [options, setOptions] = useState<ChatOption[] | null>(null);
@@ -89,9 +90,10 @@ function ChatSettingsForm() {
       <p className="hint muted">
         {t("現在の設定: {{value0}} · {{value1}}", {
           value0: saved?.model ?? t("Codexの既定値"),
-          value1: saved?.reasoningEffort
-            ? t(effortNames[saved.reasoningEffort] ?? saved.reasoningEffort)
-            : t("会話の既定の推論強度"),
+          value1:
+            !usingPlan && saved?.reasoningEffort
+              ? t(effortNames[saved.reasoningEffort] ?? saved.reasoningEffort)
+              : t("会話の既定の推論強度"),
         })}
       </p>
       <div className="connection-actions">
@@ -127,8 +129,15 @@ function ChatSettingsForm() {
         )}
       </div>
       <p className="hint muted">
-        {t("サインイン済みのCodexから取得します。この操作では会話やボードの内容は送信しません。")}
+        {usingPlan
+          ? t("ChatGPTプランで利用できるモデルを取得します。会話やボードの内容は送信しません。")
+          : t(
+              "サインイン済みのCodexから取得します。この操作では会話やボードの内容は送信しません。",
+            )}
       </p>
+      {usingPlan && (
+        <p className="hint muted">{t("ChatGPTプランでは接続先の既定の推論強度を使います。")}</p>
+      )}
       {models && (
         <>
           <label htmlFor={`${id}-model`}>{t("モデル")}</label>

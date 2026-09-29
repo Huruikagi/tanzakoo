@@ -14,6 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { connectionStatus, useWorkspace } from "@/lib/workspace";
 import { agentUnavailable, api, native } from "@/lib/api";
 import { ReviewAccess } from "./ReviewAccess";
+import { PlanAccess } from "./PlanAccess";
 
 export function AgentConnectionDialog({ agent }: { agent: string }) {
   useTranslation();
@@ -77,6 +78,7 @@ export function AgentConnection({
       connect: s.connect,
       connections: s.connections,
       reviewAccess: s.reviewAccess,
+      planStatus: s.planStatus,
     })),
   );
   const { snapshot, busy, activity, connect } = workspace;
@@ -89,6 +91,13 @@ export function AgentConnection({
       </div>
     );
   if (workspace.reviewAccess) return hideWhenReady ? null : <ReviewAccess />;
+  if (workspace.planStatus?.active)
+    return hideWhenReady ? null : (
+      <>
+        <PlanAccess />
+        <ReviewAccess />
+      </>
+    );
   if (agentUnavailable(snapshot, agent) || status?.state === "unsupported")
     return (
       <div className="agent-connection">
@@ -150,6 +159,7 @@ export function AgentConnection({
         )}
       </div>
       {!hideWhenReady && <ReviewAccess />}
+      {!hideWhenReady && <PlanAccess />}
     </div>
   );
 }

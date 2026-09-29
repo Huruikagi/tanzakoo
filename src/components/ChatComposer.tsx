@@ -26,6 +26,8 @@ export const ChatComposer = memo(function ChatComposer({
 }) {
   useTranslation();
   const composing = useRef(false);
+  const usingPlan = useWorkspace((s) => !!s.planStatus?.active && !s.reviewAccess);
+  const planSignedIn = useWorkspace((s) => s.planStatus?.active?.signedIn);
   const { references, busy, activity, isThisBusy } = useWorkspace(
     useShallow((s) => ({
       references: s.references,
@@ -37,6 +39,21 @@ export const ChatComposer = memo(function ChatComposer({
   return (
     <div className="composer-area">
       {selectedAgent === "codex" && <ChatSettings />}
+      {usingPlan && (
+        <div className="hint muted">
+          {planSignedIn ? t("ChatGPTプランを使用中") : t("ChatGPTプランへの再サインインが必要です")}
+          {" · "}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!!busy}
+            onClick={() => void useWorkspace.getState().planConnect("usage")}
+          >
+            {t("ChatGPTの利用量を管理")}
+          </Button>
+        </div>
+      )}
       {!unavailable && !consented && (
         <div className="ai-consent">
           <p>

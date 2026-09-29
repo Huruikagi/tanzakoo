@@ -30,6 +30,7 @@ pub struct AgentEvent {
 pub type Emit = Arc<dyn Fn(AgentEvent) + Send + Sync>;
 #[derive(Default)]
 pub struct AgentRuntime {
+    pub plan: Mutex<Option<crate::chatgpt_plan::PlanAccount>>,
     pub review: Mutex<Option<crate::review::ReviewSession>>,
     busy: AtomicBool,
     cancel: Mutex<Option<oneshot::Sender<()>>>,
@@ -45,6 +46,12 @@ impl Drop for OperationGuard {
     }
 }
 impl AgentRuntime {
+    pub fn plan_account(&self) -> Result<Option<crate::chatgpt_plan::PlanAccount>, String> {
+        self.plan
+            .lock()
+            .map(|v| v.clone())
+            .map_err(|_| crate::chatgpt_plan::message("runtime"))
+    }
     pub fn review_session(&self) -> Result<Option<crate::review::ReviewSession>, String> {
         self.review
             .lock()
@@ -143,6 +150,12 @@ pub async fn run(
         .conversation(&conversation_id)
         .map_err(|e| e.system_message())?;
     let mut review = runtime.review_session()?;
+    let plan_account = if review.is_none() {
+        runtime.plan_account()?
+    } else {
+        None
+    };
+    crate::chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan_account.as_ref())?;
     crate::review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
     if let Some(access) = &mut review {
         access.ensure_usable()?;
@@ -153,6 +166,18 @@ pub async fn run(
         *runtime.review.lock().map_err(|e| e.to_string())? = Some(access.clone());
     }
     let snapshot = store.snapshot().map_err(|e| e.system_message())?;
+    let plan_access = if let Some(account) = &plan_account {
+        Some(tokio::select! {
+            result = crate::chatgpt_plan::access(&store, account) => result?,
+            _ = &mut cancel => return Err("応答を停止しました。".into()),
+        })
+    } else {
+        None
+    };
+    let plan_model = plan_access
+        .as_ref()
+        .map(|a| a.model(snapshot.chat_settings.model.as_deref()))
+        .transpose()?;
     let message_id = snapshot
         .messages
         .iter()
@@ -194,13 +219,18 @@ pub async fn run(
     let permission_emit = emit.clone();
     let permission_id = conversation_id.clone();
     let permission_runtime = runtime.clone();
-    let launch = crate::agent_setup::launch_with_review(
-        config,
-        &store,
-        review.as_ref().map(|access| access.status.model.as_str()),
-    )?;
+    let launch = if let (Some(account), Some(model)) = (&plan_account, &plan_model) {
+        crate::agent_setup::launch_with_plan(&store, account, model)?
+    } else {
+        crate::agent_setup::launch_with_review(
+            config,
+            &store,
+            review.as_ref().map(|access| access.status.model.as_str()),
+        )?
+    };
     let session_store = store.clone();
     let is_review = review.is_some();
+    let is_plan = plan_account.is_some();
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
@@ -236,15 +266,24 @@ pub async fn run(
                     mcp,
                     &session_notifications.replaying,
                     review.as_ref(),
+                    plan_account.as_ref().zip(plan_access.as_ref()),
                 )
                 .await?;
                 let session_id = prepared.id;
                 let input = prompt.into_input(prepared.restoring);
                 if conversation.agent == "codex" {
-                    let settings = review.as_ref().map(|r| ChatSettings {
-                        model: Some(r.status.model.clone()),
-                        reasoning_effort: None,
-                    });
+                    let settings = plan_model
+                        .as_ref()
+                        .map(|model| ChatSettings {
+                            model: Some(model.clone()),
+                            reasoning_effort: None,
+                        })
+                        .or_else(|| {
+                            review.as_ref().map(|r| ChatSettings {
+                                model: Some(r.status.model.clone()),
+                                reasoning_effort: None,
+                            })
+                        });
                     crate::chat_settings::apply(
                         &cx,
                         &session_id,
@@ -265,6 +304,8 @@ pub async fn run(
         result = tokio::time::timeout(Duration::from_secs(600), job) => match result {
             Ok(result) => result.map_err(|e| if is_review {
                 "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。".into()
+            } else if is_plan {
+                "ChatGPTプランで送信できませんでした。接続設定で再サインインするか、ChatGPTの利用量設定を確認してください。".into()
             } else { crate::system_message::detail(
                 crate::system_message::Code::AgentConnection,
                 &e.to_string(),

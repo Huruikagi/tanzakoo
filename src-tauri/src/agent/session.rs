@@ -14,6 +14,7 @@ pub(super) struct PreparedSession {
     pub(super) restoring: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn prepare(
     cx: &ConnectionTo<Agent>,
     store: &Store,
@@ -22,24 +23,36 @@ pub(super) async fn prepare(
     mcp: McpServer,
     replaying: &AtomicBool,
     review: Option<&crate::review::ReviewSession>,
+    plan: Option<(
+        &crate::chatgpt_plan::PlanAccount,
+        &crate::chatgpt_plan::PlanAccess,
+    )>,
 ) -> Result<PreparedSession, agent_client_protocol::Error> {
-    let initialized = cx
-        .send_request(InitializeRequest::new(ProtocolVersion::V1))
-        .block_task()
-        .await?;
+    let mut initialize = InitializeRequest::new(ProtocolVersion::V1);
+    if plan.is_some() {
+        // ACP forwards this name as Codex's originator; match agent_name_hint.
+        initialize =
+            initialize.client_info(Implementation::new("Tanzakoo", env!("CARGO_PKG_VERSION")));
+    }
+    let initialized = cx.send_request(initialize).block_task().await?;
     if let Some(access) = review {
         access.authenticate(cx).await?;
     }
-    let prefix = if review.is_some() {
-        crate::review::SESSION_PREFIX
+    if let Some((_, access)) = plan {
+        access.authenticate(cx).await?;
+    }
+    let prefix = if let Some((account, _)) = plan {
+        format!("{}{}:", crate::chatgpt_plan::PREFIX, account.id)
+    } else if review.is_some() {
+        crate::review::SESSION_PREFIX.into()
     } else {
-        "tanzakoo-v1:"
+        "tanzakoo-v1:".into()
     };
     // Sessions created before app-owned credentials live in the user's
     // CLI home. Keep the chat history, but start a fresh app-owned session.
     let saved_session = conversation.session_id.clone().and_then(|id| {
         if conversation.agent == "codex" {
-            id.strip_prefix(prefix).map(str::to_owned)
+            id.strip_prefix(&prefix).map(str::to_owned)
         } else {
             Some(id)
         }

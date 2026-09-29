@@ -10,6 +10,8 @@ import type { ExportResult } from "@/bindings/ExportResult";
 import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import type { ReviewStatus } from "@/bindings/ReviewStatus";
+import type { PlanStatus } from "@/bindings/PlanStatus";
+export type PlanAction = "list" | "login" | "select" | "logout" | "disconnect" | "usage";
 
 export type AgentEvent = {
   conversationId: string;
@@ -41,6 +43,8 @@ export const emptySnapshot: Snapshot = {
   consents: [],
 };
 export const api = {
+  planConnection: (projectId: string, action: PlanAction, accountId: string | null = null) =>
+    invoke<PlanStatus>("plan_connection", { projectId, action, accountId }),
   reviewStatus: () =>
     native ? invoke<ReviewStatus | null>("get_review_status") : Promise.resolve(null),
   reviewConnection: (

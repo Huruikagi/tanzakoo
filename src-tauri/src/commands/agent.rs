@@ -1,5 +1,7 @@
 use super::ProjectOperation;
-use crate::{AppState, agent, agent_setup, chat_settings, language, model::*, review};
+use crate::{
+    AppState, agent, agent_setup, chat_settings, chatgpt_plan, language, model::*, review,
+};
 use std::sync::Arc;
 use tauri::{Emitter, State};
 
@@ -28,6 +30,12 @@ pub(crate) async fn send_prompt(
             .conversation(&conversation_id)
             .map_err(|e| e.system_message())?;
         let review = state.runtime.review_session()?;
+        let plan = if review.is_none() {
+            state.runtime.plan_account()?
+        } else {
+            None
+        };
+        chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan.as_ref())?;
         review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
         if let Some(access) = &review {
             access.ensure_usable()?;
@@ -118,6 +126,21 @@ pub(crate) async fn agent_connection(
             can_login: false,
         });
     }
+    if let Some(account) = state.runtime.plan_account()? {
+        if agent != "codex" || action != "check" {
+            return Err("ChatGPTプランの接続設定を使用してください。".into());
+        }
+        let mut cancel = cancel;
+        tokio::select! {
+            result = chatgpt_plan::access(&store, &account) => { result?; },
+            _ = &mut cancel => return Err("接続確認を中止しました。".into()),
+        };
+        return Ok(ConnectionStatus {
+            state: "ready".into(),
+            message: "ChatGPTプランの接続を確認しました。".into(),
+            can_login: false,
+        });
+    }
     Ok(agent_setup::probe(store, agent, action, cancel).await)
 }
 
@@ -193,5 +216,109 @@ pub(crate) async fn chat_options(
             }],
         }]);
     }
+    if let Some(account) = state.runtime.plan_account()? {
+        let mut cancel = cancel;
+        let access = tokio::select! {
+            result = chatgpt_plan::access(&store, &account) => result?,
+            _ = &mut cancel => return Err("モデル一覧の取得を中止しました。".into()),
+        };
+        let selected = model.filter(|m| access.models.iter().any(|o| o.value == *m));
+        return Ok(vec![ChatOption {
+            id: "model".into(),
+            current_value: access.model(selected.as_deref())?,
+            options: access.models,
+        }]);
+    }
     chat_settings::discover(store, model, cancel).await
+}
+
+#[tauri::command]
+pub(crate) async fn plan_connection(
+    project_id: String,
+    action: String,
+    account_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<chatgpt_plan::PlanStatus, String> {
+    let ProjectOperation {
+        store,
+        guard: _guard,
+        mut cancel,
+    } = state.begin_project_operation(&project_id, |_, _| Ok(()))?;
+    if !cfg!(feature = "chatgpt-plan-preview") {
+        return Ok(chatgpt_plan::PlanStatus {
+            available: false,
+            accounts: vec![],
+            active: None,
+            warning: None,
+        });
+    }
+    if state.runtime.review_session()?.is_some() && action != "list" {
+        return Err("先に審査用接続を解除してください。".into());
+    }
+    let job = async {
+        let mut warning = None;
+        let mut active = state.runtime.plan_account()?;
+        match action.as_str() {
+            "list" => {}
+            "usage" => {
+                chatgpt_plan::helper(&store, "usage", None).await?;
+            }
+            "disconnect" => {
+                active = None;
+            }
+            "login" | "select" => {
+                let account: chatgpt_plan::PlanAccount = if action == "login" {
+                    let result =
+                        chatgpt_plan::helper(&store, "login", account_id.as_deref()).await?;
+                    serde_json::from_value(result["account"].clone())
+                        .map_err(|_| chatgpt_plan::message("invalid_response"))?
+                } else {
+                    let result = chatgpt_plan::helper(&store, "list", None).await?;
+                    let accounts: Vec<chatgpt_plan::PlanAccount> =
+                        serde_json::from_value(result["accounts"].clone())
+                            .map_err(|_| chatgpt_plan::message("invalid_response"))?;
+                    accounts
+                        .into_iter()
+                        .find(|a| Some(&a.id) == account_id.as_ref())
+                        .ok_or_else(|| chatgpt_plan::message("account_missing"))?
+                };
+                // Do not change the active connection until permission/model access succeeds.
+                chatgpt_plan::access(&store, &account).await?;
+                active = Some(account);
+            }
+            "logout" => {
+                let id = account_id
+                    .as_deref()
+                    .ok_or_else(|| chatgpt_plan::message("account_missing"))?;
+                let result = chatgpt_plan::helper(&store, "logout", Some(id)).await?;
+                warning = result["warning"].as_str().map(chatgpt_plan::message);
+                // Keep the selected route after logout so a send cannot fall back to Codex.
+                if let Some(account) = active.as_mut()
+                    && account.id == id
+                {
+                    account.signed_in = false;
+                }
+            }
+            _ => return Err("接続操作が不正です。".into()),
+        }
+        let result = chatgpt_plan::helper(&store, "list", None).await?;
+        let accounts = serde_json::from_value(result["accounts"].clone())
+            .map_err(|_| chatgpt_plan::message("invalid_response"))?;
+        // Commit the route after all cancellable work, keeping the native/UI result coherent.
+        *state
+            .runtime
+            .plan
+            .lock()
+            .map_err(|_| chatgpt_plan::message("runtime"))? = active.clone();
+        Ok(chatgpt_plan::PlanStatus {
+            available: true,
+            accounts,
+            active,
+            warning,
+        })
+    };
+    tokio::select! {
+        result = job => result,
+        _ = &mut cancel => Err("接続処理を中止しました。".into()),
+    }
 }

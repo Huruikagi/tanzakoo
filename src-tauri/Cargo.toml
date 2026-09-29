@@ -6,6 +6,7 @@ rust-version = "1.88"
 default-run = "tanzakoo"
 
 [features]
+chatgpt-plan-preview = []
 app-sandbox = []
 sandbox-validation = ["app-sandbox"]
 

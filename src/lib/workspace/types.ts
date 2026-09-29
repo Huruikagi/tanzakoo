@@ -8,6 +8,8 @@ import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import type { ChatOption } from "@/bindings/ChatOption";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import type { ReviewStatus } from "@/bindings/ReviewStatus";
+import type { PlanStatus } from "@/bindings/PlanStatus";
+import type { PlanAction } from "../api";
 
 export type Permission = {
   id: string;
@@ -28,6 +30,9 @@ type Connection = { status: ConnectionStatus; launch: string };
 export type ProjectDraft = { name: string; memory: string; revision: number };
 export type QuestionDraft = { mode: "option" | "text"; optionIndex: number | null; text: string };
 export type Workspace = {
+  planStatus: PlanStatus | null;
+  planError: string | null;
+  planConnect: (action: PlanAction, accountId?: string | null) => Promise<boolean>;
   reviewAccess: ReviewStatus | null;
   reviewError: string | null;
   reviewConnect: (

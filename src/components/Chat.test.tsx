@@ -47,6 +47,8 @@ beforeEach(() => {
     error: null,
     chatError: null,
     connections: {},
+    planStatus: { available: false, accounts: [], active: null, warning: null },
+    planError: null,
     selected: null,
     switching: false,
     drafts: {},
