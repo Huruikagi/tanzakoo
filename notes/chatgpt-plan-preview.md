@@ -48,8 +48,36 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features
 - 署名済みWindows MSIXとMac版でのブラウザ起動・loopback・資格情報保存。Mac App Sandboxでの確認は別途必要。
 - 一回だけ表示する初回案内、正式ボタンのブランド要件、利用枠・課金表示など公開時点のSIWC要件への適合。プレビューには常設の利用枠説明のみ実装した。
 - `agent_name_hint` と同じ `Tanzakoo` をACPのclientInfoからapp-serverに渡す。模擬APIでoriginatorヘッダーも確認するが、実サービス上の表示・帰属は確認が必要。
-- 公開クライアント向け提供条件とTanzakooのソース公開・ライセンスの適合。公開リポジトリであるだけではOSSライセンスの付与を意味しない。本実装はプロジェクトのライセンスを新たに選択しない。
+- OSSとしての一般配布に向けたTanzakoo本体のライセンス決定と、配布成果物に含む依存の告知確認。下記の提供対象調査により、個人のローカル検証とOSS配布の判断を分ける。ライセンスは未採用。
 - 長時間の1ターン中に失効した場合は再認証・再送を案内する。実行中プロセスへのトークン差し替えや自動再送は行わない。ローカルtoken保存前にプロセスが停止した場合も再認証が必要になる可能性がある。
+
+## 提供対象とライセンスの確認（2026-09-30）
+
+公開資料と現在のソースを照合した調査結果。OpenAIからの個別承認や、全配布物のライセンス監査を取得したという意味ではない。
+
+### 確認できた提供対象
+
+- [Quickstart](https://developers.openai.com/siwc/quickstart) はChatGPTプラン利用をOSSと選ばれた非公開クライアントに提供すると説明している。identity-onlyの商用パートナー向け試験提供とは区別する。
+- [公式Cookbook](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt) は、ローカルで実行する個人プロジェクトも提供対象に含めている。そのため、本人によるローカル検証を本体ライセンス未決だけで止める必要がある、とは読まない。実アカウントの対象資格・同意・モデルへのアクセスは別途確認する。
+- [プラン利用のOverview](https://developers.openai.com/siwc/token-sharing-open-source) はOSS・ローカルホスト向けの経路を説明し、有料アプリやリモートホスト型アプリにはinterest formを案内している。無料・利用者端末内で動くTanzakooをOSSとして配布する方向は、この公開経路に合うと判断する。有料化や運営側のサーバーで利用者のプランを使う構成に変える場合は、同じ許可を引き継げると仮定しない。
+- 今回の登録フローはclient secret・partner API keyを要求しない。これは商用パートナー向けのclient ID発行申請が済んだという意味ではない。
+- 確認したSIWC資料には、MITやApache-2.0など特定のOSSライセンスを必須にする記載は見つからなかった。無料配布だけでOSSになるわけではない。
+
+### 現在のライセンス状態
+
+Tanzakoo本体のルートLICENSE、READMEのライセンス宣言、ルートpackage.jsonとCargo.tomlのlicense指定は未設定。`packages/agent-runtime/licenses` の文書は同梱Codexのもので、Tanzakoo本体の許諾ではない。[GitHubの説明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository) に従い、公開リポジトリであることだけを根拠にOSSと表示しない。
+
+SIWC追加部分の直接依存は、インストールされた固定バージョンのpackage.jsonで `jose 6.2.12` と `open 11.0.4` がMIT、既存 `@agentclientprotocol/codex-acp 1.13.1` がApache-2.0と確認した。同梱Codex `0.156.1` は保存済みLICENSEがApache-2.0で、NOTICEも維持している。これらの許諾と告知は本体のライセンスと分けて保持する。全フロントエンド・Rust依存・フォント・各OSの完成パッケージを一括監査済みとは扱わない。
+
+### 本体ライセンスの提案（未採用）
+
+Tanzakoo自身のコードについて、改変・再配布・商用利用を広く認める方針なら [MIT](https://opensource.org/license/mit) を候補とする。著作権表示と許諾文の保持を条件に、第三者による改変版の配布・販売も認め、改変ソースの公開は義務付けない。この権利付与への意思を確認してから、ルートLICENSE・README・本体package.json・Cargo.tomlへ反映する。依存のライセンスをMITに置き換える提案ではない。
+
+利用者がMITで配布されたTanzakooを商用利用・再販売できることと、その派生アプリがSIWCの提供対象になることは別の判断となる。
+
+### 公開前に残る提供上の確認
+
+[UI/UX guidelines](https://developers.openai.com/siwc/ui-ux-guidelines) が要求する初回だけの案内、正式ボタン、利用上限時の操作案内は、一般配布前に実装・確認する。プレビューの常設説明だけで適合完了とはしない。アプリ自身のライセンスを選んでも、OpenAIのサービス利用条件・利用者の対象資格・ストア規則を置き換えるものではない。
 
 ## 参照した公式資料
 
