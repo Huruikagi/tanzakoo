@@ -66,6 +66,8 @@ Terminalの終了・再起動を求められたら従い、撮影コマンドを
 
 `CGPreflightScreenCaptureAccess is undefined` は権限拒否とは異なり、JXAがC関数を公開していない場合に起きる。修正版では関数を明示的にバインドする。古いスクリプトで出る場合は更新する。権限を許可するだけではこのエラーは解消しない。
 
+`windows.filter is not a function` は、CoreGraphicsから返されたCFArrayRefがJavaScript配列に変換されていない場合に起きる。修正版ではObjective-Cオブジェクトへの変換を挟む。権限の追加設定ではなく、撮影スクリプトを更新して再実行する。
+
 参照: Appleの[画面収録の許可](https://support.apple.com/ja-jp/guide/mac-help/mchld6aa7d23/mac)、[アクセシビリティの許可](https://support.apple.com/ja-jp/guide/mac-help/mh43185/mac)。
 
 ## ほかの撮り方
@@ -119,5 +121,7 @@ AIを使う場合も、CodexアプリをMacに別途インストールする必�
 ## 検証範囲
 
 Windowsで、誤ったアプリ・複数ウィンドウ・画面サイズ不足・アルファ付き画像・指定外寸法の拒否、既存画像の保持、失敗画像の分離、撮影記録を単体検証した。ローカル対象のパス照合、複数候補の拒否、再起動・再ビルドの拒否もテストしている。macOS上の権限ダイアログ、実際のJXA/AppleScriptと実ウィンドウ撮影はまだ未検証。最初は1枚で確認する。
+
+ウィンドウ一覧の変換にはCFArrayRefを模した回帰テストを追加した。同じテストファイルをmacOSで実行すると、権限要求や撮影をせず、実際のJXAとCoreFoundationでCFArrayRef・NSArrayの両方を検証する。Windowsではこのネイティブテストだけスキップする。撮影全体の実機確認とは別の検証。
 
 参照: [AppleのMac自動化ガイド](https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/HowMacScriptingWorks.html)、[App Store画像仕様](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)。

@@ -3,6 +3,16 @@
 ObjC.import("AppKit");
 ObjC.import("CoreGraphics");
 
+function unwrapWindowList(value) {
+  // CoreGraphics can return an opaque CFArrayRef instead of an NSArray bridge.
+  // deepUnwrap alone leaves that reference intact on newer macOS versions.
+  let windows = ObjC.deepUnwrap(value);
+  if (!Array.isArray(windows)) windows = ObjC.deepUnwrap(ObjC.castRefToObject(value));
+  if (!Array.isArray(windows))
+    throw new Error("Could not convert the macOS window list to a JavaScript array.");
+  return windows;
+}
+
 // eslint-disable-next-line no-unused-vars -- Entry point invoked by osascript.
 function run(argv) {
   const [mode, bundleID, expectedPath, action, expectedPID] = argv;
@@ -43,7 +53,7 @@ function run(argv) {
       "Allow Screen Recording for your terminal, restart it if requested, and retry.",
     );
   }
-  const windows = ObjC.deepUnwrap(
+  const windows = unwrapWindowList(
     $.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly, $.kCGNullWindowID),
   );
   const screens = $.NSScreen.screens;

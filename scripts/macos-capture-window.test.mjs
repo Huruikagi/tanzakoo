@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 
 const source = readFileSync(new URL("./macos-capture-window.js", import.meta.url), "utf8");
 function context(entries) {
@@ -159,3 +160,63 @@ test("native binding failure is not treated as granted permission", () => {
   );
   assert.equal(calls.windowReads, 0);
 });
+
+test("opaque CFArrayRef is bridged before filtering target windows", () => {
+  const { ctx } = inspectionContext(true);
+  const readWindows = ctx.$.CGWindowListCopyWindowInfo;
+  const reference = Object.freeze({ type: "opaque CFArrayRef" });
+  ctx.$.CGWindowListCopyWindowInfo = () => reference;
+  ctx.ObjC.castRefToObject = (value) => {
+    assert.equal(value, reference);
+    return readWindows();
+  };
+  const result = JSON.parse(ctx.run(["executable", "", "/clone/tanzakoo", "inspect", "22"]));
+  assert.deepEqual(result.windows, [{ id: 220, layer: 0, x: 0, y: 25, width: 1280, height: 800 }]);
+});
+
+test("empty native window list stays empty", () => {
+  const { ctx } = inspectionContext(true);
+  ctx.$.CGWindowListCopyWindowInfo = () => [];
+  const result = JSON.parse(ctx.run(["executable", "", "/clone/tanzakoo", "inspect", "22"]));
+  assert.deepEqual(result.windows, []);
+});
+
+test("invalid bridged data stops with a conversion error", () => {
+  const { ctx } = inspectionContext(true);
+  ctx.$.CGWindowListCopyWindowInfo = () => ({});
+  ctx.ObjC.castRefToObject = () => ({});
+  assert.throws(
+    () => ctx.run(["executable", "", "/clone/tanzakoo", "inspect", "22"]),
+    /Could not convert the macOS window list/,
+  );
+});
+
+test(
+  "native JXA converts CFArrayRef and NSArray without screen permissions",
+  {
+    skip: process.platform !== "darwin",
+  },
+  () => {
+    const fixture = [
+      { kCGWindowOwnerPID: 22, kCGWindowBounds: { X: 0, Y: 25, Width: 1280, Height: 800 } },
+    ];
+    const script = `${source}
+    function run() {
+      ObjC.import("CoreFoundation");
+      const array = $(${JSON.stringify(fixture)});
+      const reference = $.CFArrayCreateCopy(null, ObjC.castObjectToRef(array));
+      return JSON.stringify({
+        fromReference: unwrapWindowList(reference),
+        fromArray: unwrapWindowList(array)
+      });
+    }
+  `;
+    const result = JSON.parse(
+      execFileSync("/usr/bin/osascript", ["-l", "JavaScript", "-e", script], {
+        encoding: "utf8",
+        timeout: 15000,
+      }),
+    );
+    assert.deepEqual(result, { fromReference: fixture, fromArray: fixture });
+  },
+);
