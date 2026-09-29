@@ -48,7 +48,7 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features
 - 署名済みWindows MSIXとMac版でのブラウザ起動・loopback・資格情報保存。Mac App Sandboxでの確認は別途必要。
 - 一回だけ表示する初回案内、正式ボタンのブランド要件、利用枠・課金表示など公開時点のSIWC要件への適合。プレビューには常設の利用枠説明のみ実装した。
 - `agent_name_hint` と同じ `Tanzakoo` をACPのclientInfoからapp-serverに渡す。模擬APIでoriginatorヘッダーも確認するが、実サービス上の表示・帰属は確認が必要。
-- OSSとしての一般配布に向けたTanzakoo本体のライセンス決定と、配布成果物に含む依存の告知確認。下記の提供対象調査により、個人のローカル検証とOSS配布の判断を分ける。ライセンスは未採用。
+- 配布成果物に含む依存の告知確認。本体は2026-09-30の合意によりMITを採用済み。個人のローカル検証とOSS配布の判断は下記の提供対象調査を参照する。
 - 長時間の1ターン中に失効した場合は再認証・再送を案内する。実行中プロセスへのトークン差し替えや自動再送は行わない。ローカルtoken保存前にプロセスが停止した場合も再認証が必要になる可能性がある。
 
 ## 提供対象とライセンスの確認（2026-09-30）
@@ -65,13 +65,13 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features
 
 ### 現在のライセンス状態
 
-Tanzakoo本体のルートLICENSE、READMEのライセンス宣言、ルートpackage.jsonとCargo.tomlのlicense指定は未設定。`packages/agent-runtime/licenses` の文書は同梱Codexのもので、Tanzakoo本体の許諾ではない。[GitHubの説明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository) に従い、公開リポジトリであることだけを根拠にOSSと表示しない。
+2026-09-30、利用者の「OK MITで」により本体のMIT採用を決定。ルート [LICENSE](../LICENSE)、README、各自作npmパッケージとCargo.tomlのlicense指定へ反映した。`packages/agent-runtime/licenses` の文書は引き続き同梱Codexの許諾・告知として保持する。デスクトップのランタイム準備と審査用relayのコンテナビルドでは、本体LICENSEも `TANZAKOO-LICENSE.txt` として同梱する。
 
 SIWC追加部分の直接依存は、インストールされた固定バージョンのpackage.jsonで `jose 6.2.12` と `open 11.0.4` がMIT、既存 `@agentclientprotocol/codex-acp 1.13.1` がApache-2.0と確認した。同梱Codex `0.156.1` は保存済みLICENSEがApache-2.0で、NOTICEも維持している。これらの許諾と告知は本体のライセンスと分けて保持する。全フロントエンド・Rust依存・フォント・各OSの完成パッケージを一括監査済みとは扱わない。
 
-### 本体ライセンスの提案（未採用）
+### 採用した本体ライセンス
 
-Tanzakoo自身のコードについて、改変・再配布・商用利用を広く認める方針なら [MIT](https://opensource.org/license/mit) を候補とする。著作権表示と許諾文の保持を条件に、第三者による改変版の配布・販売も認め、改変ソースの公開は義務付けない。この権利付与への意思を確認してから、ルートLICENSE・README・本体package.json・Cargo.tomlへ反映する。依存のライセンスをMITに置き換える提案ではない。
+Tanzakoo自身のコードとドキュメントに [MIT](https://opensource.org/license/mit) を適用する。著作権表示と許諾文の保持を条件に、第三者による改変版の配布・販売も認め、改変ソースの公開は義務付けない。依存のライセンスをMITに置き換えるものではない。
 
 利用者がMITで配布されたTanzakooを商用利用・再販売できることと、その派生アプリがSIWCの提供対象になることは別の判断となる。
 

@@ -2,6 +2,7 @@
   "name": "@tanzakoo/agent-runtime",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "files": [
     "codex.mjs",
     "plan-cli.mjs",

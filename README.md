@@ -208,3 +208,8 @@ Skillは変更内容・互換性・最新コミットのCIを確認し、1件ず
 
 設計の出発点は [プロダクトメモ](notes/product-idea.md)、採用候補と理由は [技術スタック](notes/stack-proposal.md) にまとめています。
 ネイティブ診断コードを追加するときは `system_message.rs` と `system-messages.ts` の両方に追加します。テストでコードの対応を検査します。
+
+## ライセンス
+
+Tanzakoo自身のコードとドキュメントは [MIT License](LICENSE) で提供します。
+同梱する依存関係・フォントなどには、それぞれのライセンスが適用されます。Codexの告知は [同梱ランタイムのライセンス](packages/agent-runtime/licenses/README.md) を参照してください。
