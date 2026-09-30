@@ -32,8 +32,8 @@ tokio = { version = "1", features = [
   "time",
   "macros",
 ] }
-agent-client-protocol = "=2.1.0"
-rmcp = { version = "=3.3.0", features = ["transport-io"] }
+agent-client-protocol = "=2.2.0"
+rmcp = { version = "=3.4.1", features = ["transport-io"] }
 thiserror = "2"
 tracing = "0.1"
 ts-rs = { version = "12", features = ["serde-compat"] }
