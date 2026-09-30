@@ -36,7 +36,6 @@ const effortNames: Record<string, string> = {
 function ChatSettingsForm() {
   useTranslation();
   const saved = useWorkspace((s) => s.snapshot.chatSettings);
-  const usingPlan = useWorkspace((s) => !!s.planStatus?.active && !s.reviewAccess);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
   const [options, setOptions] = useState<ChatOption[] | null>(null);
@@ -89,11 +88,8 @@ function ChatSettingsForm() {
     <div className="agent-settings">
       <p className="hint muted">
         {t("現在の設定: {{value0}} · {{value1}}", {
-          value0: saved?.model ?? t("Codexの既定値"),
-          value1:
-            !usingPlan && saved?.reasoningEffort
-              ? t(effortNames[saved.reasoningEffort] ?? saved.reasoningEffort)
-              : t("会話の既定の推論強度"),
+          value0: saved?.model ?? t("接続先の既定値"),
+          value1: t("会話の既定の推論強度"),
         })}
       </p>
       <div className="connection-actions">
@@ -129,15 +125,9 @@ function ChatSettingsForm() {
         )}
       </div>
       <p className="hint muted">
-        {usingPlan
-          ? t("ChatGPTプランで利用できるモデルを取得します。会話やボードの内容は送信しません。")
-          : t(
-              "サインイン済みのCodexから取得します。この操作では会話やボードの内容は送信しません。",
-            )}
+        {t("ChatGPTプランで利用できるモデルを取得します。会話やボードの内容は送信しません。")}
       </p>
-      {usingPlan && (
-        <p className="hint muted">{t("ChatGPTプランでは接続先の既定の推論強度を使います。")}</p>
-      )}
+      <p className="hint muted">{t("ChatGPTプランでは接続先の既定の推論強度を使います。")}</p>
       {models && (
         <>
           <label htmlFor={`${id}-model`}>{t("モデル")}</label>
@@ -197,6 +187,7 @@ function ChatSettingsForm() {
 export function ChatSettings() {
   useTranslation();
   const reviewAccess = useWorkspace((s) => s.reviewAccess);
+  const accountId = useWorkspace((s) => s.planStatus?.active?.id);
   const snapshot = useWorkspace((s) => s.snapshot);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
@@ -222,9 +213,6 @@ export function ChatSettings() {
           <SlidersHorizontal />
           <span className="truncate">
             {reviewAccess?.model ?? settings?.model ?? t("モデル・推論強度")}
-            {!reviewAccess &&
-              settings?.reasoningEffort &&
-              ` · ${t(effortNames[settings.reasoningEffort] ?? settings.reasoningEffort)}`}
           </span>
         </Button>
       </DialogTrigger>
@@ -234,7 +222,7 @@ export function ChatSettings() {
           <DialogDescription>
             {reviewAccess
               ? t("審査用コードに指定されたモデルで接続します。")
-              : t("このプロジェクトのすべてのCodex会話に、次の送信から反映します。")}
+              : t("このプロジェクトのすべてのAI会話に、次の送信から反映します。")}
           </DialogDescription>
         </DialogHeader>
         {reviewAccess ? (
@@ -244,7 +232,7 @@ export function ChatSettings() {
             })}
           </p>
         ) : (
-          <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config])} />
+          <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config, accountId])} />
         )}
       </DialogContent>
     </Dialog>

@@ -11,7 +11,7 @@ import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import type { ReviewStatus } from "@/bindings/ReviewStatus";
 import type { PlanStatus } from "@/bindings/PlanStatus";
-export type PlanAction = "list" | "login" | "select" | "logout" | "disconnect" | "usage";
+export type PlanAction = "list" | "login" | "select" | "logout" | "usage";
 
 export type AgentEvent = {
   conversationId: string;
@@ -22,8 +22,8 @@ export type AgentEvent = {
 export const native = isTauri();
 /** Matches `agent_setup::CLAUDE_UNAVAILABLE`: this build offers no Claude connection. */
 export const CLAUDE_UNAVAILABLE = "@tanzakoo/claude-unavailable";
-/** Display name for an agent id. New conversations use Codex, so it is the default. */
-export const agentLabel = (agent?: string) => (agent === "claude" ? "Claude" : "Codex");
+/** Keep the stored engine id while showing the user's connection in the UI. */
+export const agentLabel = (agent?: string) => (agent === "claude" ? "Claude" : "ChatGPT");
 export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
   agent !== "codex" ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);

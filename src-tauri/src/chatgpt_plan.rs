@@ -1,4 +1,4 @@
-//! Opt-in SIWC preview. Credentials stay in the native helper and Rust memory.
+//! Standard ChatGPT plan connection. Credentials stay in the native helper and Rust memory.
 use crate::{agent_setup, model::ChatOptionValue, store::Store};
 use agent_client_protocol::{Agent, ConnectionTo, schema::v1::AuthenticateRequest};
 use serde::{Deserialize, Serialize};
@@ -7,6 +7,7 @@ use tokio::io::AsyncReadExt;
 use ts_rs::TS;
 
 pub const PREFIX: &str = "tanzakoo-plan-v1:";
+pub const SIGN_IN_REQUIRED: &str = "接続状況からChatGPTでサインインしてください。";
 #[derive(Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -79,14 +80,18 @@ pub fn ensure_route(session: Option<&str>, account: Option<&PlanAccount>) -> Res
     Ok(())
 }
 
+/// The application must never fall back to the engine's own credentials.
+pub fn require_account(account: Option<&PlanAccount>) -> Result<&PlanAccount, String> {
+    account
+        .filter(|a| a.signed_in)
+        .ok_or_else(|| SIGN_IN_REQUIRED.into())
+}
+
 pub async fn helper(
     store: &Store,
     action: &str,
     account: Option<&str>,
 ) -> Result<serde_json::Value, String> {
-    if !cfg!(feature = "chatgpt-plan-preview") {
-        return Err("このビルドではChatGPTプラン接続を有効にしていません。".into());
-    }
     let (node, script) = agent_setup::managed_entry("plan-cli.mjs")?;
     let directory = agent_setup::app_data(store).join("chatgpt-plan");
     let mut command = tokio::process::Command::new(node);
@@ -175,5 +180,18 @@ mod tests {
             assert!(ensure_route(Some(session), Some(&account)).is_err());
         }
         assert!(ensure_route(Some("tanzakoo-plan-v1:a:thread"), None).is_err());
+    }
+
+    #[test]
+    fn normal_connection_requires_a_signed_in_plan_account() {
+        assert!(require_account(None).is_err());
+        let mut account = PlanAccount {
+            id: "a".into(),
+            label: "Account".into(),
+            signed_in: false,
+        };
+        assert!(require_account(Some(&account)).is_err());
+        account.signed_in = true;
+        assert!(require_account(Some(&account)).is_ok());
     }
 }

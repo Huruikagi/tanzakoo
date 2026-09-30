@@ -1,7 +1,5 @@
 use super::ProjectOperation;
-use crate::{
-    AppState, agent, agent_setup, chat_settings, chatgpt_plan, language, model::*, review,
-};
+use crate::{AppState, agent, chatgpt_plan, language, model::*, review};
 use std::sync::Arc;
 use tauri::{Emitter, State};
 
@@ -35,6 +33,9 @@ pub(crate) async fn send_prompt(
         } else {
             None
         };
+        if review.is_none() {
+            chatgpt_plan::require_account(plan.as_ref())?;
+        }
         chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan.as_ref())?;
         review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
         if let Some(access) = &review {
@@ -141,7 +142,7 @@ pub(crate) async fn agent_connection(
             can_login: false,
         });
     }
-    Ok(agent_setup::probe(store, agent, action, cancel).await)
+    Err(chatgpt_plan::SIGN_IN_REQUIRED.into())
 }
 
 #[tauri::command]
@@ -229,7 +230,7 @@ pub(crate) async fn chat_options(
             options: access.models,
         }]);
     }
-    chat_settings::discover(store, model, cancel).await
+    Err(chatgpt_plan::SIGN_IN_REQUIRED.into())
 }
 
 #[tauri::command]
@@ -244,14 +245,6 @@ pub(crate) async fn plan_connection(
         guard: _guard,
         mut cancel,
     } = state.begin_project_operation(&project_id, |_, _| Ok(()))?;
-    if !cfg!(feature = "chatgpt-plan-preview") {
-        return Ok(chatgpt_plan::PlanStatus {
-            available: false,
-            accounts: vec![],
-            active: None,
-            warning: None,
-        });
-    }
     if state.runtime.review_session()?.is_some() && action != "list" {
         return Err("先に審査用接続を解除してください。".into());
     }
@@ -262,9 +255,6 @@ pub(crate) async fn plan_connection(
             "list" => {}
             "usage" => {
                 chatgpt_plan::helper(&store, "usage", None).await?;
-            }
-            "disconnect" => {
-                active = None;
             }
             "login" | "select" => {
                 let account: chatgpt_plan::PlanAccount = if action == "login" {

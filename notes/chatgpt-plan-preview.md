@@ -1,22 +1,22 @@
-# ChatGPTプラン接続のデスクトッププレビュー
+# ChatGPTプラン接続
 
-2026-09-30時点。Sign in with ChatGPT（SIWC）の公開クライアント向けフローを、既存Codex ACP実行系につなぐ検証実装。Cargo feature `chatgpt-plan-preview` を指定したビルドだけに入口を表示する。スマートフォン版は対象外。
+2026-09-30時点。Sign in with ChatGPT（SIWC）の公開クライアント向けフローを、同梱Codex ACP実行系につなぐ通常のAI接続。利用者の実接続確認と「完全に寄せる」という合意を受け、ビルド用の有効化スイッチと旧Codexログインへの切り替えを廃止した。APIがプレビューであることは受け入れ、変更時に追従する。スマートフォン版は対象外。
 
 ## 起動と確認
 
 Node・依存関係は通常の開発手順で用意する。
 
 ```powershell
-mise exec -- pnpm tauri dev --features chatgpt-plan-preview
+mise.exe exec -- pnpm tauri dev
 ```
 
-接続状況を開き「ChatGPTプラン接続（プレビュー）」→「ChatGPTで続ける」を選ぶ。既定ブラウザで本人がサインイン・利用権限への同意を行う。認証やモデル一覧の確認ではプロジェクトの内容を送信しない。接続後は新しい会話を開始し、従来と同じAI送信同意を得てから送信する。
+接続状況を開き「ChatGPTで続ける」を選ぶ。既定ブラウザで本人がサインイン・利用権限への同意を行う。認証やモデル一覧の確認ではプロジェクトの内容を送信しない。接続後は新しい会話を開始し、従来と同じAI送信同意を得てから送信する。
 
 - AI利用は本人のChatGPT利用枠を消費する。入力欄と接続設定に利用量設定への入口を置く。
-- モデルは本人のOAuthトークンで `/v1/models` から取得する。通常接続で保存済みのモデルが一覧になければ、チャット設定で選び直す。モデル設定は現状、通常接続と共通。推論強度はこのプレビューでは接続先の既定値を使う。
+- モデルは本人のOAuthトークンで `/v1/models` から取得する。保存済みのモデルが一覧になければ、チャット設定で選び直す。モデル設定はプロジェクト単位で保持する。推論強度は接続先の既定値を使う。
 - 保存済みアカウントは再起動後に選択して接続する。選択中の接続は起動中だけ保持する。サインアウト後も同じ登録から再認証できる。
-- サインアウトはトークンを失効させ、この端末から削除する。サーバーの失効を確認できなければ警告する。登録情報・会話は残す。「通常の接続に戻す」はログアウトではない。
-- 接続切り替え後は新しい会話になる。保存済み会話は元の接続・同じアカウントだけで再開できる。ログアウト・期限切れ・利用上限でも通常接続へ自動で切り替えない。
+- サインアウトはトークンを失効させ、この端末から削除する。サーバーの失効を確認できなければ警告する。登録情報・会話は残す。旧Codex認証へのフォールバックは行わない。
+- 接続切り替え後は新しい会話になる。保存済み会話は元の接続・同じアカウントだけで再開できる。旧Codex接続の会話は履歴として残し、新しいChatGPT接続に自動で引き継がない。ログアウト・期限切れ・利用上限でも別の接続へ自動で切り替えない。
 - 審査用接続は別経路として維持する。審査員のChatGPT契約やログインを新たな前提にしない。この実装はストアへの提出・審査通過を意味しない。
 
 ## 実装の境界
@@ -32,10 +32,10 @@ mise exec -- pnpm tauri dev --features chatgpt-plan-preview
 ## 検証と残りの確認
 
 ```powershell
-mise exec -- pnpm test:plan
-mise exec -- pnpm test:review
-mise exec -- pnpm check
-mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features chatgpt-plan-preview
+mise.exe exec -- pnpm test:plan
+mise.exe exec -- pnpm test:review
+mise.exe exec -- pnpm check
+mise.exe exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
 ```
 
 `test:plan` は実loopback callbackと署名付き模擬ID tokenを使い、state/clientの差し替え、不正署名・claims、権限不足、token更新、ローカル保存、サインアウトを検証する。実アカウントや外部APIは使用しない。
@@ -44,7 +44,7 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features
 
 ### 開発版での実接続確認（2026-09-30）
 
-利用者が `mise.exe exec -- pnpm tauri dev --features chatgpt-plan-preview` で起動したTanzakooを操作し、この会話で次の成功を報告した。
+利用者が当時のプレビュー用ビルド指定で起動したTanzakooを操作し、この会話で次の成功を報告した。
 
 - 実アカウントで接続し、新しい会話で送信・返答を確認。
 - アプリ再起動後、保存済みの同じアカウントを選んで再接続し、元の会話で送信・返答を確認。
@@ -54,11 +54,11 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features
 
 ### 残りの確認
 
-通常配布を有効化する前に次を確認する。
+通常ビルドでは有効にした。次の実サービス・配布物の確認は残る。
 
 - モデル一覧UIでの選択、別アカウントへの切り替え、期限経過時のトークン更新・利用上限時の扱い、実接続でのカード操作。実送信はChatGPTの利用枠を消費する。
 - 署名済みWindows MSIXとMac版でのブラウザ起動・loopback・資格情報保存。Mac App Sandboxでの確認は別途必要。
-- 一回だけ表示する初回案内、正式ボタンのブランド要件、利用枠・課金表示など公開時点のSIWC要件への適合。プレビューには常設の利用枠説明のみ実装した。
+- 初回案内・サインインボタン・利用量への入口を含む、署名済み配布物での表示確認。保存済みアカウントごとの初回案内をWebViewのlocalStorageに記録し、同じ登録での再サインインでは繰り返さない。公式の白いロゴを黒いサインインボタンに使用する。
 - `agent_name_hint` と同じ `Tanzakoo` をACPのclientInfoからapp-serverに渡す。模擬APIでoriginatorヘッダーも確認するが、実サービス上の表示・帰属は確認が必要。
 - 配布成果物に含む依存の告知確認。本体は2026-09-30の合意によりMITを採用済み。個人のローカル検証とOSS配布の判断は下記の提供対象調査を参照する。
 - 長時間の1ターン中に失効した場合は再認証・再送を案内する。実行中プロセスへのトークン差し替えや自動再送は行わない。ローカルtoken保存前にプロセスが停止した場合も再認証が必要になる可能性がある。
@@ -89,7 +89,7 @@ Tanzakoo自身のコードとドキュメントに [MIT](https://opensource.org/
 
 ### 公開前に残る提供上の確認
 
-[UI/UX guidelines](https://developers.openai.com/siwc/ui-ux-guidelines) が要求する初回だけの案内、正式ボタン、利用上限時の操作案内は、一般配布前に実装・確認する。プレビューの常設説明だけで適合完了とはしない。アプリ自身のライセンスを選んでも、OpenAIのサービス利用条件・利用者の対象資格・ストア規則を置き換えるものではない。
+[UI/UX guidelines](https://developers.openai.com/siwc/ui-ux-guidelines) を基に、初回案内・公式ロゴ付きボタン・利用中表示・利用量管理への入口を実装した。実サービスの上限エラーや署名済み配布物での表示は引き続き確認する。アプリ自身のライセンスを選んでも、OpenAIのサービス利用条件・利用者の対象資格・ストア規則を置き換えるものではない。
 
 ## 参照した公式資料
 

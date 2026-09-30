@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api, native } from "@/lib/api";
 import { t, systemMessage } from "@/lib/i18n";
@@ -12,7 +12,6 @@ export function PlanAccess() {
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
   const loaded = useWorkspace((s) => s.loaded);
-  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (native && loaded && !status && !busy && !error)
       void useWorkspace.getState().planConnect("list");
@@ -36,97 +35,78 @@ export function PlanAccess() {
     ) : null;
   return (
     <div className="agent-settings">
+      <p className="hint">
+        {t("Tanzakooは無料です。AIとの会話には、ご自身のChatGPTプランを使います。")}
+      </p>
+      <p className="hint">
+        {t(
+          "AI利用はChatGPTの利用枠を消費します。接続後は新しい会話を始めてください。アプリを再起動したら、保存済みアカウントを選んで再接続できます。",
+        )}
+      </p>
+      {status.active && (
+        <p className="hint">
+          {status.active.signedIn
+            ? t("接続中: {{value0}}", { value0: status.active.label })
+            : t("サインアウト済み: {{value0}}", { value0: status.active.label })}
+        </p>
+      )}
       <Button
         type="button"
         size="sm"
         variant="ghost"
         disabled={disabled}
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => void connect("usage")}
       >
-        {t("ChatGPTプラン接続（プレビュー）")}
+        {t("ChatGPTの利用量を管理")}
       </Button>
-      {(expanded || status.active) && (
-        <>
-          <p className="hint">
-            {t(
-              "AI利用はChatGPTの利用枠を消費します。接続後は新しい会話を始めてください。アプリを再起動したら、保存済みアカウントを選んで再接続できます。",
-            )}
-          </p>
-          {status.active && (
-            <p className="hint">
-              {status.active.signedIn
-                ? t("接続中: {{value0}}", { value0: status.active.label })
-                : t("サインアウト済み: {{value0}}", { value0: status.active.label })}
-            </p>
-          )}
+      {status.accounts.map((account) => (
+        <div className="connection-actions" key={account.id}>
+          <span className="hint">{account.label}</span>
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            variant="outline"
             disabled={disabled}
-            onClick={() => void connect("usage")}
+            onClick={() => void connect(account.signedIn ? "select" : "login", account.id)}
           >
-            {t("ChatGPTの利用量を管理")}
+            {account.signedIn ? t("このアカウントを使う") : t("再サインイン")}
           </Button>
-          {status.accounts.map((account) => (
-            <div className="connection-actions" key={account.id}>
-              <span className="hint">{account.label}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={disabled}
-                onClick={() => void connect(account.signedIn ? "select" : "login", account.id)}
-              >
-                {account.signedIn ? t("このアカウントを使う") : t("再サインイン")}
-              </Button>
-              {account.signedIn && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={disabled}
-                  onClick={() => void connect("login", account.id)}
-                >
-                  {t("再サインイン")}
-                </Button>
-              )}
-              {account.signedIn && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={disabled}
-                  onClick={() => void connect("logout", account.id)}
-                >
-                  {t("サインアウト")}
-                </Button>
-              )}
-            </div>
-          ))}
-          <div className="connection-actions">
+          {account.signedIn && (
             <Button
               type="button"
               size="sm"
+              variant="ghost"
               disabled={disabled}
-              onClick={() => void connect("login")}
+              onClick={() => void connect("login", account.id)}
             >
-              {t("ChatGPTで続ける")}
+              {t("再サインイン")}
             </Button>
-            {status.active && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={disabled}
-                onClick={() => void connect("disconnect")}
-              >
-                {t("通常の接続に戻す")}
-              </Button>
-            )}
-          </div>
-        </>
-      )}
+          )}
+          {account.signedIn && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled}
+              onClick={() => void connect("logout", account.id)}
+            >
+              {t("サインアウト")}
+            </Button>
+          )}
+        </div>
+      ))}
+      <div className="connection-actions">
+        <Button
+          type="button"
+          variant="chatgpt"
+          size="signin"
+          disabled={disabled}
+          onClick={() => void connect("login")}
+        >
+          <img src="/siwc/chatgpt-logo-white.svg" alt="" className="size-5" />
+          {t("ChatGPTで続ける")}
+        </Button>
+      </div>
       {busy?.kind === "connecting" && (
         <Button
           type="button"

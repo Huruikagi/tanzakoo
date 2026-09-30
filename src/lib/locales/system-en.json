@@ -1,8 +1,8 @@
 {
+  "接続状況からChatGPTでサインインしてください。": "Sign in with ChatGPT from connection settings.",
   "このモデルはChatGPTプランの一覧にありません。チャット設定から選び直してください。": "This model is not in your ChatGPT plan catalog. Select a model in chat settings.",
   "利用できるモデルがありません。": "No models are available.",
   "この会話は別の接続で開始しています。対応する接続に戻すか、新しい会話を始めてください。": "This conversation uses a different connection. Restore that connection or start a new conversation.",
-  "このビルドではChatGPTプラン接続を有効にしていません。": "ChatGPT plan connections are not enabled in this build.",
   "ChatGPTプランへの再サインインが必要です。接続設定から同じアカウントを選んでください。": "Sign in to your ChatGPT plan again using the same account in connection settings.",
   "ChatGPTプランの利用が許可されませんでした。利用権限を確認して再試行してください。": "ChatGPT plan access was not granted. Check your permissions and try again.",
   "サインインを安全に確認できませんでした。もう一度サインインしてください。": "Sign-in could not be verified securely. Please sign in again.",

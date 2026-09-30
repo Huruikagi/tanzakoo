@@ -40,7 +40,6 @@ it("selects a saved account, starts a new conversation, and retains drafts and c
   const user = userEvent.setup();
   vi.mocked(api.planConnection).mockResolvedValue({ ...status, active: account });
   render(<PlanAccess />);
-  await user.click(screen.getByRole("button", { name: "ChatGPTプラン接続（プレビュー）" }));
   await user.click(screen.getByRole("button", { name: "このアカウントを使う" }));
   expect(api.planConnection).toHaveBeenCalledWith("p", "select", "account-a");
   expect(useWorkspace.getState().conversation).toBeNull();
@@ -81,8 +80,9 @@ it("retains conversation and selected account when reauthentication fails or usa
   expect(useWorkspace.getState().conversation).toBe("existing");
 });
 
-it("does not offer the preview in default builds", () => {
-  useWorkspace.setState({ planStatus: { ...status, available: false } });
+it("offers ChatGPT directly without a preview toggle or a legacy fallback", () => {
   render(<PlanAccess />);
-  expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "ChatGPTで続ける" })).toBeEnabled();
+  expect(screen.queryByText(/プレビュー/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "通常の接続に戻す" })).not.toBeInTheDocument();
 });

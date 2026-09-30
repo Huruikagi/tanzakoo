@@ -10,6 +10,7 @@ import { Board } from "@/components/Board";
 import { CardDetails } from "@/components/CardDetails";
 import { Chat } from "@/components/Chat";
 import { Settings } from "@/components/Settings";
+import { PlanWelcome } from "@/components/PlanWelcome";
 import { Projects } from "@/components/Projects";
 import { ExportDecisions } from "@/components/ExportDecisions";
 import { useWorkspace } from "@/lib/workspace";
@@ -72,6 +73,7 @@ export default function App() {
   }, [busy, refresh]);
   return (
     <div className="app-shell">
+      <PlanWelcome />
       <header className="app-header">
         <div className="brand">
           <span className="brand-symbol" aria-hidden="true">
