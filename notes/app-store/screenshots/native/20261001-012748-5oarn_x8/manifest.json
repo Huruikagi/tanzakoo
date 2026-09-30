@@ -1,0 +1,48 @@
+{
+  "app": {
+    "targetMode": "executable",
+    "bundleID": null,
+    "version": null,
+    "build": null,
+    "executableSHA256": "b50d30ef4576064541fc49f74a7e055712dfad6878f2db6a97109f8af1cbf4fc",
+    "capturePID": 35246
+  },
+  "macOS": [
+    "26.6.1",
+    [
+      "",
+      "",
+      ""
+    ],
+    "arm64"
+  ],
+  "kind": "local-native-capture",
+  "checkoutAtStart": {
+    "commit": "6c929b76907a017acc8bfcfdfdad49a22145954f",
+    "dirty": false,
+    "isBuildProvenance": false
+  },
+  "contentReview": "pending",
+  "submissionBuildMatch": "not-verified",
+  "note": "Native Tanzakoo window. The capture script does not inject data, call AI, or resample images. Inspect images and match the final submission build before use.",
+  "status": "captured-awaiting-visual-review",
+  "captures": [
+    {
+      "file": "ja-02-proposal-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "c82adfa1c70cd5aebbc14992ee8162e652e25820df8afd20427772c000d539a0",
+      "capturedAt": "2026-09-30T16:28:21.978782+00:00",
+      "language": "ja",
+      "scene": "proposal"
+    }
+  ]
+}
