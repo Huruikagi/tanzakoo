@@ -21,6 +21,9 @@ async function readAfterExit(path) {
     try {
       return await readFile(path);
     } catch (error) {
+      // A background clone may remove a temporary lock between listing and
+      // reading. A file that no longer exists cannot retain a credential.
+      if (error.code === "ENOENT") return Buffer.alloc(0);
       if (error.code !== "EBUSY" || attempt >= 10) throw error;
       await delay(100);
     }
@@ -33,6 +36,7 @@ for (const route of [
   "gateway-luna",
   "gateway-custom-model",
   "plan-board",
+  "plan-custom-model",
 ]) {
   test(
     `review ${route}: fresh credentials and real ACP streaming`,
@@ -42,14 +46,13 @@ for (const route of [
       const dir = mkdtempSync(join(tempRoot, "tanzakoo-review-"));
       const home = join(dir, "home");
       const boardPath = join(dir, "board.db");
-      const planMode = route === "plan-board";
-      const boardMode = route === "gateway-board" || planMode;
-      const model =
-        route === "gateway-custom-model"
-          ? "review-fixture-model"
-          : boardMode || route === "gateway-luna"
-            ? "gpt-6-luna"
-            : "gpt-6-astra";
+      const planMode = route.startsWith("plan-");
+      const boardMode = route === "gateway-board" || route === "plan-board";
+      const model = route.endsWith("custom-model")
+        ? "review-fixture-model"
+        : boardMode || route === "gateway-luna"
+          ? "gpt-6-luna"
+          : "gpt-6-astra";
       mkdirSync(home);
       const requests = [];
       const failures = [];
@@ -232,6 +235,30 @@ for (const route of [
           configId: "model",
           value: model,
         });
+        if (planMode) {
+          const effort = session.configOptions?.find((o) => o.id === "reasoning_effort");
+          if (route === "plan-custom-model") {
+            assert.equal(
+              effort,
+              undefined,
+              "unknown models must not advertise invented effort choices",
+            );
+            await assert.rejects(
+              client.request("session/set_config_option", {
+                sessionId: session.sessionId,
+                configId: "reasoning_effort",
+                value: "high",
+              }),
+            );
+          } else {
+            assert.ok(effort?.options.some((o) => o.value === "high"));
+            await client.request("session/set_config_option", {
+              sessionId: session.sessionId,
+              configId: "reasoning_effort",
+              value: "high",
+            });
+          }
+        }
         assert.equal(requests.length, 0, "connection check must not send a model request");
         const result = await client.request("session/prompt", {
           sessionId: session.sessionId,
@@ -241,6 +268,8 @@ for (const route of [
         assert.deepEqual(failures, []);
         assert.equal(requests.length, boardMode ? 3 : 1);
         assert.ok(requests.every((request) => request.model === model));
+        if (route === "plan-board")
+          assert.ok(requests.every((request) => request.reasoning?.effort === "high"));
         assert.ok(
           client.notifications.some((m) => m.params?.update?.content?.text === "REVIEW_OK"),
         );
@@ -285,11 +314,24 @@ for (const route of [
           mcpServers,
         });
         assert.equal(requests.length, boardMode ? 3 : 1);
+        if (route === "plan-board") {
+          await client.request("session/set_config_option", {
+            sessionId: session.sessionId,
+            configId: "model",
+            value: model,
+          });
+          await client.request("session/set_config_option", {
+            sessionId: session.sessionId,
+            configId: "reasoning_effort",
+            value: "low",
+          });
+        }
         await client.request("session/prompt", {
           sessionId: session.sessionId,
           prompt: [{ type: "text", text: "Reply REVIEW_OK again." }],
         });
         assert.equal(requests.length, boardMode ? 4 : 2);
+        if (route === "plan-board") assert.equal(requests.at(-1).reasoning?.effort, "low");
         if (model === "gpt-6-luna") {
           assert.doesNotMatch(
             JSON.stringify(client.notifications) + client.diagnostics(),

@@ -218,17 +218,13 @@ pub(crate) async fn chat_options(
         }]);
     }
     if let Some(account) = state.runtime.plan_account()? {
+        chatgpt_plan::require_account(Some(&account))?;
         let mut cancel = cancel;
         let access = tokio::select! {
             result = chatgpt_plan::access(&store, &account) => result?,
             _ = &mut cancel => return Err("モデル一覧の取得を中止しました。".into()),
         };
-        let selected = model.filter(|m| access.models.iter().any(|o| o.value == *m));
-        return Ok(vec![ChatOption {
-            id: "model".into(),
-            current_value: access.model(selected.as_deref())?,
-            options: access.models,
-        }]);
+        return crate::chat_settings::discover_plan(store, &account, access, model, cancel).await;
     }
     Err(chatgpt_plan::SIGN_IN_REQUIRED.into())
 }

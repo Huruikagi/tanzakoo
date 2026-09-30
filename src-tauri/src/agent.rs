@@ -276,7 +276,7 @@ pub async fn run(
                         .as_ref()
                         .map(|model| ChatSettings {
                             model: Some(model.clone()),
-                            reasoning_effort: None,
+                            reasoning_effort: snapshot.chat_settings.reasoning_effort.clone(),
                         })
                         .or_else(|| {
                             review.as_ref().map(|r| ChatSettings {
