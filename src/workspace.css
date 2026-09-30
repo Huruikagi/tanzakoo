@@ -1203,6 +1203,81 @@ summary:focus-visible {
   font-size: 10px;
   color: #708a59;
 }
+.settings-section {
+  padding-top: 16px;
+}
+.connection-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  min-width: 0;
+}
+.connection-stack > .hint,
+.connection-summary > .hint {
+  margin: 0;
+  line-height: 1.6;
+}
+.connection-stack .hint {
+  font-size: 12px;
+}
+.connection-stack > button,
+.connection-summary > button {
+  align-self: flex-start;
+}
+.connection-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.connection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.connection-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.connection-state.connected {
+  color: #537239;
+}
+.connection-account {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.connection-details {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.connection-details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.connection-details > .connection-stack {
+  padding-top: 12px;
+}
+.connection-divider {
+  border-top: 1px solid var(--border);
+}
+.connection-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
 /* Structured chat replies remain readable in the narrow side pane. */
 .chat-question {
   margin: 12px 0;

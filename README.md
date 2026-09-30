@@ -20,6 +20,8 @@ mise exec -- pnpm tauri dev
 
 「AIと考える」→「接続状況」→「ChatGPTで続ける」からSign in with ChatGPTで接続します。AI利用は本人のChatGPT利用枠を消費します。Tanzakooは無料で、APIキーは不要です。開発時はmiseのNodeとプロジェクト依存を利用します。
 
+設定は「一般」と「AI接続」に分かれています。接続中はアカウントと利用量への入口を表示し、切り替え・再サインイン・サインアウトは「アカウント管理」から行います。送信の説明と同意の取り消しは「送信する内容と同意」にまとめています。
+
 通常接続はChatGPTに統一し、内部の実行エンジンには同梱Codex・ACPを使います。保存済みの旧Codex・Claude会話は履歴として閲覧できます。過去の調査は [Claude接続の提供条件](notes/claude-connection-terms.md) に残しています。
 
 `mise exec -- pnpm dev` だけでも画面をプレビューできます。ブラウザプレビューでは保存とエージェント接続は利用できません。

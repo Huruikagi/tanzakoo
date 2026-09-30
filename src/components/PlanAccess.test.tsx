@@ -16,6 +16,10 @@ const draft = { title: "Draft", body: "keep draft", revision: 1 };
 const reference = { cardId: "card-a", title: "Card A", revision: 1, quote: "" };
 beforeEach(() => {
   vi.resetAllMocks();
+  Element.prototype.scrollIntoView = vi.fn();
+  Element.prototype.hasPointerCapture = vi.fn(() => false);
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
   useWorkspace.setState({
     snapshot: {
       ...emptySnapshot,
@@ -46,7 +50,7 @@ it("selects a saved account, starts a new conversation, and retains drafts and c
   expect(useWorkspace.getState().drafts).toEqual({ existing: draft });
   expect(useWorkspace.getState().references).toEqual([reference]);
   expect(useWorkspace.getState().snapshot.consents).toEqual(["codex"]);
-  expect(screen.getByText("接続中: Account A")).toBeInTheDocument();
+  expect(screen.getByText("接続中")).toBeInTheDocument();
 });
 
 it("keeps the selected plan route after logout and never invokes ordinary Codex login", async () => {
@@ -59,6 +63,7 @@ it("keeps the selected plan route after logout and never invokes ordinary Codex 
   });
   const user = userEvent.setup();
   render(<PlanAccess />);
+  await user.click(screen.getByText("アカウント管理"));
   await user.click(screen.getByRole("button", { name: "サインアウト" }));
   expect(useWorkspace.getState().planStatus?.active).toEqual(signedOut);
   expect(api.connection).not.toHaveBeenCalled();
@@ -70,6 +75,7 @@ it("retains conversation and selected account when reauthentication fails or usa
   vi.mocked(api.planConnection).mockRejectedValueOnce("failed");
   const user = userEvent.setup();
   render(<PlanAccess />);
+  await user.click(screen.getByText("アカウント管理"));
   await user.click(screen.getByRole("button", { name: "再サインイン" }));
   expect(screen.getByRole("alert")).toHaveTextContent("failed");
   expect(useWorkspace.getState().conversation).toBe("existing");
@@ -78,6 +84,29 @@ it("retains conversation and selected account when reauthentication fails or usa
   await user.click(screen.getByRole("button", { name: "ChatGPTの利用量を管理" }));
   expect(api.planConnection).toHaveBeenLastCalledWith("p", "usage", null);
   expect(useWorkspace.getState().conversation).toBe("existing");
+});
+
+it("keeps account operations collapsed while connected and switches only after confirmation", async () => {
+  const other = { id: "account-b", label: "Account B", signedIn: true };
+  useWorkspace.setState({ planStatus: { ...status, active: account, accounts: [account, other] } });
+  const user = userEvent.setup();
+  render(<PlanAccess />);
+  expect(screen.getByRole("button", { name: "再サインイン" })).not.toBeVisible();
+  expect(screen.getByRole("button", { name: "サインアウト" })).not.toBeVisible();
+  expect(screen.getByRole("button", { name: "ChatGPTで続ける" })).not.toBeVisible();
+  expect(screen.getByRole("button", { name: "ChatGPTの利用量を管理" })).toBeEnabled();
+  await user.click(screen.getByText("アカウント管理"));
+  await user.click(screen.getByRole("combobox", { name: "保存済みアカウント" }));
+  await user.click(screen.getByRole("option", { name: "Account B" }));
+  expect(api.planConnection).not.toHaveBeenCalled();
+  expect(useWorkspace.getState().conversation).toBe("existing");
+  vi.mocked(api.planConnection).mockResolvedValue({
+    ...status,
+    accounts: [account, other],
+    active: other,
+  });
+  await user.click(screen.getByRole("button", { name: "このアカウントを使う" }));
+  expect(api.planConnection).toHaveBeenCalledWith("p", "select", "account-b");
 });
 
 it("offers ChatGPT directly without a preview toggle or a legacy fallback", () => {

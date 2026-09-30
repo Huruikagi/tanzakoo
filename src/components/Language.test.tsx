@@ -66,7 +66,7 @@ it("switches language through Settings, updates open views, and leaves saved car
       <Board />
     </>,
   );
-  await user.click(screen.getByRole("button", { name: "エージェント設定" }));
+  await user.click(screen.getByRole("button", { name: "設定" }));
   await user.click(screen.getByRole("combobox", { name: "表示言語" }));
   await user.click(screen.getByRole("option", { name: "English" }));
   expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();

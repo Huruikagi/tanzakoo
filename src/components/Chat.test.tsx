@@ -834,6 +834,7 @@ it("keeps legacy Claude history readable and starts new chats with ChatGPT", asy
   await user.click(screen.getByRole("button", { name: "新しい会話" }));
   expect(screen.getByText("ChatGPT")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "接続状況" }));
+  await user.click(screen.getByText("アカウント管理"));
   expect(screen.getByRole("button", { name: "ChatGPTで続ける" })).toBeEnabled();
   expect(useWorkspace.getState().snapshot.messages[0].text).toBe("過去の検討内容");
   expect(api.connection).not.toHaveBeenCalled();
