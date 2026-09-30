@@ -1,5 +1,7 @@
 {
-  "status": "draft-account-and-package-identity-pending",
+  "status": "draft-registered-packaged-install-testing-pending",
+  "storeId": "9N5N0C7PH483",
+  "packageFamilyName": "Huruikagi.Tanzakoo_022ffcc1y2108",
   "sourceCommit": "6c929b76907a017acc8bfcfdfdad49a22145954f",
   "productName": "Tanzakoo",
   "categorySuggestion": "Productivity",

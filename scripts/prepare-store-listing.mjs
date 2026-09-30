@@ -145,7 +145,6 @@ await writeFile(
         "Approve and publish privacy/support pages; add in-app policy link",
         "Finalize privacy declarations and retention operations",
         "Private review code and contact",
-        "Windows Partner Center registration and exact identity",
         "Windows packaged installation, certification and native screenshots",
         "Store pricing, distribution, age rating and final submission approval",
       ],

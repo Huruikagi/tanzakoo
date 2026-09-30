@@ -12,8 +12,9 @@
 
 ## Windows
 
-- Partner Centerの開発者登録・アプリ名予約はまだ。正式なPackage identityは未取得。
+- 利用者がPartner Centerで製品名を予約した。正式なPackage identityとStore IDは `windows-store/identity.json` / `metadata.json` に保存済み。Windows算出のPFNと提示された値の一致も確認した。
 - x64 release本体と同梱ランタイムから、検証用の未署名MSIXを作成した。MakeAppxの検査と1,434ファイルの格納内容照合が成功。
+- 予約済みidentityでも `1.0.0.0` の未署名MSIXを作成し、manifestのname/publisher、x64、全1,434ファイルの一致を確認した。出力は `.local/windows-store-candidate-20261001/Tanzakoo-1.0.0.0-x64.msix`。インストール・WACK・Store審査は未確認。
 - 開発用PATHを外してpayloadから接続確認を実行し、`authRequired` / `canLogin:true` を確認した。これはMSIXインストール後の確認ではない。
 - パッケージ検査6件、ChatGPT認証6件、relay11件、ACPと実ボードツールの呼び出し10件が成功。
 - 手動の作成workflowと、正式identityを入力するテンプレートを用意した。検証用identityのパッケージは提出不可。
@@ -33,7 +34,7 @@ mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit
 
 ## 帰席後に必要な判断・操作
 
-1. Windowsの開発者登録・名前予約を行い、正確なidentityを取得する。
+1. Windowsの登録・名前予約は完了。Partner Centerで提出用の新しい申請を作り、残りの登録項目を確認する。
 2. 共通のプライバシー・サポート原稿と保持運用を確定し、ログイン不要のHTTPS公開先を決める。公開URLへのアプリ内リンクを追加して最終ビルドを作る。
 3. MacのStore配信候補、Windowsの正式identityによるインストールを実機で確認する。WindowsではWACK検査・通知・再起動後の参照・更新も確認し、Windowsネイティブの画像を撮影する。
 4. 最終ビルドと画像、プライバシー申告、年齢レーティング、無料価格・配信地域を照合する。Macのフランス除外は配信地域で設定する。

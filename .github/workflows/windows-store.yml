@@ -33,9 +33,6 @@ jobs:
         env:
           VALIDATION_ONLY: ${{ inputs.validation_only }}
           PACKAGE_VERSION: ${{ inputs.package_version }}
-          STORE_NAME: ${{ vars.WINDOWS_STORE_IDENTITY_NAME }}
-          STORE_PUBLISHER: ${{ vars.WINDOWS_STORE_PUBLISHER }}
-          STORE_DISPLAY_NAME: ${{ vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME }}
         run: |
           python -m unittest discover -s scripts -p test_windows_store.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -47,8 +44,7 @@ jobs:
           spec.loader.exec_module(pack)
           pack.package_version(os.environ['PACKAGE_VERSION'])
           if os.environ['VALIDATION_ONLY'] != 'true':
-              identity = pack.identity_values(dict(name=os.environ['STORE_NAME'], publisher=os.environ['STORE_PUBLISHER'], publisherDisplayName=os.environ['STORE_DISPLAY_NAME']))
-              Path(os.environ['RUNNER_TEMP'], 'store-identity.json').write_text(json.dumps(identity), encoding='utf-8')
+              pack.identity_values(json.loads(Path('notes/windows-store/identity.json').read_text(encoding='utf-8')))
           '@ | python -
       - name: Install and check frontend
         run: |
@@ -68,7 +64,7 @@ jobs:
           VALIDATION_ONLY: ${{ inputs.validation_only }}
           PACKAGE_VERSION: ${{ inputs.package_version }}
         run: |
-          $modeArgs = if ($env:VALIDATION_ONLY -eq 'true') { @('--validation-only') } else { @('--identity', "$env:RUNNER_TEMP/store-identity.json") }
+          $modeArgs = if ($env:VALIDATION_ONLY -eq 'true') { @('--validation-only') } else { @('--identity', 'notes/windows-store/identity.json') }
           python scripts/package-windows-store.py @modeArgs --package-version $env:PACKAGE_VERSION --output .local/windows-store-package
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "Source: $env:GITHUB_SHA`nRun: $env:GITHUB_RUN_ID`nReview access: ${{ inputs.review_access }}`nUnsigned; installed package and Store certification are not yet tested." | Set-Content .local/windows-store-package/build.txt

@@ -1,12 +1,22 @@
 # Microsoft Store 提出準備
 
-2026-10-01時点で開発者登録・アプリ名予約は未実施。掲載原稿とx64 MSIXの作成手順を用意した。ストアへのアップロード・公開はしていない。
+2026-10-01、利用者がPartner Centerで製品名を予約し、正式なPackage identityを提示した。掲載原稿とx64 MSIXの作成手順を用意した。ストアへのアップロード・公開はしていない。
 
-## 登録後に必要な情報
+## 予約済みの製品情報
 
-1. Microsoft Partner Centerで開発者登録し、Tanzakooの名前を予約する。登録種別、支払い・本人確認、配信地域は所有者が確認する。
-2. 製品のProduct identityからPackage/Identity/Name、Package/Identity/Publisher、Package/Properties/PublisherDisplayNameを取得する。
-3. `identity.example.json` を `.local/windows-store-identity.json` にコピーし、それぞれ `name`、`publisher`、`publisherDisplayName` に入力する。MacのBundle IDや任意の名前で代用しない。
+[identity.json](identity.json) は利用者が提示したPartner Center画面の値を保存したもの。認証情報や署名秘密鍵は含まない。
+
+| 項目                                    | 値                                        |
+| --------------------------------------- | ----------------------------------------- |
+| Package/Identity/Name                   | `Huruikagi.Tanzakoo`                      |
+| Package/Identity/Publisher              | `CN=7403B0B0-1D93-4C9F-829F-D1FAF289A523` |
+| Package/Properties/PublisherDisplayName | `Huruikagi`                               |
+| Package Family Name                     | `Huruikagi.Tanzakoo_022ffcc1y2108`        |
+| Microsoft Store ID                      | `9N5N0C7PH483`                            |
+
+Windowsの `PackageFamilyNameFromId` でnameとpublisherから算出したPFNも画面と一致した。別の製品を作る場合は `identity.example.json` をコピーし、その製品のProduct identityの値で明示的に置き換える。MacのBundle IDや任意の名前で代用しない。
+
+正式identityのローカル候補は `.local/windows-store-candidate-20261001/Tanzakoo-1.0.0.0-x64.msix`。MakeAppxの検査、manifestのidentityと全1,434ファイルのハッシュ照合が成功した。未署名であり、Storeや信頼済みのテスト署名によるインストール確認、WACK、最終掲載資料の確定は残る。
 
 MicrosoftはMSIXを推奨し、Store配信時の署名を行う。独自サイトでMSI/EXEをホストする経路より、既存Windows SDKのMakeAppxを使う経路を提出候補にした。新しいnpm依存は不要。[公開の概要](https://learn.microsoft.com/en-us/windows/apps/publish/get-started)、[MSIX署名](https://learn.microsoft.com/en-us/windows/msix/package/sign-msix-package-guide)
 
@@ -20,7 +30,7 @@ mise exec -- pnpm check
 mise exec -- pnpm runtime:stage
 $env:TANZAKOO_REVIEW_URL = 'https://review-relay-production-4f29.up.railway.app'
 mise exec -- pnpm tauri build --no-bundle --config src-tauri/tauri.runtime.conf.json -- --locked
-python scripts/package-windows-store.py --identity .local/windows-store-identity.json --package-version 1.0.0.0 --output .local/windows-store-candidate
+python scripts/package-windows-store.py --identity notes/windows-store/identity.json --package-version 1.0.0.0 --output .local/windows-store-candidate
 ```
 
 `1.0.0.0` は初回候補。アプリ本体の `0.1.0` とは別のMSIXパッケージバージョンであり、実際の登録・更新履歴に合わせる。4桁目は0、先頭は1以上。再実行時は新しい出力先を指定する。[パッケージ要件](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements)
@@ -31,7 +41,7 @@ python scripts/package-windows-store.py --identity .local/windows-store-identity
 
 ## CIで再作成
 
-`.github/workflows/windows-store.yml` は手動実行。既定は検証専用。本番候補にはリポジトリVariables `WINDOWS_STORE_IDENTITY_NAME`、`WINDOWS_STORE_PUBLISHER`、`WINDOWS_STORE_PUBLISHER_DISPLAY_NAME` がすべて必要。未設定なら失敗する。Artifactsに出力するだけで、署名・インストール・Storeへの送信は行わない。
+`.github/workflows/windows-store.yml` は手動実行。既定は検証専用。正式候補を作るときは `validation_only` をオフにし、リポジトリの `notes/windows-store/identity.json` を使用する。identityの内容が不正なら失敗する。Artifactsに出力するだけで、署名・インストール・Storeへの送信は行わない。
 
 ## 掲載資料
 
