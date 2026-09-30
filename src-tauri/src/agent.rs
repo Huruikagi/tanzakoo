@@ -137,12 +137,15 @@ pub fn default_config(id: &str) -> AgentConfig {
     }
 }
 
+// Keep the request language per turn, including when restoring an existing session.
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     store: Store,
     runtime: Arc<AgentRuntime>,
     conversation_id: String,
     prompt: String,
     references: Vec<CardReference>,
+    language: crate::language::Language,
     mut cancel: oneshot::Receiver<()>,
     emit: Emit,
 ) -> Result<(), String> {
@@ -207,7 +210,8 @@ pub async fn run(
             message_id.clone(),
         ]),
     );
-    let prompt = prompt::Prompt::build(&snapshot, &conversation_id, &prompt, &references)?;
+    let prompt =
+        prompt::Prompt::build(&snapshot, &conversation_id, &prompt, &references, language)?;
     let notifications = Arc::new(notifications::Notifications::new(
         conversation_id.clone(),
         emit.clone(),

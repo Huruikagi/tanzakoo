@@ -68,6 +68,7 @@ pub(crate) async fn send_prompt(
         conversation_id.clone(),
         message.text,
         references,
+        ui_language.unwrap_or_default(),
         cancel,
         emit.clone(),
     )

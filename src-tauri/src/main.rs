@@ -110,6 +110,7 @@ fn main() {
                     conversation.id,
                     prompt,
                     vec![],
+                    tanzakoo_lib::language::Language::default(),
                     cancel,
                     emit,
                 ));

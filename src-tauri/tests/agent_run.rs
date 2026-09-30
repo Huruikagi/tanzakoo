@@ -88,6 +88,7 @@ impl Fixture {
                 self.conversation.clone(),
                 "続けて".into(),
                 vec![],
+                tanzakoo_lib::language::Language::Ja,
                 cancel,
                 Arc::new(move |event| {
                     let should_cancel = cancel_on_delta && event.kind == "delta";
