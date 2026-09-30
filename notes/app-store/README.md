@@ -48,3 +48,7 @@ mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit
 ```
 
 新規出力先に日英の入力欄ごとのテキスト、Mac画像6枚、原本との対応表、公開ページの確認用HTML、未完了事項の `readiness.json` を生成する。HTMLは未公開・noindexで、公開先や保持運用の承認を代行しない。Windows側の手順は [Microsoft Store準備](../windows-store/README.md) を参照する。
+
+## 現在の署名済み候補
+
+ソース `6c929b7` から **0.1.0 (3)** の署名済みPKGを作成し、Appleの事前検証に成功した。[作成run](https://github.com/Huruikagi/tanzakoo/actions/runs/36746301459)、[検証run](https://github.com/Huruikagi/tanzakoo/actions/runs/36781032548)。検証のみでbuild 3の登録アップロードや人の審査は行っていない。公開ポリシーへのアプリ内導線など、最終ビルドに向けた残作業は上記のとおり。

@@ -6,7 +6,7 @@
 
 - ソース `6c929b76907a017acc8bfcfdfdad49a22145954f` から **0.1.0 (3)** のMac App Store用PKGを作成した。[作成run 36746301459](https://github.com/Huruikagi/tanzakoo/actions/runs/36746301459)
 - フロントエンド検査、Rustのテスト、Sandboxのbookmark異常系テストが成功。63個のMach-O、アプリ、PKGの署名を検証した。
-- 利用者の許可を受け、Appleへの機械的な事前検証を開始した。[検証run 36781032548](https://github.com/Huruikagi/tanzakoo/actions/runs/36781032548)。結果はrunを確認する。これは人のApp Reviewやストア公開ではない。
+- 利用者の許可を受け、Appleへの機械的な事前検証を実施し、成功した。[検証run 36781032548](https://github.com/Huruikagi/tanzakoo/actions/runs/36781032548)。`mode=validate` のみで、build 3の登録アップロード・人のApp Review・ストア公開はしていない。
 - 日英の画像6枚を選定した。日本語の変更提案は撮り直し版を採用。原本とSHA-256は保持している。最終提出ビルドとの画面一致は未確認。
 - 従来のbuild 2には新しいChatGPT認証などが含まれないため、更新した掲載原稿とそのまま組み合わせない。
 
