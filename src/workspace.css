@@ -65,6 +65,17 @@
 * {
   box-sizing: border-box;
 }
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+html,
+body {
+  /* Keep trackpad overscroll inside the app's individual scrollable panes. */
+  overscroll-behavior: none;
+}
 body {
   margin: 0;
   font-size: 13px;
@@ -87,7 +98,7 @@ summary:focus-visible {
   outline-offset: 3px;
 }
 .app-shell {
-  height: 100dvh;
+  height: 100%;
   min-width: 1000px;
   display: flex;
   flex-direction: column;
