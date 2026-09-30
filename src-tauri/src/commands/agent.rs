@@ -59,8 +59,9 @@ pub(crate) async fn send_prompt(
             ui_language.unwrap_or_default(),
         )
         .map_err(|error| error.system_message())?;
+    let event_app = app.clone();
     let emit: agent::Emit = Arc::new(move |event| {
-        let _ = app.emit("agent-event", event);
+        let _ = event_app.emit("agent-event", event);
     });
     let result = agent::run(
         store.clone(),
@@ -78,12 +79,32 @@ pub(crate) async fn send_prompt(
     }
     drop(guard);
     emit(agent::AgentEvent {
-        conversation_id,
+        conversation_id: conversation_id.clone(),
         kind: "finished".into(),
         text: result.as_ref().err().cloned().unwrap_or_default(),
         detail: None,
     });
-    result
+    let succeeded = matches!(
+        result,
+        Ok(agent_client_protocol::schema::v1::StopReason::EndTurn)
+    );
+    // OS notification callbacks must never hold the completed chat request open.
+    tauri::async_runtime::spawn(async move {
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            crate::desktop_notifications::completed(
+                &app,
+                crate::desktop_notifications::NotificationTarget {
+                    project_id,
+                    conversation_id,
+                },
+                ui_language.unwrap_or_default(),
+                succeeded,
+            ),
+        )
+        .await;
+    });
+    result.map(|_| ())
 }
 
 #[tauri::command]

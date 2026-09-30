@@ -43,6 +43,19 @@ cap-fs-ext = "4.0.3"
 reqwest = { version = "=0.13.5", default-features = false, features = ["native-tls"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6.2"
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "block2",
+  "UNUserNotificationCenter",
+  "UNNotification",
+  "UNNotificationContent",
+  "UNNotificationRequest",
+  "UNNotificationResponse",
+  "UNNotificationSettings",
+  "UNNotificationSound",
+  "UNNotificationTrigger",
+] }
 objc2 = "0.6.4"
 libc = "0.2"
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
@@ -53,4 +66,14 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "NSURL",
   "NSData",
   "NSError",
+  "NSBundle",
+] }
+
+[target.'cfg(windows)'.dependencies]
+tauri-winrt-notification = "0.8.1"
+windows = { version = "0.62", features = [
+  "UI_Notifications",
+  "Win32_Storage_Packaging_Appx",
+  "Win32_System_Registry",
+  "Win32_Security",
 ] }

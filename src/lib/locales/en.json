@@ -350,5 +350,20 @@
   "表示言語": "Display language",
   "システムに合わせる": "System default",
   "設定": "Settings",
-  "表示言語と、このプロジェクトのCodex接続を設定します。": "Choose the display language and configure Codex for this project."
+  "表示言語と、このプロジェクトのCodex接続を設定します。": "Choose the display language and configure Codex for this project.",
+  "この環境では通知を利用できません。Macではインストールしたアプリからお試しください。": "Notifications are unavailable in this environment. On Mac, try the installed app.",
+  "表示言語・通知と、ChatGPTの接続を設定します。": "Configure display language, notifications, and your ChatGPT connection.",
+  "通知を許可する": "Allow notifications",
+  "通知するには、OSの通知許可が必要です。": "Allow notifications in your operating system to receive them.",
+  "通知の設定・送信に失敗しました。設定画面を開き直して再試行してください。": "Could not configure or send notifications. Reopen settings and try again.",
+  "非アクティブ時のみ": "Only when inactive",
+  "OSで通知が無効になっています。システム設定の「通知」でTanzakooを許可してください。": "Notifications are disabled by the OS. Allow Tanzakoo in your system notification settings.",
+  "テスト通知をOSへ送りました。": "The test notification was sent to the OS.",
+  "常に通知する": "Always",
+  "全プロジェクト共通です。非アクティブ時は、別のアプリを操作中や最小化中に通知します。": "Applies to all projects. When inactive, notify while using another app or while Tanzakoo is minimized.",
+  "通知しない": "Never",
+  "OSの集中モードなどにより表示されないことがあります。": "Focus or Do Not Disturb settings may prevent notifications from appearing.",
+  "AIの応答完了通知": "AI response notifications",
+  "テスト通知を送る": "Send a test notification",
+  "デスクトップ通知はWindows・Mac版で利用できます。": "Desktop notifications are available on Windows and Mac."
 }

@@ -131,6 +131,29 @@ impl Projects {
         )?;
         Ok(())
     }
+    pub fn notification_mode(&self) -> Result<crate::desktop_notifications::NotificationMode> {
+        let value: Option<String> = self
+            .catalog()?
+            .query_row(
+                "SELECT value FROM preferences WHERE key='notification-mode'",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(value
+            .and_then(|v| serde_json::from_str(&v).ok())
+            .unwrap_or_default())
+    }
+    pub fn set_notification_mode(
+        &self,
+        mode: crate::desktop_notifications::NotificationMode,
+    ) -> Result<()> {
+        self.catalog()?.execute(
+            "INSERT OR REPLACE INTO preferences(key,value) VALUES ('notification-mode',?1)",
+            [serde_json::to_string(&mode)?],
+        )?;
+        Ok(())
+    }
     pub fn set_consent(&self, agent: &str, granted: bool) -> Result<()> {
         let key = format!("consent:{agent}");
         let db = self.catalog()?;

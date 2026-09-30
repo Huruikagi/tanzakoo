@@ -23,7 +23,12 @@ vi.mock("@dnd-kit/react/sortable", () => ({ useSortable: () => ({}) }));
 vi.mock("@/lib/api", async (original) => ({
   ...(await original<typeof import("@/lib/api")>()),
   native: true,
-  api: { reviewConnection: vi.fn(), action: vi.fn(), connection: vi.fn() },
+  api: {
+    reviewConnection: vi.fn(),
+    action: vi.fn(),
+    connection: vi.fn(),
+    notificationSettings: vi.fn(),
+  },
 }));
 
 beforeEach(() => {
@@ -32,6 +37,10 @@ beforeEach(() => {
   Element.prototype.releasePointerCapture = () => {};
   Element.prototype.scrollIntoView = () => {};
   vi.clearAllMocks();
+  vi.mocked(api.notificationSettings).mockResolvedValue({
+    mode: "inactive",
+    permission: "granted",
+  });
   useWorkspace.setState({
     snapshot: { ...emptySnapshot },
     busy: null,

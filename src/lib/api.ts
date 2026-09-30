@@ -11,6 +11,10 @@ import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import type { ReviewStatus } from "@/bindings/ReviewStatus";
 import type { PlanStatus } from "@/bindings/PlanStatus";
+import type { NotificationMode } from "@/bindings/NotificationMode";
+import type { NotificationSettings } from "@/bindings/NotificationSettings";
+import type { NotificationPermission } from "@/bindings/NotificationPermission";
+import type { NotificationTarget } from "@/bindings/NotificationTarget";
 export type PlanAction = "list" | "restore" | "login" | "select" | "logout" | "usage";
 
 export type AgentEvent = {
@@ -43,6 +47,15 @@ export const emptySnapshot: Snapshot = {
   consents: [],
 };
 export const api = {
+  notificationSettings: () => invoke<NotificationSettings>("notification_settings"),
+  configureNotifications: (mode: NotificationMode) =>
+    invoke<NotificationSettings>("configure_notifications", { mode }),
+  testNotification: () =>
+    invoke<NotificationPermission>("test_notification", { uiLanguage: currentLocale() }),
+  subscribeNotifications: (handler: (target: NotificationTarget) => void) =>
+    native
+      ? listen<NotificationTarget>("notification-activated", (e) => handler(e.payload))
+      : Promise.resolve(() => {}),
   planConnection: (projectId: string, action: PlanAction, accountId: string | null = null) =>
     invoke<PlanStatus>("plan_connection", { projectId, action, accountId }),
   reviewStatus: () =>

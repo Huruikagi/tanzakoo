@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AgentConnection } from "./AgentConnection";
+import { NotificationSettings } from "./NotificationSettings";
 
 export function Settings() {
   useTranslation();
@@ -34,7 +35,7 @@ export function Settings() {
         <DialogHeader>
           <DialogTitle>{t("設定")}</DialogTitle>
           <DialogDescription className="sr-only">
-            {t("表示言語と、ChatGPTの接続を設定します。")}
+            {t("表示言語・通知と、ChatGPTの接続を設定します。")}
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="general">
@@ -43,7 +44,7 @@ export function Settings() {
             <TabsTrigger value="connection">{t("AI接続")}</TabsTrigger>
           </TabsList>
           <TabsContent value="general">
-            <div className="settings-section connection-stack">
+            <div className="settings-section settings-scroll connection-stack">
               <label htmlFor="display-language">{t("表示言語")}</label>
               <Select
                 value={preference}
@@ -58,6 +59,7 @@ export function Settings() {
                   <SelectItem value="en">English</SelectItem>
                 </SelectContent>
               </Select>
+              <NotificationSettings />
             </div>
           </TabsContent>
           <TabsContent value="connection">

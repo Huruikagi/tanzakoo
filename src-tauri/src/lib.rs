@@ -2,6 +2,7 @@ pub mod agent;
 pub mod agent_setup;
 pub mod chat_settings;
 pub mod chatgpt_plan;
+pub mod desktop_notifications;
 pub mod export;
 pub mod language;
 pub mod materials;
@@ -37,6 +38,7 @@ pub fn run() {
         .setup(|app| {
             let dir = storage::data_dir(app)?;
             agent_setup::initialize(app.path().resource_dir()?, dir.clone());
+            desktop_notifications::initialize(app.handle());
             app.manage(AppState {
                 projects: Arc::new(Mutex::new(projects::Projects::open(dir)?)),
                 runtime: Arc::new(agent::AgentRuntime::default()),
@@ -44,6 +46,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            desktop_notifications::notification_settings,
+            desktop_notifications::configure_notifications,
+            desktop_notifications::test_notification,
             commands::projects::get_snapshot,
             commands::materials::add_reference_materials,
             commands::materials::remove_reference_material,

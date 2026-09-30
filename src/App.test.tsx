@@ -19,7 +19,12 @@ vi.mock("@/components/ui/resizable", () => ({
 }));
 vi.mock("@/lib/api", async (original) => ({
   ...(await original<typeof import("@/lib/api")>()),
-  api: { snapshot: vi.fn(), subscribe: vi.fn(), reviewStatus: vi.fn() },
+  api: {
+    snapshot: vi.fn(),
+    subscribe: vi.fn(),
+    subscribeNotifications: vi.fn(),
+    reviewStatus: vi.fn(),
+  },
 }));
 
 it("does not redraw workspace children for chat deltas or a same-project refresh", async () => {
@@ -32,6 +37,7 @@ it("does not redraw workspace children for chat deltas or a same-project refresh
   });
   vi.mocked(api.snapshot).mockResolvedValue(snapshot);
   vi.mocked(api.subscribe).mockResolvedValue(() => {});
+  vi.mocked(api.subscribeNotifications).mockResolvedValue(() => {});
   vi.mocked(api.reviewStatus).mockResolvedValue(null);
   await act(async () => {
     render(<App />);

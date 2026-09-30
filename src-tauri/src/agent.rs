@@ -148,7 +148,7 @@ pub async fn run(
     language: crate::language::Language,
     mut cancel: oneshot::Receiver<()>,
     emit: Emit,
-) -> Result<(), String> {
+) -> Result<StopReason, String> {
     let conversation = store
         .conversation(&conversation_id)
         .map_err(|e| e.system_message())?;
@@ -295,13 +295,14 @@ pub async fn run(
                     )
                     .await?;
                 }
-                cx.send_request(PromptRequest::new(
-                    session_id,
-                    vec![ContentBlock::Text(TextContent::new(input))],
-                ))
-                .block_task()
-                .await?;
-                Ok(())
+                let response = cx
+                    .send_request(PromptRequest::new(
+                        session_id,
+                        vec![ContentBlock::Text(TextContent::new(input))],
+                    ))
+                    .block_task()
+                    .await?;
+                Ok(response.stop_reason)
             },
         );
     let result = tokio::select! {
@@ -320,7 +321,7 @@ pub async fn run(
         _ = &mut cancel => Err("応答を停止しました。".into()),
     };
     let full = notifications.text();
-    if result.is_err() {
+    if result.is_err() || matches!(result, Ok(StopReason::Cancelled)) {
         store
             .cancel_questions(&conversation_id, &message_id)
             .map_err(|e| e.system_message())?;

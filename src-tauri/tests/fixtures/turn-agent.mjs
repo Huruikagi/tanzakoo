@@ -41,7 +41,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         response.error = { code: -32603, message: "Mock turn failure" };
       } else {
         delta(request.params.sessionId, "です。");
-        response.result = { stopReason: "end_turn" };
+        response.result = {
+          stopReason: ["cancelled", "max_tokens", "max_turn_requests", "refusal"].includes(mode)
+            ? mode
+            : "end_turn",
+        };
       }
       break;
     default:

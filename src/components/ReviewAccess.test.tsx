@@ -9,12 +9,22 @@ import { api, emptySnapshot } from "@/lib/api";
 vi.mock("@/lib/api", async (original) => ({
   ...(await original<typeof import("@/lib/api")>()),
   native: true,
-  api: { reviewConnection: vi.fn(), connection: vi.fn(), cancel: vi.fn(), action: vi.fn() },
+  api: {
+    reviewConnection: vi.fn(),
+    connection: vi.fn(),
+    cancel: vi.fn(),
+    action: vi.fn(),
+    notificationSettings: vi.fn(),
+  },
 }));
 const access = { model: "review-model", expiresAt: Date.now() + 3600000, remainingRequests: 50 };
 const code = `trr_${"a".repeat(43)}`;
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(api.notificationSettings).mockResolvedValue({
+    mode: "inactive",
+    permission: "granted",
+  });
   localStorage.clear();
   useWorkspace.setState({
     snapshot: {

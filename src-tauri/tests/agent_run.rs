@@ -74,7 +74,13 @@ impl Fixture {
             .unwrap();
     }
 
-    async fn run(&self, cancel_on_delta: bool) -> (Result<(), String>, Vec<AgentEvent>) {
+    async fn run(
+        &self,
+        cancel_on_delta: bool,
+    ) -> (
+        Result<agent_client_protocol::schema::v1::StopReason, String>,
+        Vec<AgentEvent>,
+    ) {
         let runtime = Arc::new(AgentRuntime::default());
         let (guard, cancel) = runtime.begin().unwrap();
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -133,7 +139,10 @@ async fn resumed_turns_do_not_emit_or_persist_replayed_history() {
     for _ in 0..2 {
         f.start_turn();
         let (result, events) = f.run(false).await;
-        result.unwrap();
+        assert_eq!(
+            result.unwrap(),
+            agent_client_protocol::schema::v1::StopReason::EndTurn
+        );
         assert_eq!(
             events
                 .iter()
@@ -204,6 +213,26 @@ async fn cancellation_and_failure_preserve_partial_text_and_cancel_turn_question
         assert_eq!(snapshot.messages.last().unwrap().role, "assistant");
         assert_eq!(snapshot.messages.last().unwrap().text, "途中の回答");
         assert_eq!(snapshot.questions[0].state, QuestionState::Cancelled);
+    }
+}
+
+#[tokio::test]
+async fn agent_stop_reasons_are_preserved_for_completion_notifications() {
+    use agent_client_protocol::schema::v1::StopReason;
+    for (mode, expected) in [
+        ("cancelled", StopReason::Cancelled),
+        ("max_tokens", StopReason::MaxTokens),
+        ("max_turn_requests", StopReason::MaxTurnRequests),
+        ("refusal", StopReason::Refusal),
+    ] {
+        let f = Fixture::new(mode);
+        f.start_turn();
+        assert_eq!(f.run(false).await.0.unwrap(), expected);
+        let snapshot = f.store.snapshot().unwrap();
+        assert_eq!(snapshot.messages.last().unwrap().role, "assistant");
+        if expected == StopReason::Cancelled {
+            assert_eq!(snapshot.questions[0].state, QuestionState::Cancelled);
+        }
     }
 }
 
