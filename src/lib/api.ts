@@ -11,7 +11,7 @@ import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import type { ReviewStatus } from "@/bindings/ReviewStatus";
 import type { PlanStatus } from "@/bindings/PlanStatus";
-export type PlanAction = "list" | "login" | "select" | "logout" | "usage";
+export type PlanAction = "list" | "restore" | "login" | "select" | "logout" | "usage";
 
 export type AgentEvent = {
   conversationId: string;

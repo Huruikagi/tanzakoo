@@ -21,7 +21,7 @@ export const createPlanSlice: WorkspaceSlice<"planStatus" | "planError" | "planC
     try {
       const planStatus = await api.planConnection(get().snapshot.project.id, action, accountId);
       set({ planStatus });
-      if (action !== "list" && action !== "usage")
+      if (action !== "list" && action !== "usage" && action !== "restore")
         set({ connections: {}, chatError: null, conversation: null, stream: "" });
       return true;
     } catch (error) {

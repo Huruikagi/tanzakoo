@@ -7,6 +7,7 @@
   "接続中": "Connected",
   "未接続": "Not connected",
   "サインアウト済み": "Signed out",
+  "接続を確認してください": "Please check the connection",
   "別のアカウントを追加": "Add another account",
   "切り替え後は新しい会話を始めます。過去の会話やカードは残ります。": "Start a new conversation after switching. Your past conversations and cards are kept.",
   "AIとの会話には、ご自身のChatGPTの利用枠を使います。": "AI conversations count toward your ChatGPT usage.",

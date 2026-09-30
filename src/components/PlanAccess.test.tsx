@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PlanAccess } from "./PlanAccess";
+import { PlanAccess, PlanConnectionRestore } from "./PlanAccess";
 import { api, emptySnapshot } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 
@@ -51,6 +51,65 @@ it("selects a saved account, starts a new conversation, and retains drafts and c
   expect(useWorkspace.getState().references).toEqual([reference]);
   expect(useWorkspace.getState().snapshot.consents).toEqual(["codex"]);
   expect(screen.getByText("接続中")).toBeInTheDocument();
+});
+
+it("restores on startup without opening settings or clearing the selected conversation", async () => {
+  useWorkspace.setState({ planStatus: null, loaded: false });
+  vi.mocked(api.planConnection).mockResolvedValue({ ...status, active: account });
+  const view = render(<PlanConnectionRestore />);
+  expect(api.planConnection).not.toHaveBeenCalled();
+  await act(async () => useWorkspace.setState({ loaded: true }));
+  await waitFor(() => expect(useWorkspace.getState().planStatus?.active).toEqual(account));
+  expect(api.planConnection).toHaveBeenCalledExactlyOnceWith("p", "restore", null);
+  expect(useWorkspace.getState().conversation).toBe("existing");
+  expect(useWorkspace.getState().drafts).toEqual({ existing: draft });
+  expect(useWorkspace.getState().references).toEqual([reference]);
+  expect(useWorkspace.getState().snapshot.consents).toEqual(["codex"]);
+  view.unmount();
+  render(<PlanConnectionRestore />);
+  expect(api.planConnection).toHaveBeenCalledTimes(1);
+});
+
+it("keeps a failed saved account disconnected and offers retry without selecting another account", async () => {
+  const other = { id: "account-b", label: "Account B", signedIn: true };
+  useWorkspace.setState({ planStatus: null });
+  vi.mocked(api.planConnection).mockResolvedValue({
+    ...status,
+    accounts: [other, account],
+    active: { ...account, signedIn: false },
+    warning: "offline",
+  });
+  render(
+    <>
+      <PlanConnectionRestore />
+      <PlanAccess />
+    </>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+  expect(screen.getByText("接続を確認してください")).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "保存済みアカウント" })).toHaveTextContent(
+    "Account A",
+  );
+  expect(screen.getByRole("button", { name: "このアカウントを使う" })).toBeEnabled();
+  expect(useWorkspace.getState().planStatus?.active?.signedIn).toBe(false);
+  expect(useWorkspace.getState().conversation).toBe("existing");
+  expect(api.planConnection).toHaveBeenCalledTimes(1);
+  expect(api.connection).not.toHaveBeenCalled();
+});
+
+it("does not repeatedly restore after cancellation or a helper error", async () => {
+  useWorkspace.setState({ planStatus: null });
+  vi.mocked(api.planConnection).mockRejectedValue("cancelled");
+  render(
+    <>
+      <PlanConnectionRestore />
+      <PlanAccess />
+    </>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("cancelled");
+  expect(screen.getByRole("button", { name: "接続一覧を再取得" })).toBeEnabled();
+  expect(api.planConnection).toHaveBeenCalledTimes(1);
+  expect(useWorkspace.getState().busy).toBeNull();
 });
 
 it("keeps the selected plan route after logout and never invokes ordinary Codex login", async () => {

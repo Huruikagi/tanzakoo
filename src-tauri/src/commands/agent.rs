@@ -241,7 +241,8 @@ pub(crate) async fn plan_connection(
         guard: _guard,
         mut cancel,
     } = state.begin_project_operation(&project_id, |_, _| Ok(()))?;
-    if state.runtime.review_session()?.is_some() && action != "list" {
+    let reviewing = state.runtime.review_session()?.is_some();
+    if reviewing && !["list", "restore"].contains(&action.as_str()) {
         return Err("先に審査用接続を解除してください。".into());
     }
     let job = async {
@@ -249,6 +250,25 @@ pub(crate) async fn plan_connection(
         let mut active = state.runtime.plan_account()?;
         match action.as_str() {
             "list" => {}
+            "restore" => {
+                if active.is_none() && !reviewing {
+                    let id = state
+                        .projects
+                        .lock()
+                        .map_err(|e| e.to_string())?
+                        .last_plan_account()
+                        .map_err(|e| e.system_message())?;
+                    let result = chatgpt_plan::helper(&store, "list", None).await?;
+                    let accounts = serde_json::from_value(result["accounts"].clone())
+                        .map_err(|_| chatgpt_plan::message("invalid_response"))?;
+                    (active, warning) =
+                        chatgpt_plan::restore_account(id.as_deref(), accounts, |account| {
+                            let store = &store;
+                            async move { chatgpt_plan::access(store, &account).await.map(|_| ()) }
+                        })
+                        .await;
+                }
+            }
             "usage" => {
                 chatgpt_plan::helper(&store, "usage", None).await?;
             }
@@ -291,6 +311,16 @@ pub(crate) async fn plan_connection(
         let accounts = serde_json::from_value(result["accounts"].clone())
             .map_err(|_| chatgpt_plan::message("invalid_response"))?;
         // Commit the route after all cancellable work, keeping the native/UI result coherent.
+        if ["login", "select"].contains(&action.as_str())
+            && let Some(account) = &active
+        {
+            state
+                .projects
+                .lock()
+                .map_err(|e| e.to_string())?
+                .set_last_plan_account(&account.id)
+                .map_err(|e| e.system_message())?;
+        }
         *state
             .runtime
             .plan

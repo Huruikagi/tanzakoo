@@ -11,6 +11,7 @@ import { CardDetails } from "@/components/CardDetails";
 import { Chat } from "@/components/Chat";
 import { Settings } from "@/components/Settings";
 import { PlanWelcome } from "@/components/PlanWelcome";
+import { PlanConnectionRestore } from "@/components/PlanAccess";
 import { Projects } from "@/components/Projects";
 import { ExportDecisions } from "@/components/ExportDecisions";
 import { useWorkspace } from "@/lib/workspace";
@@ -73,6 +74,7 @@ export default function App() {
   }, [busy, refresh]);
   return (
     <div className="app-shell">
+      <PlanConnectionRestore />
       <PlanWelcome />
       <header className="app-header">
         <div className="brand">

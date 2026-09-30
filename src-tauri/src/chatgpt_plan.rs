@@ -87,6 +87,27 @@ pub fn require_account(account: Option<&PlanAccount>) -> Result<&PlanAccount, St
         .ok_or_else(|| SIGN_IN_REQUIRED.into())
 }
 
+/// Restore only the explicitly selected registration, never the first available account.
+pub async fn restore_account<F: std::future::Future<Output = Result<(), String>>>(
+    saved_id: Option<&str>,
+    accounts: Vec<PlanAccount>,
+    check: impl FnOnce(PlanAccount) -> F,
+) -> (Option<PlanAccount>, Option<String>) {
+    let Some(id) = saved_id else {
+        return (None, None);
+    };
+    let Some(mut account) = accounts.into_iter().find(|a| a.id == id) else {
+        return (None, Some(message("account_missing")));
+    };
+    if account.signed_in
+        && let Err(error) = check(account.clone()).await
+    {
+        account.signed_in = false;
+        return (Some(account), Some(error));
+    }
+    (Some(account), None)
+}
+
 pub async fn helper(
     store: &Store,
     action: &str,
@@ -162,6 +183,52 @@ pub fn message(code: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn restores_only_the_saved_registration_and_keeps_failures_disconnected() {
+        let account = |id: &str, signed_in| PlanAccount {
+            id: id.into(),
+            label: id.into(),
+            signed_in,
+        };
+        for (saved, signed_in, fails) in [
+            (Some("a"), true, false),
+            (Some("a"), true, true),
+            (Some("a"), false, false),
+            (Some("missing"), true, false),
+            (None, true, false),
+        ] {
+            let checked = std::sync::atomic::AtomicBool::new(false);
+            let (active, warning) = restore_account(
+                saved,
+                vec![account("b", true), account("a", signed_in)],
+                |a| {
+                    assert_eq!(a.id, "a");
+                    checked.store(true, std::sync::atomic::Ordering::Relaxed);
+                    async move {
+                        if fails {
+                            Err("reauthorize".into())
+                        } else {
+                            Ok(())
+                        }
+                    }
+                },
+            )
+            .await;
+            assert_eq!(
+                checked.load(std::sync::atomic::Ordering::Relaxed),
+                saved == Some("a") && signed_in
+            );
+            assert_eq!(
+                active.as_ref().map(|a| a.id.as_str()),
+                if saved == Some("a") { Some("a") } else { None }
+            );
+            assert_eq!(
+                active.is_some_and(|a| a.signed_in),
+                saved == Some("a") && signed_in && !fails
+            );
+            assert_eq!(warning.is_some(), fails || saved == Some("missing"));
+        }
+    }
     #[test]
     fn conversations_are_bound_to_route_and_registration() {
         let account = PlanAccount {

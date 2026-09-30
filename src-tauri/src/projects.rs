@@ -113,6 +113,24 @@ impl Projects {
             .optional()?
             .is_some())
     }
+    /// Only the registration ID is stored here; credentials stay in the plan helper.
+    pub fn last_plan_account(&self) -> Result<Option<String>> {
+        Ok(self
+            .catalog()?
+            .query_row(
+                "SELECT value FROM preferences WHERE key='chatgpt-plan-account'",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+    pub fn set_last_plan_account(&self, id: &str) -> Result<()> {
+        self.catalog()?.execute(
+            "INSERT OR REPLACE INTO preferences(key,value) VALUES ('chatgpt-plan-account',?1)",
+            [id],
+        )?;
+        Ok(())
+    }
     pub fn set_consent(&self, agent: &str, granted: bool) -> Result<()> {
         let key = format!("consent:{agent}");
         let db = self.catalog()?;
@@ -303,6 +321,31 @@ fn is_link(metadata: &std::fs::Metadata) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selected_plan_account_survives_restart_and_project_changes() {
+        let (root, mut projects) = deletion_fixture("plan-account");
+        assert_eq!(projects.last_plan_account().unwrap(), None);
+        projects.set_last_plan_account("registration-a").unwrap();
+        projects
+            .create("Another project".into(), "".into())
+            .unwrap();
+        assert_eq!(
+            projects.last_plan_account().unwrap().as_deref(),
+            Some("registration-a")
+        );
+        drop(projects);
+        let projects = Projects::open(root).unwrap();
+        assert_eq!(
+            projects.last_plan_account().unwrap().as_deref(),
+            Some("registration-a")
+        );
+        projects.set_last_plan_account("registration-b").unwrap();
+        assert_eq!(
+            projects.last_plan_account().unwrap().as_deref(),
+            Some("registration-b")
+        );
+    }
 
     fn deletion_fixture(name: &str) -> (PathBuf, Projects) {
         let nonce = std::time::SystemTime::now()

@@ -44,7 +44,7 @@ function Accounts({ status, disabled }: { status: PlanStatus; disabled: boolean 
             </SelectContent>
           </Select>
           <div className="connection-actions">
-            {account.id !== status.active?.id && account.signedIn ? (
+            {account.signedIn && (account.id !== status.active?.id || !status.active?.signedIn) ? (
               <Button
                 type="button"
                 size="sm"
@@ -88,6 +88,20 @@ function Accounts({ status, disabled }: { status: PlanStatus; disabled: boolean 
   );
 }
 
+// Mounted at the app root so restoration also runs with settings and chat closed.
+export function PlanConnectionRestore() {
+  const status = useWorkspace((s) => s.planStatus);
+  const error = useWorkspace((s) => s.planError);
+  const busy = useWorkspace((s) => s.busy);
+  const switching = useWorkspace((s) => s.switching);
+  const loaded = useWorkspace((s) => s.loaded);
+  useEffect(() => {
+    if (native && loaded && !status && !busy && !switching && !error)
+      void useWorkspace.getState().planConnect("restore");
+  }, [loaded, status, busy, switching, error]);
+  return null;
+}
+
 export function PlanAccess() {
   useTranslation();
   const status = useWorkspace((s) => s.planStatus);
@@ -95,11 +109,6 @@ export function PlanAccess() {
   const busy = useWorkspace((s) => s.busy);
   const activity = useWorkspace((s) => s.activity);
   const switching = useWorkspace((s) => s.switching);
-  const loaded = useWorkspace((s) => s.loaded);
-  useEffect(() => {
-    if (native && loaded && !status && !busy && !error)
-      void useWorkspace.getState().planConnect("list");
-  }, [loaded, status, busy, error]);
   const disabled = !native || !!busy || switching;
   const connect = useWorkspace.getState().planConnect;
   const active = status?.active;
@@ -110,7 +119,13 @@ export function PlanAccess() {
           <strong>ChatGPT</strong>
           <span className={active?.signedIn ? "connection-state connected" : "connection-state"}>
             {active?.signedIn && <CheckCircle2 size={13} />}
-            {active?.signedIn ? t("接続中") : active ? t("サインアウト済み") : t("未接続")}
+            {active?.signedIn
+              ? t("接続中")
+              : active
+                ? status?.warning
+                  ? t("接続を確認してください")
+                  : t("サインアウト済み")
+                : t("未接続")}
           </span>
         </div>
         {active && <p className="connection-account">{active.label}</p>}
@@ -168,7 +183,7 @@ export function PlanAccess() {
           size="sm"
           variant="outline"
           disabled={disabled}
-          onClick={() => void connect("list")}
+          onClick={() => void connect("restore")}
         >
           {t("接続一覧を再取得")}
         </Button>
