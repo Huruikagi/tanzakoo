@@ -44,7 +44,7 @@ mise exec -- pnpm build:desktop
 
 `runtime:stage` はビルドを実行したOS・CPU向けの依存をpnpm deployで固定ロックファイルからまとめ、miseのNodeとライセンス表示を同梱します。生成先は `src-tauri/resources/agent-runtime`。再生成時はこの生成フォルダーだけを削除してから実行します。
 
-Windowsでは出力された実行ファイルと、その隣の `agent-runtime` フォルダーを一緒に配置します。開発用Node・CodexをPATHから外した条件で起動確認済みです。MSIX・ストア申請はまだ提供していません。
+Windowsでは出力された実行ファイルと、その隣の `agent-runtime` フォルダーを一緒に配置します。開発用Node・CodexをPATHから外した条件で起動確認済みです。MSIXの作成手順と検証用パッケージを用意しました。Microsoft Storeの登録と配信は未実施です。[Windowsストア提出準備](notes/windows-store/README.md) を参照してください。
 
 Mac版はApple Silicon・macOS 26 Tahoe以上を対象に、署名・公証済みDMGで直接配布します。GitHub Actionsの手動実行ワークフロー `macOS signed DMG` で生成し、公証と検証が成功したDMGだけを成果物に保存します。2026-09-26に初回の署名・公証・DMG内ランタイム検証が成功しました。Finderからの起動やブラウザ認証などの操作確認は別途必要です。Secrets・実行手順・検証範囲は [Macの署名・公証とDMG作成](notes/macos-distribution.md) を参照してください。
 
@@ -111,7 +111,7 @@ AIは必要な箇所だけを検索・読み取り、ファイル名と行番号
 
 バックアップする場合はアプリとエージェントを終了してから、一覧DBを含む保存先のフォルダー全体をコピーしてください。プロジェクト全体のインポート・復元機能はまだありません。
 
-Mac版の対象はApple Silicon・macOS 26 Tahoe以上です。Windowsの正式配布はMSIXによるMicrosoft Store公開を予定しています（パッケージ作成・配布は未実装）。ストア向けの保存・ファイル権限の設定と、署名後に必要な検証は [ストア配布の保存設計](notes/store-storage.md) を参照してください。
+Mac版の対象はApple Silicon・macOS 26 Tahoe以上です。Windowsの正式配布はMSIXによるMicrosoft Store公開を予定しています（パッケージ作成は検証段階、Store配信は未実施）。ストア向けの保存・ファイル権限の設定と、署名後に必要な検証は [ストア配布の保存設計](notes/store-storage.md) を参照してください。
 
 ## 決めたことを開発に渡す
 
@@ -162,6 +162,8 @@ Claudeのアダプターと検証コードは将来の調査用に残してい�
 $env:CLAUDE_CONFIG_DIR = (New-Item -ItemType Directory -Force .local/claude-empty-config).FullName
 mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test agent_connection -- --ignored real_claude
 ```
+
+Mac・Windowsの掲載原稿、審査メモ、画像選定と提出資料の生成手順は [Mac掲載資料](notes/app-store/README.md) と [Windowsストア提出準備](notes/windows-store/README.md) にまとめています。
 
 公開済みの配布物はまだありません。ソースから起動するか、Macの署名・公証ワークフローの検証済み成果物を使用してください。
 詳細な検証結果と残りの確認は [実装・検証メモ](notes/implementation-progress.md) を参照してください。

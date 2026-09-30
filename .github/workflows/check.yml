@@ -61,6 +61,8 @@ jobs:
         run: mise exec -- pnpm install --frozen-lockfile
       - name: Frontend checks
         run: mise exec -- pnpm check
+      - name: Windows packaging checks (no Store credentials)
+        run: python -m unittest discover -s scripts -p test_windows_store.py
       - name: Reference runtime policy (offline)
         run: mise exec -- pnpm test:runtime
       - name: Rust format

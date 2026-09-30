@@ -1,12 +1,12 @@
 # Tanzakoo Privacy Policy
 
-> Pre-publication draft, September 28, 2026. Resolve the open items and retention practices in [the assessment](privacy-assessment.md), remove this note, and set the effective date when publishing.
+> Pre-publication draft, October 1, 2026. Resolve the open items and retention practices in [the assessment](privacy-assessment.md), remove this note, and set the effective date when publishing.
 
 This policy explains how the developer of Tanzakoo handles information in the app and its review connection. Contact: **huruikagi@gmail.com**.
 
-## Information on your Mac
+## Information on your device
 
-Projects, cards, project memory, conversations, and reference registrations are saved in the app's data area on your Mac. You can edit the board and export Markdown without using AI. These manual operations do not send board contents to the developer's server.
+Projects, cards, project memory, conversations, and reference registrations are saved in the app's data area on your Mac or Windows device. You can edit the board and export Markdown without using AI. These manual operations do not send board contents to the developer's server.
 
 Registered files and folders are read-only. Removing a registration does not delete the original files. Exported Markdown and device backups are separate copies that you control.
 
@@ -14,11 +14,15 @@ Registered files and folders are read-only. Removing a registration does not del
 
 After you consent and send a conversation, the information sent includes your message, conversation context, current board cards, project memory, pending proposals, registered file and folder paths, and reference excerpts or tool results needed for the conversation. Paths may contain your local account name.
 
-Regular access sends information to OpenAI through Codex using your ChatGPT account. Authentication information is handled in a dedicated area on your device. OpenAI's retention, use, deletion, and data settings depend on your account and the applicable service terms.
+Regular access authenticates with Continue with ChatGPT and sends information to OpenAI through the bundled runtime using your authorized ChatGPT plan. Account identifiers, email address, connection registration, and authentication tokens needed for access are stored in the app data area on your device. This connection does not retrieve your past ChatGPT conversations. OpenAI's retention, use, deletion, and data settings depend on your account and the applicable service terms.
 
 Review access sends the same information through the developer's relay hosted on Railway to the OpenAI API. The relay does not store conversation bodies in its database. To validate access, manage limits, and prevent misuse, it stores a hash of the access code, a grant identifier, expiry and revocation status, request counts, token usage, and related access-control records. The review code and consent held in the running app are lost when you quit.
 
 Infrastructure providers may process operational information such as IP addresses, timestamps, request paths, results, user-agent information, and response times. The relay disables API response storage, but this does not eliminate retention such as OpenAI's abuse-monitoring records.
+
+## Notifications
+
+Desktop notifications are optional. When enabled, the app asks the operating system to notify you about responses or proposals needing attention. Notification text does not include card or conversation contents. You can use the board without allowing notifications.
 
 ## Purposes and providers
 
@@ -28,11 +32,11 @@ Information is used to provide AI responses and board operations, authenticate a
 
 Local data remains until you delete it. Archiving a card is not deletion. Follow the confirmation shown in the app when deleting a project. Removing a reference or withdrawing AI consent does not erase past conversations, information already sent, or exported files.
 
-You can withdraw regular AI consent in Settings. Select Return to regular connection to end review access and withdraw its consent. Manual board features remain available without sending further AI requests.
+You can withdraw regular AI consent in Settings. Withdrawing consent and signing out are separate actions. Signing out removes stored tokens on your device, but connection registration, account identifiers, and email address may remain. You can disconnect the integration in ChatGPT security settings. Select Return to regular connection to end review access and withdraw its consent. Manual board features remain available without sending further AI requests.
 
 The developer's intended practice is to retain review access records while needed for review, misuse investigations, and support, then manually delete records no longer needed. Expiring or revoking a code does not automatically delete its records. Infrastructure logs and OpenAI data are subject to the respective providers' retention rules. The app cannot instantly erase all copies of previously transmitted information.
 
-Support emails and attachments are kept for responding and necessary record keeping. Contact us to request access to or deletion of information held by the developer. We may ask for information needed to verify your request and identify the records. The developer cannot remotely inspect or delete information that exists only on your Mac.
+Support emails and attachments are kept for responding and necessary record keeping. Contact us to request access to or deletion of information held by the developer. We may ask for information needed to verify your request and identify the records. The developer cannot remotely inspect or delete information that exists only on your Mac or Windows device.
 
 ## Contact and updates
 

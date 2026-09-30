@@ -4,6 +4,7 @@
     "src-tauri/target/**",
     "src-tauri/resources/agent-runtime/**",
     "dist/**",
+    "notes/app-store/screenshots/native/**/manifest.json",
     "pnpm-lock.yaml"
   ]
 }

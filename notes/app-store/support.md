@@ -1,16 +1,18 @@
 # Tanzakoo サポート / Support
 
-Tanzakooは、アイデアをカードにし、ボードで整理するMacアプリです。Apple Silicon搭載Mac、macOS 26以降に対応します。
+> 公開前原稿 / Pre-publication draft, 2026-10-01. 対応環境と公開URLは最終提出ビルドに合わせて確定する。
+
+Tanzakooは、アイデアをカードにし、ボードで整理するアプリです。Mac版はApple Silicon搭載Mac、macOS 26以降が対象です。Windowsストア版は準備中です。
 
 ## お問い合わせ
 
-[huruikagi@gmail.com](mailto:huruikagi@gmail.com) へ、アプリのバージョン、macOSのバージョン、行った操作、表示されたエラーをお知らせください。画像を添付する場合は、カード本文やファイルパスなどの個人情報を確認してください。認証コード・APIキー・パスワードは送らないでください。
+[huruikagi@gmail.com](mailto:huruikagi@gmail.com) へ、アプリのバージョン、OSのバージョン、行った操作、表示されたエラーをお知らせください。画像を添付する場合は、カード本文やファイルパスなどの個人情報を確認してください。認証コード・APIキー・パスワードは送らないでください。
 
 ## よくある質問
 
 **AIのアカウントは必要ですか？**
 
-ボード編集、プロジェクトメモリ、Markdownエクスポートはアカウントなしで使えます。通常のAI接続には、ご自身のCodex対応ChatGPTアカウントが必要です。外部サービスのプランと上限が適用されます。
+ボード編集、プロジェクトメモリ、Markdownエクスポートはアカウントなしで使えます。通常のAI接続には、「ChatGPTで続ける」で接続できるご自身のChatGPTプランと利用許可が必要です。外部サービスのプランと上限が適用されます。
 
 **AIへ何を送りますか？**
 
@@ -36,11 +38,11 @@ Tanzakooは、アイデアをカードにし、ボードで整理するMacアプ
 
 ## English support
 
-Tanzakoo helps you explore ideas with cards and a board. Requires an Apple Silicon Mac running macOS 26 or later.
+Tanzakoo helps you explore ideas with cards and a board. The Mac version requires Apple Silicon and macOS 26 or later. The Windows Store version is in preparation.
 
-Contact [huruikagi@gmail.com](mailto:huruikagi@gmail.com) with your app version, macOS version, steps, and error message. Remove private card text and file paths from screenshots. Never send access codes, API keys, or passwords.
+Contact [huruikagi@gmail.com](mailto:huruikagi@gmail.com) with your app version, OS version, steps, and error message. Remove private card text and file paths from screenshots. Never send access codes, API keys, or passwords.
 
-**Do I need an AI account?** Manual board editing, project memory, and Markdown export work without an account. Regular AI access requires your own ChatGPT account with Codex access and is subject to that service's plan and limits.
+**Do I need an AI account?** Manual board editing, project memory, and Markdown export work without an account. Regular AI access requires your own eligible ChatGPT plan and permission through Continue with ChatGPT and is subject to that service's plan and limits.
 
 **What is sent to AI?** With your consent, conversation context, the board, project memory, registered reference paths, and relevant excerpts are sent. Read the [privacy policy](privacy-en.md) before registering confidential material.
 

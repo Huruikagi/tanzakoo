@@ -3,7 +3,7 @@ Tanzakoo [ENTER FINAL VERSION AND BUILD] is a free, local idea board. Manual pro
 For review, we provide developer-funded AI access so you do not need a personal ChatGPT account or API key. It uses the same local board, tools, and approval flow as regular AI access. The differences are relay routing, an assigned model, and expiry/usage limits. This is a visible option in Settings, not a hidden review mode.
 
 PRIVATE REVIEW ACCESS — replace the two placeholders before submitting:
-Code: [ENTER CURRENT CODE ONLY IN APP STORE CONNECT]
+Code: [ENTER CURRENT CODE ONLY IN PARTNER CENTER]
 Valid until: [ENTER EXPIRY WITH TIME ZONE]
 Support: huruikagi@gmail.com
 
@@ -18,6 +18,6 @@ The review code and consent last only for the running app session. Enter them ag
 
 AI is optional and requires explicit consent before sharing. Requests include conversation context, current board cards, project memory, registered reference paths, and any excerpts read through reference tools. Review requests pass through our relay to OpenAI. The relay does not persist conversation bodies, but stores access-control and usage records; infrastructure and OpenAI retention also apply.
 
-Requires Apple Silicon and macOS 26 or later. The app supports English and Japanese. There are no ads or in-app purchases.
+Windows x64 package. Requires Microsoft Edge WebView2 Runtime. This is a full-trust desktop app; runFullTrust is needed to launch its bundled local AI runtime and board-tool subprocesses, read user-selected reference files, and export Markdown. The package does not install a service or require administrator rights during normal use. The app supports English and Japanese. There are no ads or in-app purchases.
 
 Notifications are optional and can be configured under Settings > General. Manual editing and export do not require notification permission.

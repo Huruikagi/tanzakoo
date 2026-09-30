@@ -2,13 +2,13 @@
 
 This document is the English-only source for reviewer instructions. Before submission, supply the current review access code, its expiry, and a monitored support contact in the store's private review fields. Do not commit credentials to this document. Confirm these steps against the exact submitted build; this document does not record a completed store submission.
 
-A [compact copy-ready draft](app-store/review-notes.txt) is available for version 0.1.0 (2), source `2a5adab`. The public support address approved by the developer is **huruikagi@gmail.com**. Enter actual reviewer contact details separately in App Store Connect. Replace the private code and expiry placeholders only in the submission fields, after checking remaining usage and availability.
+A [compact copy-ready draft](app-store/review-notes.txt) targets the current features at source `6c929b7`; enter the final signed version and build before use. Build 2 is an older build. The public support address approved by the developer is **huruikagi@gmail.com**. Enter actual reviewer contact details separately in App Store Connect. Replace the private code and expiry placeholders only in the submission fields, after checking remaining usage and availability.
 
 ## What the app does
 
 Tanzakoo is a free, local desktop app for developing product ideas. Users organize ideas on a board, optionally discuss them with AI, and review proposed changes before applying them.
 
-Project creation, card editing, archiving, project memory, and Markdown export work without an AI account. Ordinary AI use connects to the user's own Codex account through ChatGPT sign-in and is subject to that account's plan and limits. The app being free does not make external AI usage unlimited or free.
+Project creation, card editing, archiving, project memory, and Markdown export work without an AI account. Ordinary AI use connects to the user's own eligible ChatGPT plan through Continue with ChatGPT and is subject to that account's plan and limits. The app being free does not make external AI usage unlimited or free.
 
 The interface supports Japanese and English. Open the gear button (**Settings**) and set **Display language → English**. **System default** uses Japanese for a Japanese system language and English otherwise. Display language changes do not translate existing cards, project memory, or conversations. AI follows the user's requested language or the language of their messages.
 
@@ -17,7 +17,7 @@ The interface supports Japanese and English. Open the gear button (**Settings**)
 Review access provides real AI functionality using an expiring code supplied privately with the submission. The developer pays for this access. Reviewers do not need to enter an API key, configure a server URL, or sign in to a personal ChatGPT account.
 
 1. Open **Settings** using the gear button. Alternatively, open **Think with AI → Connection status**.
-2. Select **Use review access**.
+2. Open the **AI connection** tab and select **Use review access**.
 3. Enter the supplied **Review access code**.
 4. Read the data-sharing explanation and select **I agree to send data through the relay server to OpenAI**.
 5. Select **Agree and connect**. The connection panel displays the assigned model and expiry.
@@ -48,7 +48,7 @@ Use this text for internal testing after Apple has processed the selected build.
 
 On September 28, 2026, the developer chose to defer installation and launch through TestFlight rather than sign in with a personal Apple Account on a borrowed Mac. Earlier testing of the separate Sandbox validation app is not confirmation that the Store-distributed build was installed and tested. This status note is internal preparation context, not copy for the What to Test field.
 
-> Test on Apple Silicon with macOS 26 or later. Create a separate test project and confirm manual card creation, editing, and Markdown export. Connect to Codex or use the privately supplied review access code, create a card through chat, and apply or reject a proposed change. Register a non-sensitive text file and folder, quit with Command-Q, reopen the app, and verify that references can still be listed, read, and searched. Modify a source file and confirm the latest contents can be read. Remove a reference and confirm future access is denied without deleting the source. Check saved cards and conversations after restarting. Report errors with the build number, steps, and error text; do not include private reference contents or credentials.
+> Test on Apple Silicon with macOS 26 or later. Create a separate test project and confirm manual card creation, editing, and Markdown export. Connect using Continue with ChatGPT or use the privately supplied review access code, create a card through chat, and apply or reject a proposed change. Register a non-sensitive text file and folder, quit with Command-Q, reopen the app, and verify that references can still be listed, read, and searched. Modify a source file and confirm the latest contents can be read. Remove a reference and confirm future access is denied without deleting the source. Check saved cards and conversations after restarting. Report errors with the build number, steps, and error text; do not include private reference contents or credentials.
 
 ## Data handling and availability
 

@@ -1,0 +1,84 @@
+name: Windows Store package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Four-part MSIX version (nonzero major, last component zero)
+        type: string
+        default: "1.0.0.0"
+        required: true
+      validation_only:
+        description: Use a test identity that MUST NOT be submitted
+        type: boolean
+        default: true
+      review_access:
+        description: Include the existing review connection endpoint
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+      - name: Validate identity and version before building
+        env:
+          VALIDATION_ONLY: ${{ inputs.validation_only }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+          STORE_NAME: ${{ vars.WINDOWS_STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ vars.WINDOWS_STORE_PUBLISHER }}
+          STORE_DISPLAY_NAME: ${{ vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          python -m unittest discover -s scripts -p test_windows_store.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @'
+          import importlib.util, json, os
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location('pack', 'scripts/package-windows-store.py')
+          pack = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(pack)
+          pack.package_version(os.environ['PACKAGE_VERSION'])
+          if os.environ['VALIDATION_ONLY'] != 'true':
+              identity = pack.identity_values(dict(name=os.environ['STORE_NAME'], publisher=os.environ['STORE_PUBLISHER'], publisherDisplayName=os.environ['STORE_DISPLAY_NAME']))
+              Path(os.environ['RUNNER_TEMP'], 'store-identity.json').write_text(json.dumps(identity), encoding='utf-8')
+          '@ | python -
+      - name: Install and check frontend
+        run: |
+          mise exec -- pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          mise exec -- pnpm check
+      - name: Stage bundled runtime
+        run: mise exec -- pnpm runtime:stage
+      - name: Build release executable
+        env:
+          REVIEW_ACCESS: ${{ inputs.review_access }}
+        run: |
+          if ($env:REVIEW_ACCESS -eq 'true') { $env:TANZAKOO_REVIEW_URL = 'https://review-relay-production-4f29.up.railway.app' }
+          mise exec -- pnpm tauri build --no-bundle --config src-tauri/tauri.runtime.conf.json -- --locked
+      - name: Create and verify unsigned MSIX
+        env:
+          VALIDATION_ONLY: ${{ inputs.validation_only }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+        run: |
+          $modeArgs = if ($env:VALIDATION_ONLY -eq 'true') { @('--validation-only') } else { @('--identity', "$env:RUNNER_TEMP/store-identity.json") }
+          python scripts/package-windows-store.py @modeArgs --package-version $env:PACKAGE_VERSION --output .local/windows-store-package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "Source: $env:GITHUB_SHA`nRun: $env:GITHUB_RUN_ID`nReview access: ${{ inputs.review_access }}`nUnsigned; installed package and Store certification are not yet tested." | Set-Content .local/windows-store-package/build.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Tanzakoo-windows-msix-${{ github.sha }}-${{ inputs.package_version }}
+          path: |
+            .local/windows-store-package/*.msix
+            .local/windows-store-package/*.sha256
+            .local/windows-store-package/provenance.json
+            .local/windows-store-package/makeappx.log
+            .local/windows-store-package/build.txt
+          if-no-files-found: error

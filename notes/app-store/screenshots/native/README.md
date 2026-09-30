@@ -12,11 +12,11 @@
 
 ## 画像一覧と確認結果
 
-| 画面 | 日本語 | 英語 |
-| --- | --- | --- |
-| ボードとカード詳細 | [ja-01-board-local.jpg](20261001-011811-zgitbmen/ja-01-board-local.jpg): 4列・7枚と詳細を確認 | [en-01-board-local.jpg](20261001-011811-zgitbmen/en-01-board-local.jpg): 4列・7枚と詳細を確認 |
-| 変更提案と会話 | [ja-02-proposal-local.jpg](20261001-012748-5oarn_x8/ja-02-proposal-local.jpg): 再撮影版。差分・却下・適用するを確認 | [en-02-proposal-local.jpg](20261001-011811-zgitbmen/en-02-proposal-local.jpg): 差分・Reject・Applyを確認 |
-| Markdownエクスポート | [ja-03-export-local.jpg](20261001-011811-zgitbmen/ja-03-export-local.jpg): 出力内容と実行ボタンを確認 | [en-03-export-local.jpg](20261001-011811-zgitbmen/en-03-export-local.jpg): 出力内容と実行ボタンを確認 |
+| 画面                 | 日本語                                                                                                              | 英語                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| ボードとカード詳細   | [ja-01-board-local.jpg](20261001-011811-zgitbmen/ja-01-board-local.jpg): 4列・7枚と詳細を確認                       | [en-01-board-local.jpg](20261001-011811-zgitbmen/en-01-board-local.jpg): 4列・7枚と詳細を確認            |
+| 変更提案と会話       | [ja-02-proposal-local.jpg](20261001-012748-5oarn_x8/ja-02-proposal-local.jpg): 再撮影版。差分・却下・適用するを確認 | [en-02-proposal-local.jpg](20261001-011811-zgitbmen/en-02-proposal-local.jpg): 差分・Reject・Applyを確認 |
+| Markdownエクスポート | [ja-03-export-local.jpg](20261001-011811-zgitbmen/ja-03-export-local.jpg): 出力内容と実行ボタンを確認               | [en-03-export-local.jpg](20261001-011811-zgitbmen/en-03-export-local.jpg): 出力内容と実行ボタンを確認    |
 
 日本語変更提案は、01:28の再撮影版を採用候補とする。差分・「却下」・「適用する」が全て収まり、ChatGPTの会話も見えることを確認した。寸法・SHA-256・ZIP原本との一致も確認済み。再撮影時の実行ファイルSHA-256・PID・撮影開始時コミットは最初の6枚と同じ。見切れのある旧画像は撮影履歴として元フォルダに残し、提出候補には含めない。
 

@@ -1,0 +1,43 @@
+{
+  "status": "draft-account-and-package-identity-pending",
+  "sourceCommit": "6c929b76907a017acc8bfcfdfdad49a22145954f",
+  "productName": "Tanzakoo",
+  "categorySuggestion": "Productivity",
+  "priceSuggestion": "Free",
+  "packageType": "MSIX",
+  "architecture": "x64",
+  "minimumOS": "Windows 10 version 2004 (10.0.19041.0); packaged-device verification pending",
+  "prerequisites": ["Microsoft Edge WebView2 Runtime"],
+  "privacyUrl": null,
+  "supportUrl": null,
+  "localizations": {
+    "ja-JP": {
+      "name": "Tanzakoo",
+      "shortDescription": "アイデアをカードで整理し、AIの変更案を確認して反映。決まった内容をMarkdownへ。",
+      "description": "AI機能は任意です。利用には対応するご自身のChatGPTプラン、利用許可、インターネット接続が必要です。外部サービスの利用条件・上限が適用されます。\n\n思いつきから、決めたことへ。\n\nTanzakooは、アイデアをカードに書き出し、考えを整理するWindowsアプリです。まだ曖昧な案も、検討中の論点も、決まった内容も、一つのボードで見渡せます。\n\n考えの段階をボードで整理\n「アイデアの山」「検討する」「話し合う」「決めたこと」の4つの列にカードを並べ、考えの進み具合に合わせて移動。プロジェクトごとにボードを分けられます。\n\n必要なときにAIと相談\nチャットから候補カードを作ったり、既存のカードを参照して内容を深めたりできます。カードやプロジェクトメモリへの変更案は、内容を確認してから適用・却下できます。\n\nカード間のつながりを残す\nカード本文から別のカードを参照できます。参照先へ移動し、関連する考えをたどれます。\n\n背景を残して、話を続ける\nプロジェクトメモリに目的や前提を保存。参照資料として登録したMarkdownやソースコードなどのテキストを、AIとの相談に利用できます。参照資料は読み取り専用です。\n\n決めた内容をMarkdownへ\n「決めたこと」のカードとプロジェクトメモリをMarkdownファイルとして書き出し、次の作業に引き継げます。\n\nAIを使わずに、プロジェクト作成・カード編集・メモリ編集・Markdownエクスポートを利用できます。カードや会話は端末内に保存します。AIを利用すると、同意のうえで会話、ボード、プロジェクトメモリ、登録資料のパスや必要な抜粋などをOpenAIへ送信します。\n\n通常のAI利用は「ChatGPTで続ける」から接続します。対応するご自身のChatGPTプランと利用許可が必要で、外部サービスの利用条件・上限が適用されます。参照資料はUTF-8のテキストに対応し、PDF・画像は対象外です。\n\n日本語・英語に対応。Windows x64とMicrosoft Edge WebView2 Runtimeが必要です。",
+      "features": [
+        "4列のボードとプロジェクト管理",
+        "任意のChatGPT接続と変更提案の確認",
+        "読み取り専用のテキスト参照資料",
+        "カード間リンク",
+        "Markdownエクスポート",
+        "日本語・英語UI"
+      ],
+      "searchTerms": ["ideas", "planning", "markdown", "notes", "board"]
+    },
+    "en-US": {
+      "name": "Tanzakoo",
+      "shortDescription": "Organize ideas as cards, review optional AI proposals, and export your decisions as Markdown.",
+      "description": "AI is optional and requires your own eligible ChatGPT plan, permission, and an internet connection. External service terms and usage limits apply.\n\nFrom a first idea to a clear decision.\n\nTanzakoo is a Windows app for exploring ideas with cards. Keep possibilities, open questions, and decisions together on a board so you can see where your thinking stands.\n\nOrganize the stages of an idea\nMove cards through Ideas, Exploring, Discussing, and Decided. Use separate projects for different topics.\n\nThink with AI when you need it\nUse chat to create candidate cards or explore an existing card. Review proposed changes to cards and project memory, then choose whether to apply or reject them.\n\nConnect related cards\nLink to another card from a card's content, then follow the link to explore related ideas.\n\nKeep the context close\nSave goals and background in project memory. Register Markdown, source code, and other text files as reference materials for your conversations. References are read-only.\n\nTake your decisions with you\nExport Decided cards and project memory as Markdown files for your next stage of work.\n\nProject creation, card editing, project memory, and Markdown export work without an AI account. Cards and conversations are saved on your device. If you choose to use AI, conversation context, the board, project memory, registered reference paths, and relevant reference excerpts are sent to OpenAI with your consent.\n\nConnect using Continue with ChatGPT. Regular AI use requires your own eligible ChatGPT plan and permission to use it. The external service's terms and usage limits apply. Reference materials support UTF-8 text; PDFs and images are not supported.\n\nAvailable in English and Japanese. Requires Windows x64 and Microsoft Edge WebView2 Runtime.",
+      "features": [
+        "Four-stage boards and separate projects",
+        "Optional ChatGPT connection and reviewed changes",
+        "Read-only text reference materials",
+        "Links between cards",
+        "Markdown export",
+        "English and Japanese UI"
+      ],
+      "searchTerms": ["ideas", "planning", "markdown", "notes", "board"]
+    }
+  }
+}
