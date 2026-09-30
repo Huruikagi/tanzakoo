@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod agent_setup;
 pub mod chat_settings;
+pub mod chatgpt_plan;
 pub mod export;
 pub mod language;
 pub mod materials;
@@ -58,6 +59,7 @@ pub fn run() {
             commands::agent::agent_connection,
             commands::agent::review_connection,
             commands::agent::get_review_status,
+            commands::agent::plan_connection,
             commands::agent::chat_options
         ])
         .on_window_event(|window, event| {

@@ -2,6 +2,7 @@
   "name": "tanzakoo",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
@@ -15,6 +16,7 @@
     "fmt:check": "oxfmt --check",
     "test": "vitest run",
     "test:runtime": "node --test scripts/reference-runtime.test.mjs",
+    "test:plan": "node --test packages/agent-runtime/test/plan.test.mjs",
     "test:review": "cargo build --manifest-path src-tauri/Cargo.toml --locked && pnpm --filter @tanzakoo/review-relay test && node --test scripts/acp-client.test.mjs scripts/review-connection.test.mjs",
     "check": "pnpm lint && pnpm fmt:check && pnpm test && pnpm build"
   },

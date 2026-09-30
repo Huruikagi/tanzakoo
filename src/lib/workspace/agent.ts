@@ -165,6 +165,10 @@ export const createAgentSlice: WorkspaceSlice<
       set({ chatError: t("AIへの送信に同意してください。") });
       return false;
     }
+    if (!get().reviewAccess && !get().planStatus?.active?.signedIn) {
+      set({ chatError: t("接続状況からChatGPTでサインインしてください。") });
+      return false;
+    }
     if (get().reviewAccess && get().reviewAccess!.expiresAt <= Date.now()) {
       set({
         chatError: t(

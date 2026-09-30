@@ -66,7 +66,7 @@ it("switches language through Settings, updates open views, and leaves saved car
       <Board />
     </>,
   );
-  await user.click(screen.getByRole("button", { name: "エージェント設定" }));
+  await user.click(screen.getByRole("button", { name: "設定" }));
   await user.click(screen.getByRole("combobox", { name: "表示言語" }));
   await user.click(screen.getByRole("option", { name: "English" }));
   expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
@@ -129,14 +129,12 @@ it("uses English for review consent and native failures without clearing the cod
 
 it("translates a native connection status when the language changes", () => {
   useWorkspace.setState({
-    connections: {
-      codex: {
-        launch: JSON.stringify([undefined, undefined]),
-        status: { state: "authRequired", message: "サインインが必要です。", canLogin: true },
-      },
-    },
+    planStatus: { available: true, accounts: [], active: null, warning: null },
+    planError: "接続状況からChatGPTでサインインしてください。",
   });
   render(<AgentConnection agent="codex" />);
   act(() => setLanguage("en"));
-  expect(screen.getByText("Sign-in required.")).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Sign in with ChatGPT from connection settings.",
+  );
 });

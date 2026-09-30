@@ -1,5 +1,6 @@
 # Allowlist the Docker build context; never send credentials, local DBs or app data.
 **
+!LICENSE
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml

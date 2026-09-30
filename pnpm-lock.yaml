@@ -305,6 +305,12 @@ importers:
       '@agentclientprotocol/codex-acp':
         specifier: 1.13.1
         version: 1.13.1
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
+      open:
+        specifier: 11.0.4
+        version: 11.0.4
 
   packages/review-relay:
     dependencies:
@@ -3781,6 +3787,10 @@ packages:
 
   open@11.0.3:
     resolution: {integrity: sha512-b3souUgU0VaAvMmzA4+9cRgrOgMdE0vc9H9VhQ0FYnjjcyZ8R/f9DiwMU9V8rl+vjf05On9UJhbgb06fsTs87Q==}
+    engines: {node: '>=20'}
+
+  open@11.0.4:
+    resolution: {integrity: sha512-++Zlftm0kVLPmzC06t6epuWmcRMDbI4z5P3NNX979WA/k23+NtSOynEGzsVfZwguKw2mi5umVgnBlJQMwRz4Pg==}
     engines: {node: '>=20'}
 
   open@8.4.2:
@@ -8143,6 +8153,15 @@ snapshots:
       mimic-function: 5.0.1
 
   open@11.0.3:
+    dependencies:
+      default-browser: 5.5.1
+      define-lazy-prop: 3.0.0
+      is-in-ssh: 1.0.0
+      is-inside-container: 1.0.0
+      powershell-utils: 0.2.1
+      wsl-utils: 1.0.0
+
+  open@11.0.4:
     dependencies:
       default-browser: 5.5.1
       define-lazy-prop: 3.0.0

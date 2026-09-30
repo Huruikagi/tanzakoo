@@ -9,6 +9,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // Official Sign in with ChatGPT branding uses a black pill button.
+        chatgpt: "rounded-full bg-black text-white hover:bg-black/90",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -20,6 +22,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
+        signin: "h-11 gap-3 px-5",
         choice:
           "h-auto min-w-0 flex-col items-start gap-1 px-3 py-2.5 whitespace-normal text-left [overflow-wrap:anywhere]",
         default:

@@ -1,4 +1,4 @@
-import { t, systemMessage } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle, Plug, TriangleAlert } from "lucide-react";
@@ -10,17 +10,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useShallow } from "zustand/react/shallow";
-import { connectionStatus, useWorkspace } from "@/lib/workspace";
-import { agentUnavailable, api, native } from "@/lib/api";
+import { useWorkspace } from "@/lib/workspace";
 import { ReviewAccess } from "./ReviewAccess";
+import { PlanAccess } from "./PlanAccess";
+import { native } from "@/lib/api";
 
 export function AgentConnectionDialog({ agent }: { agent: string }) {
   useTranslation();
   const review = useWorkspace((s) => s.reviewAccess);
-  const status = useWorkspace((s) => connectionStatus(s, agent));
+  const account = useWorkspace((s) => s.planStatus?.active);
   const connecting = useWorkspace((s) => s.busy?.kind === "connecting" && s.busy.agent === agent);
-  const needsAttention = status && status.state !== "ready";
+  const ready = !!review || account?.signedIn;
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -34,21 +34,23 @@ export function AgentConnectionDialog({ agent }: { agent: string }) {
               ? t("接続処理中")
               : review
                 ? t("審査用接続")
-                : systemMessage(status?.message ?? t("接続状況"))
+                : ready
+                  ? t("ChatGPTプランを使用中")
+                  : t("接続状況からChatGPTでサインインしてください。")
           }
         >
           {connecting ? (
             <LoaderCircle className="animate-spin" />
-          ) : needsAttention ? (
-            <TriangleAlert className="text-amber-600" />
-          ) : (
+          ) : ready ? (
             <Plug />
+          ) : (
+            <TriangleAlert className="text-amber-600" />
           )}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("Codexの接続状況")}</DialogTitle>
+          <DialogTitle>{t("AI接続")}</DialogTitle>
           <DialogDescription>
             {t("接続の確認やサインインでは、プロジェクトの内容は送信しません。")}
           </DialogDescription>
@@ -69,87 +71,53 @@ export function AgentConnection({
   hideWhenReady?: boolean;
 }) {
   useTranslation();
-  const workspace = useWorkspace(
-    useShallow((s) => ({
-      snapshot: s.snapshot,
-      busy: s.busy,
-      activity: s.activity,
-      connect: s.connect,
-      connections: s.connections,
-      reviewAccess: s.reviewAccess,
-    })),
-  );
-  const { snapshot, busy, activity, connect } = workspace;
-  const status = connectionStatus(workspace, agent);
-  const connecting = busy?.kind === "connecting" && busy.agent === agent;
+  const review = useWorkspace((s) => s.reviewAccess);
+  const account = useWorkspace((s) => s.planStatus?.active);
+  const consented = useWorkspace((s) => s.snapshot.consents.includes(agent));
+  const disabled = useWorkspace((s) => !!s.busy || s.switching) || !native;
   if (agent !== "codex")
     return (
       <div className="agent-connection">
-        <output>{t("この会話は閲覧のみです。新しい会話はCodexで始められます。")}</output>
+        <output>{t("この会話は閲覧のみです。新しい会話はChatGPTで始められます。")}</output>
       </div>
     );
-  if (workspace.reviewAccess) return hideWhenReady ? null : <ReviewAccess />;
-  if (agentUnavailable(snapshot, agent) || status?.state === "unsupported")
-    return (
-      <div className="agent-connection">
-        <output>
-          {systemMessage(
-            status?.message ??
-              t("この接続は利用できません。カードの閲覧・編集は引き続き利用できます。"),
-          )}
-        </output>
-      </div>
-    );
-  const ready = status?.state === "ready";
-  if (hideWhenReady && ready && !connecting) return null;
+  if (review) return hideWhenReady ? null : <ReviewAccess />;
+  if (hideWhenReady && account?.signedIn) return null;
   return (
-    <div className="agent-connection">
-      <output>
-        {systemMessage(
-          connecting ? activity : (status?.message ?? t("Codexの接続はまだ確認していません。")),
-        )}
-      </output>
-      {status?.canLogin && !ready && (
-        <p className="hint muted">
-          {t("ターミナルのCodexとは別に、Tanzakoo用のサインインが必要です。")}
-        </p>
-      )}
-      <div className="connection-actions">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={!native || !!busy}
-          onClick={() => void connect(agent, "check")}
-        >
-          {t("接続を確認")}
-        </Button>
-        {agent === "codex" && status?.canLogin && (
-          <Button
-            type="button"
-            size="sm"
-            disabled={!native || !!busy}
-            onClick={() => void connect(agent, status.state === "ready" ? "logout" : "login")}
-          >
-            {status.state === "ready" ? t("サインアウト") : t("ChatGPTでサインイン")}
-          </Button>
-        )}
-        {connecting && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              void api
-                .cancel()
-                .catch((error) => useWorkspace.setState({ chatError: String(error) }))
-            }
-          >
-            {t("接続処理を中止")}
-          </Button>
-        )}
-      </div>
-      {!hideWhenReady && <ReviewAccess />}
+    <div className="connection-stack">
+      <PlanAccess />
+      <details className="connection-details">
+        <summary>{t("送信する内容と同意")}</summary>
+        <div className="connection-stack">
+          <p className="hint muted">
+            {t(
+              "話しかけると、そのプロジェクトのボード・メモリ・会話と、登録した参照資料のうちAIが読む箇所がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。",
+            )}
+          </p>
+          {consented ? (
+            <div className="connection-actions">
+              <span className="hint">{t("送信に同意済み")}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={disabled}
+                onClick={() => void useWorkspace.getState().setConsent(agent, false)}
+              >
+                {t("同意を取り消す")}
+              </Button>
+            </div>
+          ) : (
+            <p className="hint">{t("初めて会話を送るときに、チャットで同意を確認します。")}</p>
+          )}
+          <p className="hint muted">
+            {t(
+              "Tanzakooは無料です。アプリを再起動したら、保存済みアカウントを選んで再接続できます。",
+            )}
+          </p>
+        </div>
+      </details>
+      <ReviewAccess />
     </div>
   );
 }

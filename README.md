@@ -18,9 +18,11 @@ mise exec -- pnpm install --frozen-lockfile
 mise exec -- pnpm tauri dev
 ```
 
-Codexは「AIと考える」→「接続を確認」→「ChatGPTでサインイン」から既存のブラウザ認証を開始できます。Tanzakoo専用のログインを使い、普段のCLIの認証ファイルはコピーしません。開発時はmiseのNodeとプロジェクト依存を利用します。
+「AIと考える」→「接続状況」→「ChatGPTで続ける」からSign in with ChatGPTで接続します。AI利用は本人のChatGPT利用枠を消費します。Tanzakooは無料で、APIキーは不要です。開発時はmiseのNodeとプロジェクト依存を利用します。
 
-当面はCodexに絞って使い心地を確かめます。新規会話と接続設定はCodexのみで、保存済みのClaude会話は閲覧できます。Claudeなどは将来、APIキーを設定する方式での追加を検討します（未実装）。過去の調査は [Claude接続の提供条件](notes/claude-connection-terms.md) に残しています。
+設定は「一般」と「AI接続」に分かれています。接続中はアカウントと利用量への入口を表示し、切り替え・再サインイン・サインアウトは「アカウント管理」から行います。送信の説明と同意の取り消しは「送信する内容と同意」にまとめています。
+
+通常接続はChatGPTに統一し、内部の実行エンジンには同梱Codex・ACPを使います。保存済みの旧Codex・Claude会話は履歴として閲覧できます。過去の調査は [Claude接続の提供条件](notes/claude-connection-terms.md) に残しています。
 
 `mise exec -- pnpm dev` だけでも画面をプレビューできます。ブラウザプレビューでは保存とエージェント接続は利用できません。
 
@@ -66,7 +68,7 @@ AIから1〜4個の質問がまとめて提示されたら、質問ごとに選�
 「自分で回答する」を押すと入力欄までスクロールします。自由入力中はCtrl＋Enter（MacはCommand＋Enterも可）で次の未回答質問へ進み、全問の回答がそろっていれば送信します。Enterだけなら改行します。質問が1問のときは番号や残り件数の案内を省き、「回答を送信」で会話を続けられます。
 チャットは開閉でき、閉じても起動中の下書きは保持します。接続確認・ログイン・ログアウトではプロジェクト内容やプロンプトを渡しません。保存済みの会話と変更提案は未接続でも閲覧・適用できます。
 
-Codexの認証・セッションはアプリ保存先の `agents/codex` に保存します。認証ファイルを含むため、このフォルダーを共有・Git登録しないでください。認証と送信への同意は全プロジェクト共通です。同意はアプリ共通の `projects.db` に保存し、接続設定から取り消せます。起動設定を変更すると同意は解除されます。以前のCLI領域で作ったCodex会話は、履歴を参照して新しい専用セッションで続けます。
+ChatGPTの認証情報とセッションはアプリ保存先の `chatgpt-plan` に保存します。このフォルダーを共有・Git登録しないでください。認証と送信への同意は全プロジェクト共通です。同意は `projects.db` に保存し、接続設定から取り消せます。最後に使ったアカウントは再起動時に自動復元します。サインアウト済み・認証失効・通信失敗の場合は接続状況から再接続してください。別アカウントには自動で切り替えません。旧Codex接続の会話は閲覧できますが、ChatGPT接続での会話は新しく始めます。
 カードを切り替えても編集途中の下書きは保持します。ただし、未保存の下書きはアプリを終了すると消えます。
 
 ### カード同士をつなぐ
@@ -137,6 +139,7 @@ tanzakoo-プロジェクト名-出力時刻/
 ```powershell
 mise exec -- pnpm check
 mise exec -- pnpm test:runtime
+mise exec -- pnpm test:plan
 mise exec -- pnpm test:review
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
@@ -147,12 +150,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 - Vitest / React Testing Libraryで参照・下書き・送信・提案適用を検証します。
 - Rustのテストで保存、承認時の競合検出、許可対象、キャンセル状態を検証します。認証のテストではmiseのNodeで模擬ACPエージェントを起動します。`ts-rs` によるTypeScript型も生成します。
 - `test:review` は審査用仲介の境界と、実Codex・ACP・MCPを使う候補作成・変更提案・会話復元をローカル模擬APIで検証します。Rustで現在の本体をビルドします。実APIの費用は発生しません。公開仲介に接続するアプリは `TANZAKOO_REVIEW_URL` を指定してビルドします。詳細は [審査用仲介の手順と制限](packages/review-relay/README.md) を参照してください。
-- 実エージェントのスモークテストは `scripts/agent-smoke.ps1`。ログイン済みのアカウントを使い、テスト用の会話を送信します。CIでは実行しません。Codexは先に検証専用フォルダーを `TANZAKOO_DATA_DIR` に指定してアプリからサインインし、アプリを終了した後、同じフォルダーを `-DataDirectory` に指定します。認証ファイルをコピーする必要はありません。
-
-```powershell
-cargo build --manifest-path src-tauri/Cargo.toml
-mise exec -- pwsh -NoProfile -File scripts/agent-smoke.ps1 -Agent codex -DataDirectory .local/codex-smoke-login
-```
+- 実ChatGPT接続の確認はアプリで行います。手順と確認済み項目は [ChatGPTプラン接続](notes/chatgpt-plan-preview.md) を参照してください。`scripts/agent-smoke.ps1` は旧認証を使う内部エンジンの診断用で、現在の通常接続の検証には使いません。
 
 Claudeのアダプターと検証コードは将来の調査用に残していますが、現在の画面からは利用しません。通常の開発で実接続の検証は不要です。調査を再開する場合、未ログイン時の確認には、空のフォルダーを `CLAUDE_CONFIG_DIR` に指定し、`ANTHROPIC_API_KEY` を設定しない状態で次を実行できます。
 
@@ -163,6 +161,7 @@ mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test age
 
 公開済みの配布物はまだありません。ソースから起動するか、Macの署名・公証ワークフローの検証済み成果物を使用してください。
 詳細な検証結果と残りの確認は [実装・検証メモ](notes/implementation-progress.md) を参照してください。
+通常のAI接続はSign in with ChatGPTです。`mise.exe exec -- pnpm tauri dev` で起動でき、追加のfeature指定は不要です。APIのプレビュー仕様への追従と配布物での確認は継続します。詳細は [ChatGPTプラン接続](notes/chatgpt-plan-preview.md) を参照してください。
 
 ## 依存関係の更新
 
@@ -206,3 +205,8 @@ Skillは変更内容・互換性・最新コミットのCIを確認し、1件ず
 
 設計の出発点は [プロダクトメモ](notes/product-idea.md)、採用候補と理由は [技術スタック](notes/stack-proposal.md) にまとめています。
 ネイティブ診断コードを追加するときは `system_message.rs` と `system-messages.ts` の両方に追加します。テストでコードの対応を検査します。
+
+## ライセンス
+
+Tanzakoo自身のコードとドキュメントは [MIT License](LICENSE) で提供します。
+同梱する依存関係・フォントなどには、それぞれのライセンスが適用されます。Codexの告知は [同梱ランタイムのライセンス](packages/agent-runtime/licenses/README.md) を参照してください。

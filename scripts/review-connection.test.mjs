@@ -21,6 +21,9 @@ async function readAfterExit(path) {
     try {
       return await readFile(path);
     } catch (error) {
+      // A background clone may remove a temporary lock between listing and
+      // reading. A file that no longer exists cannot retain a credential.
+      if (error.code === "ENOENT") return Buffer.alloc(0);
       if (error.code !== "EBUSY" || attempt >= 10) throw error;
       await delay(100);
     }
@@ -32,6 +35,8 @@ for (const route of [
   "gateway-board",
   "gateway-luna",
   "gateway-custom-model",
+  "plan-board",
+  "plan-custom-model",
 ]) {
   test(
     `review ${route}: fresh credentials and real ACP streaming`,
@@ -41,13 +46,13 @@ for (const route of [
       const dir = mkdtempSync(join(tempRoot, "tanzakoo-review-"));
       const home = join(dir, "home");
       const boardPath = join(dir, "board.db");
-      const boardMode = route === "gateway-board";
-      const model =
-        route === "gateway-custom-model"
-          ? "review-fixture-model"
-          : boardMode || route === "gateway-luna"
-            ? "gpt-6-luna"
-            : "gpt-6-astra";
+      const planMode = route.startsWith("plan-");
+      const boardMode = route === "gateway-board" || route === "plan-board";
+      const model = route.endsWith("custom-model")
+        ? "review-fixture-model"
+        : boardMode || route === "gateway-luna"
+          ? "gpt-6-luna"
+          : "gpt-6-astra";
       mkdirSync(home);
       const requests = [];
       const failures = [];
@@ -65,6 +70,28 @@ for (const route of [
           let body = "";
           for await (const chunk of request) body += chunk;
           requests.push(JSON.parse(body));
+          if (planMode) {
+            assert.equal(request.headers.originator, "Tanzakoo");
+            const input = requests.at(-1);
+            assert.equal(input.store, false);
+            assert.equal(input.stream, true);
+            for (const key of [
+              "previous_response_id",
+              "background",
+              "conversation",
+              "max_output_tokens",
+              "temperature",
+              "metadata",
+              "safety_identifier",
+              "prompt_cache_retention",
+            ])
+              assert.equal(input[key], undefined, `SIWC unsupported field: ${key}`);
+            const tools = [
+              ...(input.tools ?? []),
+              ...input.input.filter((i) => i.type === "additional_tools").flatMap((i) => i.tools),
+            ];
+            assert.ok(!JSON.stringify(tools).includes('"type":"tool_search"'));
+          }
           let item = {
             id: `msg_review_${requests.length}`,
             type: "message",
@@ -162,7 +189,7 @@ for (const route of [
               join(root, "packages/agent-runtime/codex.mjs"),
             home,
             cwd: dir,
-            env: { TANZAKOO_REVIEW_MODEL: model },
+            env: planMode ? { TANZAKOO_PLAN_MODEL: model } : { TANZAKOO_REVIEW_MODEL: model },
             onRequest: (request) => {
               assert.equal(request.method, "session/request_permission");
               const option = request.params.options.find((o) => o.kind === "allow_once");
@@ -173,15 +200,15 @@ for (const route of [
         client = launch();
         const initialized = await client.request("initialize", {
           protocolVersion: 1,
-          clientInfo: { name: "tanzakoo-review-test", version: "1" },
+          clientInfo: { name: planMode ? "Tanzakoo" : "tanzakoo-review-test", version: "1" },
         });
         assert.equal(initialized.protocolVersion, 1);
         const gateway = {
-          baseUrl: `http://127.0.0.1:${relay.server.address().port}/v1`,
-          headers: { Authorization: `Bearer ${token}` },
+          baseUrl: `http://127.0.0.1:${planMode ? server.address().port : relay.server.address().port}/v1`,
+          headers: { Authorization: `Bearer ${planMode ? "fixture-upstream-key" : token}` },
           providerName: "Review fixture",
         };
-        if (route.startsWith("gateway"))
+        if (route.startsWith("gateway") || planMode)
           await client.request("authenticate", { methodId: "gateway", _meta: { gateway } });
         else
           await client.request("providers/set", {
@@ -208,6 +235,30 @@ for (const route of [
           configId: "model",
           value: model,
         });
+        if (planMode) {
+          const effort = session.configOptions?.find((o) => o.id === "reasoning_effort");
+          if (route === "plan-custom-model") {
+            assert.equal(
+              effort,
+              undefined,
+              "unknown models must not advertise invented effort choices",
+            );
+            await assert.rejects(
+              client.request("session/set_config_option", {
+                sessionId: session.sessionId,
+                configId: "reasoning_effort",
+                value: "high",
+              }),
+            );
+          } else {
+            assert.ok(effort?.options.some((o) => o.value === "high"));
+            await client.request("session/set_config_option", {
+              sessionId: session.sessionId,
+              configId: "reasoning_effort",
+              value: "high",
+            });
+          }
+        }
         assert.equal(requests.length, 0, "connection check must not send a model request");
         const result = await client.request("session/prompt", {
           sessionId: session.sessionId,
@@ -217,6 +268,8 @@ for (const route of [
         assert.deepEqual(failures, []);
         assert.equal(requests.length, boardMode ? 3 : 1);
         assert.ok(requests.every((request) => request.model === model));
+        if (route === "plan-board")
+          assert.ok(requests.every((request) => request.reasoning?.effort === "high"));
         assert.ok(
           client.notifications.some((m) => m.params?.update?.content?.text === "REVIEW_OK"),
         );
@@ -250,7 +303,10 @@ for (const route of [
         await client.stop();
         // A restarted adapter needs the gateway configured again before restoring a session.
         client = launch();
-        await client.request("initialize", { protocolVersion: 1 });
+        await client.request("initialize", {
+          protocolVersion: 1,
+          ...(planMode ? { clientInfo: { name: "Tanzakoo", version: "1" } } : {}),
+        });
         await client.request("authenticate", { methodId: "gateway", _meta: { gateway } });
         await client.request("session/load", {
           sessionId: session.sessionId,
@@ -258,11 +314,24 @@ for (const route of [
           mcpServers,
         });
         assert.equal(requests.length, boardMode ? 3 : 1);
+        if (route === "plan-board") {
+          await client.request("session/set_config_option", {
+            sessionId: session.sessionId,
+            configId: "model",
+            value: model,
+          });
+          await client.request("session/set_config_option", {
+            sessionId: session.sessionId,
+            configId: "reasoning_effort",
+            value: "low",
+          });
+        }
         await client.request("session/prompt", {
           sessionId: session.sessionId,
           prompt: [{ type: "text", text: "Reply REVIEW_OK again." }],
         });
         assert.equal(requests.length, boardMode ? 4 : 2);
+        if (route === "plan-board") assert.equal(requests.at(-1).reasoning?.effort, "low");
         if (model === "gpt-6-luna") {
           assert.doesNotMatch(
             JSON.stringify(client.notifications) + client.diagnostics(),
@@ -276,6 +345,13 @@ for (const route of [
             assert.ok(
               !(await readAfterExit(join(file.parentPath, file.name))).includes(Buffer.from(token)),
               "review token persisted in Codex state",
+            );
+          if (planMode && file.isFile())
+            assert.ok(
+              !(await readAfterExit(join(file.parentPath, file.name))).includes(
+                Buffer.from("fixture-upstream-key"),
+              ),
+              "plan token persisted in Codex state",
             );
         }
       } catch (error) {

@@ -58,10 +58,32 @@ beforeEach(() => {
     error: null,
     chatError: null,
     connections: {},
+    reviewAccess: null,
+    planStatus: {
+      available: true,
+      accounts: [],
+      active: { id: "account-a", label: "Account A", signedIn: true },
+      warning: null,
+    },
     archivePending: false,
     archiveNotice: null,
   });
 });
+it.each([null, { id: "account-a", label: "Account A", signedIn: false }])(
+  "blocks sending without a signed-in ChatGPT account before creating a conversation",
+  async (active) => {
+    useWorkspace.setState({
+      planStatus: { available: true, accounts: [], active, warning: null },
+      references: [{ cardId: card.id, title: card.title, revision: 1, quote: "" }],
+    });
+    expect(await useWorkspace.getState().send("保存したい下書き", "codex")).toBe(false);
+    expect(api.action).not.toHaveBeenCalled();
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.connection).not.toHaveBeenCalled();
+    expect(useWorkspace.getState().references).toHaveLength(1);
+    expect(useWorkspace.getState().chatError).toBe("接続状況からChatGPTでサインインしてください。");
+  },
+);
 it("rechecks unsaved edits when a queued batch starts", async () => {
   const proposal = {
     id: "p",

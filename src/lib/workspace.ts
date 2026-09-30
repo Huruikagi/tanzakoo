@@ -5,6 +5,7 @@ import { serialized, snapshotUpdate, restoredView } from "./workspace/snapshot";
 import { createProjectsSlice } from "./workspace/projects";
 import { createBoardSlice } from "./workspace/board";
 import { createAgentSlice } from "./workspace/agent";
+import { createPlanSlice } from "./workspace/plan";
 
 export type { Permission, Busy, ProjectDraft } from "./workspace/types";
 export { connectionStatus, chatRunning } from "./workspace/agent";
@@ -24,6 +25,7 @@ export const useWorkspace = create<Workspace>((...args) => {
     ...createProjectsSlice(...args),
     ...createBoardSlice(...args),
     ...createAgentSlice(...args),
+    ...createPlanSlice(...args),
     chatOpen: (() => {
       try {
         return localStorage.getItem("tanzakoo-chat-open") === "true";

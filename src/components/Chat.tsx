@@ -100,7 +100,7 @@ export function Chat() {
         ) : (
           <>
             <span className="agent-avatar">◎</span>
-            <span>Codex</span>
+            <span>ChatGPT</span>
             {snapshot.conversations.length > 0 && (
               <Button
                 size="sm"

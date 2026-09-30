@@ -24,6 +24,59 @@ pub fn initialize(resources: PathBuf, data: PathBuf) {
     let _ = PATHS.set((resources, data));
 }
 
+pub fn app_data(store: &Store) -> PathBuf {
+    PATHS
+        .get()
+        .map(|p| p.1.clone())
+        .unwrap_or_else(|| store.path().parent().unwrap().to_owned())
+}
+
+pub fn managed_entry(filename: &str) -> Result<(PathBuf, PathBuf), String> {
+    let resources = PATHS
+        .get()
+        .map(|p| p.0.clone())
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_owned()))
+        })
+        .ok_or("アプリの保存場所を取得できません。")?;
+    let runtime = resources.join("agent-runtime");
+    let node = runtime
+        .join("bin")
+        .join(if cfg!(windows) { "node.exe" } else { "node" });
+    let entry = runtime.join(filename);
+    if node.is_file() && entry.is_file() {
+        return Ok((node, entry));
+    }
+    if cfg!(debug_assertions) {
+        return Ok((
+            std::env::var("TANZAKOO_NODE")
+                .unwrap_or_else(|_| "node".into())
+                .into(),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../packages/agent-runtime")
+                .join(filename),
+        ));
+    }
+    Err("同梱エージェントが見つかりません。カードの閲覧・編集は引き続き利用できます。".into())
+}
+
+pub fn launch_with_plan(
+    store: &Store,
+    account: &crate::chatgpt_plan::PlanAccount,
+    model: &str,
+) -> Result<AcpAgentConfig, String> {
+    let launch = launch(managed_config(), store)?;
+    let directory = app_data(store)
+        .join("chatgpt-plan/runtime")
+        .join(&account.id);
+    let home = crate::storage::credential_dir(&directory).map_err(|e| e.to_string())?;
+    Ok(launch
+        .env("CODEX_HOME", home.to_string_lossy())
+        .env("TANZAKOO_PLAN_MODEL", model))
+}
+
 pub fn mcp_binary() -> Result<PathBuf, String> {
     let executable = std::env::current_exe().map_err(|e| e.to_string())?;
     #[cfg(all(target_os = "macos", feature = "app-sandbox"))]
@@ -71,37 +124,9 @@ pub fn launch_with_review(
         if config.id != "codex" {
             return Err("このエージェントの同梱版はまだ利用できません。".into());
         }
-        let resources = PATHS
-            .get()
-            .map(|p| p.0.clone())
-            .or_else(|| {
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|p| p.parent().map(|p| p.to_owned()))
-            })
-            .ok_or("アプリの保存場所を取得できません。")?;
-        let runtime = resources.join("agent-runtime");
-        let node = runtime
-            .join("bin")
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        let entry = runtime.join("codex.mjs");
-        if node.is_file() && entry.is_file() {
-            command = node.to_string_lossy().into();
-            args = vec![entry.to_string_lossy().into()];
-        } else if cfg!(debug_assertions) {
-            command = std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into());
-            args = vec![
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../packages/agent-runtime/codex.mjs")
-                    .to_string_lossy()
-                    .into(),
-            ];
-        } else {
-            return Err(
-                "同梱エージェントが見つかりません。カードの閲覧・編集は引き続き利用できます。"
-                    .into(),
-            );
-        }
+        let (node, entry) = managed_entry("codex.mjs")?;
+        command = node.to_string_lossy().into();
+        args = vec![entry.to_string_lossy().into()];
     }
     let mut launch = AcpAgentConfig::new(command)
         .args(args)
@@ -109,6 +134,7 @@ pub fn launch_with_review(
     if managed {
         launch = launch
             .env("NODE_OPTIONS", "")
+            .env("TANZAKOO_PLAN_MODEL", "")
             .env("TANZAKOO_REVIEW_MODEL", review_model.unwrap_or(""));
     }
     if config.id == "codex" {
