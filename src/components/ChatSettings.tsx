@@ -216,6 +216,9 @@ export function ChatSettings() {
           <SlidersHorizontal />
           <span className="truncate">
             {reviewAccess?.model ?? settings?.model ?? t("モデル・推論強度")}
+            {!reviewAccess &&
+              settings?.reasoningEffort &&
+              ` · ${t(effortNames[settings.reasoningEffort] ?? settings.reasoningEffort)}`}
           </span>
         </Button>
       </DialogTrigger>
