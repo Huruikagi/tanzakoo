@@ -3,5 +3,15 @@
   "identifier": "default",
   "description": "Tanzakoo main window",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://huruikagi.github.io/tanzakoo/privacy-ja.html" },
+        { "url": "https://huruikagi.github.io/tanzakoo/privacy-en.html" },
+        { "url": "https://huruikagi.github.io/tanzakoo/support.html" }
+      ]
+    }
+  ]
 }

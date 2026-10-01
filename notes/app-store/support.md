@@ -1,8 +1,8 @@
 # Tanzakoo サポート / Support
 
-> 公開前原稿 / Pre-publication draft, 2026-10-01. 対応環境と公開URLは最終提出ビルドに合わせて確定する。
+更新日 / Updated: 2026-10-01
 
-Tanzakooは、アイデアをカードにし、ボードで整理するアプリです。Mac版はApple Silicon搭載Mac、macOS 26以降が対象です。Windowsストア版は準備中です。
+Tanzakooは、アイデアをカードにし、ボードで整理するアプリです。Mac版はApple Silicon搭載Mac、macOS 26以降が対象です。Mac App Store版・Microsoft Store版の公開を準備しています。
 
 ## お問い合わせ
 
@@ -38,7 +38,7 @@ Tanzakooは、アイデアをカードにし、ボードで整理するアプリ
 
 ## English support
 
-Tanzakoo helps you explore ideas with cards and a board. The Mac version requires Apple Silicon and macOS 26 or later. The Windows Store version is in preparation.
+Tanzakoo helps you explore ideas with cards and a board. The Mac version requires Apple Silicon and macOS 26 or later. Mac App Store and Microsoft Store releases are in preparation.
 
 Contact [huruikagi@gmail.com](mailto:huruikagi@gmail.com) with your app version, OS version, steps, and error message. Remove private card text and file paths from screenshots. Never send access codes, API keys, or passwords.
 

@@ -10,8 +10,8 @@
   "architecture": "x64",
   "minimumOS": "Windows 10 version 2004 (10.0.19041.0); packaged-device verification pending",
   "prerequisites": ["Microsoft Edge WebView2 Runtime"],
-  "privacyUrl": null,
-  "supportUrl": null,
+  "privacyUrl": "https://huruikagi.github.io/tanzakoo/privacy-ja.html",
+  "supportUrl": "https://huruikagi.github.io/tanzakoo/support.html",
   "localizations": {
     "ja-JP": {
       "name": "Tanzakoo",

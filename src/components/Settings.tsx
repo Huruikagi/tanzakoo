@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { AgentConnection } from "./AgentConnection";
 import { NotificationSettings } from "./NotificationSettings";
+import { SupportLinks } from "./SupportLinks";
 
 export function Settings() {
   useTranslation();
@@ -60,6 +61,7 @@ export function Settings() {
                 </SelectContent>
               </Select>
               <NotificationSettings />
+              <SupportLinks />
             </div>
           </TabsContent>
           <TabsContent value="connection">

@@ -85,7 +85,6 @@
   "{{value0}}を並べ替える": "Reorder {{value0}}",
   "既存カードを見て、新しい切り口の候補を3〜5枚ほど追加します": "Explore existing cards and add about 3–5 ideas from new perspectives",
   "話題を広げる": "Explore more ideas",
-  "カードを検索": "Search cards",
   "カードを探す": "Find cards",
   "カード": "Card",
   "新しいカード": "New card",
@@ -365,5 +364,10 @@
   "OSの集中モードなどにより表示されないことがあります。": "Focus or Do Not Disturb settings may prevent notifications from appearing.",
   "AIの応答完了通知": "AI response notifications",
   "テスト通知を送る": "Send a test notification",
-  "デスクトップ通知はWindows・Mac版で利用できます。": "Desktop notifications are available on Windows and Mac."
+  "デスクトップ通知はWindows・Mac版で利用できます。": "Desktop notifications are available on Windows and Mac.",
+  "サポートとプライバシー": "Support and privacy",
+  "プライバシーポリシー": "Privacy Policy",
+  "サポート": "Support",
+  "標準ブラウザーで開きます。": "Opens in your default browser.",
+  "ブラウザーを開けませんでした。次のURLをコピーして開いてください。": "Could not open the browser. Copy this URL and open it in your browser."
 }

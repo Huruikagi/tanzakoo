@@ -3,9 +3,7 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import Markdown from "react-markdown";
+import { publicPages, renderPage } from "./store-site.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const output = process.argv[2];
@@ -106,31 +104,13 @@ await writeFile(
 );
 const pages = path.join(target, "pages-preview");
 await mkdir(pages);
-for (const name of ["privacy-ja", "privacy-en", "support"]) {
-  const source = await read(`notes/app-store/${name}.md`);
-  // Replace internal drafting links with a visible notice. Keep the original drafts in the repository.
-  const publicText = source.replace(/^>.*(?:\r?\n|$)/m, "");
-  const body = renderToStaticMarkup(
-    React.createElement(
-      Markdown,
-      {
-        components: {
-          a: ({ href, children }) =>
-            React.createElement(
-              "a",
-              { href: href?.replace(/^(privacy-ja|privacy-en|support)\.md$/, "$1.html") },
-              children,
-            ),
-        },
-      },
-      publicText,
-    ),
-  );
+for (const page of publicPages) {
   await writeFile(
-    path.join(pages, `${name}.html`),
-    `<!doctype html><html lang="${name === "privacy-en" ? "en" : "ja"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Tanzakoo — ${name}</title><style>body{max-width:760px;margin:40px auto;padding:0 24px;font:17px/1.8 system-ui;color:#263d32;background:#fafbf7}a{color:#285e46}aside{padding:16px;background:#fff0bf}h1,h2{line-height:1.3}nav{display:flex;gap:24px;flex-wrap:wrap}</style><nav><a href="support.html">Support</a><a href="privacy-ja.html">プライバシー</a><a href="privacy-en.html">Privacy</a></nav><aside>公開前の確認用原稿 / Draft for review. Not a published policy.</aside><main>${body}</main></html>`,
+    path.join(pages, `${page.name}.html`),
+    renderPage(page, await read(page.source), { preview: true }),
   );
 }
+await copyFile(path.join(root, "site/style.css"), path.join(pages, "style.css"));
 await writeFile(
   path.join(target, "readiness.json"),
   JSON.stringify(
@@ -142,8 +122,8 @@ await writeFile(
       windowsScreenshots: "not-captured-do-not-reuse-mac-images",
       remaining: [
         "Final signed build and screenshot match",
-        "Approve and publish privacy/support pages; add in-app policy link",
-        "Finalize privacy declarations and retention operations",
+        "Verify public privacy/support URLs and in-app links in the final signed build",
+        "Finalize store privacy declarations and provider settings checks",
         "Private review code and contact",
         "Windows packaged installation, certification and native screenshots",
         "Store pricing, distribution, age rating and final submission approval",

@@ -47,7 +47,7 @@ python scripts/package-windows-store.py --identity notes/windows-store/identity.
 
 - `metadata.json`: 日英の説明・特徴・検索語の原稿。AIの外部サービス依存を説明する。
 - `review-notes.txt`: 英語の審査手順と `runFullTrust` の用途。バージョン、私的な審査コード、有効期限は提出時に入力する。
-- 共通プライバシー・サポート原稿は `../app-store/`。公開先は未確定。
+- 共通プライバシー・サポート原稿は `../app-store/`。GitHub PagesのURLは `metadata.json` に設定済み。[公開・更新手順](../../site/README.md)を参照。設定画面のリンクを含むMSIXへの更新が必要。
 - `mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit` で両ストアの原稿、Macで選定した6枚、公開ページのローカルプレビューをまとめる。出力先は未作成のフォルダを指定する。
 
 Windowsのストア画像にはWindows実機の画面を使う。Desktop画像はPNG、1366×768以上、1枚50MB以下。少なくとも1枚が必要で、日英それぞれの掲載ページに登録する。[Microsoftの画像仕様](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/screenshots-and-images)
