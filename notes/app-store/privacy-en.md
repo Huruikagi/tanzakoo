@@ -2,7 +2,7 @@
 
 Effective date: October 1, 2026
 
-This policy explains how Huruikagi, the developer of Tanzakoo, handles information in the app, its review connection, and this website. Contact: **huruikagi@gmail.com**.
+This policy explains how Huruikagi, the developer of Tanzakoo, handles information in the app, its review connection, and this website. See [Support](support.md) for general inquiries. Private contact: **huruikagi@gmail.com**.
 
 ## Information on your device
 
@@ -22,7 +22,13 @@ Infrastructure providers may process operational information such as IP addresse
 
 ## Visiting this website
 
-These product, support, and privacy pages are hosted on GitHub Pages. The developer has not added analytics, advertising, or contact forms to this website. GitHub processes and stores visitor IP addresses and other information to deliver and secure the site. See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+These product, support, and privacy pages are hosted on GitHub Pages. The developer has not added analytics, advertising, or submission forms within this website. Links to contact forms take you to GitHub. GitHub processes and stores visitor IP addresses and other information to deliver and secure the site. See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+
+## Contacting us through GitHub
+
+You can optionally submit general bug reports and questions through GitHub Issue Forms. Posting requires a GitHub account; your account name, posts, replies, and attachments are public. The developer uses them to answer questions, investigate bugs, and consider improvements. GitHub processing and retention are governed by its terms. Closing an issue does not delete it. Others can view and copy public content, and removal of every copy cannot be guaranteed.
+
+Use the private email below instead of a public issue for personal data, deletion requests, review access, or security reports. Email is also available without a GitHub account.
 
 ## Notifications
 

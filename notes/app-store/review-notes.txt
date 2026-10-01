@@ -5,7 +5,8 @@ For review, we provide developer-funded AI access so you do not need a personal 
 PRIVATE REVIEW ACCESS — replace the two placeholders before submitting:
 Code: [ENTER CURRENT CODE ONLY IN APP STORE CONNECT]
 Valid until: [ENTER EXPIRY WITH TIME ZONE]
-Support: huruikagi@gmail.com
+Support: https://huruikagi.github.io/tanzakoo/support.html
+Private review-access assistance: huruikagi@gmail.com (do not post review codes in public issues).
 
 1. Open the gear button (Settings). If needed, set Display language to English.
 2. Open the AI connection tab. Select Use review access, enter the code, read the disclosure, select I agree to send data through the relay server to OpenAI, then Agree and connect.

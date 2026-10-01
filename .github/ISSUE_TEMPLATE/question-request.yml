@@ -1,0 +1,42 @@
+name: 使い方の相談・要望 / Question or suggestion
+description: 使い方を質問したり、改善を提案する / Ask a question or suggest an improvement.
+title: "[Question / Request] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        日本語・英語どちらでも書けます。[サポート・よくある質問](https://huruikagi.github.io/tanzakoo/support.html) もご確認ください。
+        投稿と添付は**インターネット上に公開**されます。メールアドレス、認証情報、私的なカードや資料は書かないでください。
+        個人情報、削除依頼、審査用コード、セキュリティの問題は [非公開の連絡先](mailto:huruikagi@gmail.com) へ。
+
+        Japanese and English are welcome. See [Support and FAQ](https://huruikagi.github.io/tanzakoo/support.html).
+        Your issue and attachments will be **public**. Do not include email addresses, credentials, or private cards and files.
+        Use [private email](mailto:huruikagi@gmail.com) for personal data, deletion requests, review access codes, or security reports.
+  - type: dropdown
+    id: category
+    attributes:
+      label: 種類 / Type
+      options:
+        - 使い方の質問 / Usage question
+        - 改善の要望 / Improvement suggestion
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: 相談・提案したいこと / Your question or suggestion
+      description: やりたいこと、困っていることを教えてください。 / What are you trying to do, and what would help?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 試したこと・利用環境 / What you tried and your environment
+      description: 任意。関連する場合はアプリ・OSのバージョンと試した操作を記入してください。 / Optional. Include the app and OS versions and steps you tried if relevant.
+  - type: checkboxes
+    id: public-report
+    attributes:
+      label: 公開前の確認 / Before posting
+      options:
+        - label: 内容と添付が公開されることを理解し、個人情報や秘密情報を除きました。 / I understand this report is public and have removed personal and secret information.
+          required: true
