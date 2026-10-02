@@ -16,7 +16,7 @@
 
 Windowsの `PackageFamilyNameFromId` でnameとpublisherから算出したPFNも画面と一致した。別の製品を作る場合は `identity.example.json` をコピーし、その製品のProduct identityの値で明示的に置き換える。MacのBundle IDや任意の名前で代用しない。
 
-Partner Centerに登録済みの正式identityの候補は `.local/windows-store-candidate-20261002/Tanzakoo-1.0.1.0-x64.msix`。公開ポリシー・サポートへの設定画面のリンクを含む。受領時の `Validated` と、テスト署名によるインストール後の基本動作を確認した。DPI宣言を追加した **1.0.2.0** は `.local/windows-store-candidate-20261002-dpi/` に作成済み。2026-10-03に新版のWACK全検査を再実行したが、DPI判定のCOM例外等により総合WARNINGだった。Windows APIでは実行中のPer-Monitor V2を確認した。新版のアップロードは未実施。[1.0.1.0の検証記録](build-1.0.1.0.md)と[1.0.2.0の作成・検証記録](build-1.0.2.0.md)を参照。
+Partner Centerに登録済みの正式identityの候補は `.local/windows-store-candidate-20261002-dpi/Tanzakoo-1.0.2.0-x64.msix`。公開ポリシー・サポートへの設定画面のリンクと、EXEのDPI宣言を含む。2026-10-03に旧版から差し替えて保存し、受領時の `Validated` を確認した。新版のWACK全検査はDPI判定のCOM例外等により総合WARNINGだが、Windows APIでは実行中のPer-Monitor V2を確認した。この区別を審査メモにも保存済み。認定への送信・公開は未実施。[1.0.1.0の基本動作検証記録](build-1.0.1.0.md)と[1.0.2.0の作成・検証・登録記録](build-1.0.2.0.md)を参照。
 
 MicrosoftはMSIXを推奨し、Store配信時の署名を行う。独自サイトでMSI/EXEをホストする経路より、既存Windows SDKのMakeAppxを使う経路を提出候補にした。新しいnpm依存は不要。[公開の概要](https://learn.microsoft.com/en-us/windows/apps/publish/get-started)、[MSIX署名](https://learn.microsoft.com/en-us/windows/msix/package/sign-msix-package-guide)
 

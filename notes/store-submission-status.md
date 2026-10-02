@@ -12,6 +12,8 @@
 
 2026-10-03再検証: UAC承認後、1.0.2.0のインストールとWACK全検査を完了。総合WARNING（22 PASS・任意1 FAIL・必須DPI検査1 WARNING）。DPI検査はWACK内部のマニフェスト判定でCOM E_FAILとなっていた。一方、インストール済みEXEの宣言と、Windows APIによる実行中の **Per-Monitor V2** を確認した。警告そのものは未解消で、全検査合格とは扱わない。検証用MSIXはアンインストール済み、一時信頼登録・秘密鍵も残っていない。Partner Centerへの差し替えは未実施。
 
+2026-10-03登録更新: 利用者の依頼でPartner CenterのMSIXを **1.0.2.0** に差し替え、保存後の概要で `Validated`・パッケージ「完了」を確認した。審査メモにも新版番号、実行時のPer-Monitor V2確認、WACKの未解消警告を保存し、再読み込みで全文一致を確認。既存の審査コードは有効で残量279 API試行、期限は2026-11-01 09:06:23 UTC。申請は下書きのままで、認定への送信は未実施。価格・年齢区分の完了状態は提出前の最終照合に残る。[最新のWindows登録記録](windows-store/build-1.0.2.0.md)を参照。
+
 ## Mac
 
 - ソース `6c929b76907a017acc8bfcfdfdad49a22145954f` から **0.1.0 (3)** のMac App Store用PKGを作成した。[作成run 36746301459](https://github.com/Huruikagi/tanzakoo/actions/runs/36746301459)
