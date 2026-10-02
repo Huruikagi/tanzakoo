@@ -47,7 +47,7 @@ MacにCodexを入れずに撮影できる [実機撮影用の半自動スクリ�
 mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit
 ```
 
-新規出力先に日英の入力欄ごとのテキスト、Mac画像6枚、原本との対応表、公開ページの確認用HTML、未完了事項の `readiness.json` を生成する。確認用HTMLはnoindex。公開ページと同じ原稿・レンダラーを使う。公開手順は [site/README.md](../../site/README.md) を参照。Windows側の手順は [Microsoft Store準備](../windows-store/README.md) を参照する。
+新規出力先に日英の入力欄ごとのテキスト、Mac・Windows各6枚の画像、原本との対応表、公開ページの確認用HTML、未完了事項の `readiness.json` を生成する。確認用HTMLはnoindex。公開ページと同じ原稿・レンダラーを使う。公開手順は [site/README.md](../../site/README.md) を参照。Windows側の手順は [Microsoft Store準備](../windows-store/README.md) を参照する。
 
 ## 現在の署名済み候補
 

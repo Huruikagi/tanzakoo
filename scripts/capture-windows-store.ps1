@@ -4,7 +4,7 @@
 param(
     [string]$Executable = (Join-Path $PSScriptRoot '../src-tauri/target/release/tanzakoo.exe'),
     [ValidateSet('ja', 'en')][string[]]$Languages = @('ja', 'en'),
-    [ValidateSet('board', 'proposal', 'export')][string[]]$Scenes = @('board', 'proposal', 'export'),
+    [ValidateSet('board', 'proposal', 'memory', 'export')][string[]]$Scenes = @('board', 'proposal', 'export'),
     [ValidateRange(1366, 3840)][int]$Width = 1600,
     [ValidateRange(768, 2160)][int]$Height = 1000,
     [string]$Output = (Join-Path $PSScriptRoot '../.local/windows-store-captures'),
@@ -147,7 +147,7 @@ function Save-CaptureManifest {
     [IO.File]::WriteAllText((Join-Path $directory 'manifest.json'), $json + "`n", [Text.UTF8Encoding]::new($false))
 }
 Save-CaptureManifest
-$sceneOrder = @('board', 'proposal', 'export')
+$sceneNumbers = @{board=1; proposal=2; memory=2; export=3}
 Write-Output "Capture target: $captureExe (PID $capturePid)`nOutput: $directory"
 try {
     foreach ($language in $Languages) {
@@ -158,7 +158,7 @@ try {
                 (Get-FileHash -LiteralPath $captureExe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $captureHash) {
                 throw 'Process restarted or executable changed. Start a new capture session.'
             }
-            $name = '{0}-{1:00}-{2}-windows.png' -f $language, ($sceneOrder.IndexOf($scene)+1), $scene
+            $name = '{0}-{1:00}-{2}-windows.png' -f $language, $sceneNumbers[$scene], $scene
             $file = Join-Path $directory $name
             $pixels = [TanzakooStoreCapture]::Capture($captureWindow, $capturePid, $file, $Width, $Height)
             if ((Get-Item -LiteralPath $file).Length -ge 50MB) { throw 'PNG exceeds the 50 MB limit.' }

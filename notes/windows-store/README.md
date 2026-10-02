@@ -48,13 +48,15 @@ python scripts/package-windows-store.py --identity notes/windows-store/identity.
 - `metadata.json`: 日英の説明・特徴・検索語の原稿。AIの外部サービス依存を説明する。
 - `review-notes.txt`: 英語の審査手順と `runFullTrust` の用途。バージョン、私的な審査コード、有効期限は提出時に入力する。
 - 共通プライバシー・サポート原稿は `../app-store/`。GitHub PagesのURLは `metadata.json` に設定済み。[公開・更新手順](../../site/README.md)を参照。設定画面のリンクを含むMSIXへの更新が必要。
-- `mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit` で両ストアの原稿、Macで選定した6枚、公開ページのローカルプレビューをまとめる。出力先は未作成のフォルダを指定する。
+- `mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit` で両ストアの原稿、Mac・Windows各6枚の選定画像、公開ページのローカルプレビューをまとめる。出力先は未作成のフォルダを指定する。
 
 Windowsのストア画像にはWindows実機の画面を使う。Desktop画像はPNG、1366×768以上、1枚50MB以下。少なくとも1枚が必要で、日英それぞれの掲載ページに登録する。[Microsoftの画像仕様](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/screenshots-and-images)
 
 Macの撮影原本やブラウザー用モックをWindows実機画像として流用しない。
 
 Windowsの撮影には [実機撮影スクリプト](capture.md) を使える。起動中のTanzakooを実行ファイルのパスで照合し、日英のPNGと撮影記録を保存する。
+
+2026-10-02に[Windows実機の日英各3枚](screenshots/native/20261002/README.md)を用意し、全画像の目視・サイズ・形式・ハッシュを確認した。差し替え後の最終MSIXとの表示一致は別途確認する。
 
 ## 提出前に残る検証
 
@@ -63,7 +65,7 @@ Windowsの撮影には [実機撮影スクリプト](capture.md) を使える。
 - インストール済みパッケージでChatGPT接続、審査接続、カード作成・変更案承認、ファイルとフォルダ参照、再起動後の参照、Markdown書き出しを実施する。
 - 通知の表示・クリックからの復帰、登録資料の権限、通常版とのデータ領域の違いを確認する。
 - Windows App Certification Kitで対象パッケージを検査する。MakeAppx成功やpayloadからの起動は、この検査やStore審査の代わりにはならない。
-- Windowsネイティブの日本語・英語スクリーンショットを撮影し、現在のPartner Centerの画像条件と一致させる。
+- 撮影済みのWindows日英スクリーンショットを最終MSIXと比較し、Partner Centerへ登録する。
 - 公開プライバシーURLとアプリ内導線、年齢レーティング、配信地域、価格、第三者サービスと完全信頼権限の説明を確定する。
 
 `runFullTrust` は同梱Node/Codexの子プロセス、ユーザーが登録した資料、Markdown保存などのデスクトップ機能に必要。通常利用に管理者昇格や常駐Windowsサービスは使わない。[権限の説明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/app-capability-declarations)

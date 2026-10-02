@@ -1,0 +1,82 @@
+{
+  "kind": "windows-native-screenshot-selection",
+  "capturedOn": "2026-10-02",
+  "executableSHA256": "753a8983410464e16fe31767b06a92cb86923e1327387260be6204e11c9e00a7",
+  "sourcePackage": {
+    "file": "Tanzakoo-1.0.0.0-x64.msix",
+    "sha256": "4ee06c5f0b89e262f2d10086ac2c40e5d90541b8cc6e00137647239c07a1f884",
+    "execution": "unpacked-payload",
+    "installedPackageTested": false
+  },
+  "contentReview": "All six images visually reviewed for readable text, correct locale, errors, and private data.",
+  "submissionBuildMatch": "not-verified",
+  "note": "Final replacement MSIX still needs comparison. Original capture records are preserved unchanged.",
+  "captures": [
+    {
+      "file": "ja-01-board-windows.png",
+      "language": "ja",
+      "scene": "board",
+      "pixels": [2142, 1341],
+      "sha256": "759f27910eae9bb13be3f10c63a417d88f7c71d8cf06161b08a189b4388894f1",
+      "bytes": 133136,
+      "record": "records/20261002-104249-75a8d4b9.json",
+      "contentReview": "passed",
+      "submissionBuildMatch": "not-verified"
+    },
+    {
+      "file": "ja-02-memory-windows.png",
+      "language": "ja",
+      "scene": "memory",
+      "pixels": [2142, 1341],
+      "sha256": "effa883649a4d2c42cc9d12e4b6ca05801b37154e637a4459f278654bcd9bf68",
+      "bytes": 339239,
+      "record": "records/20261002-104729-2a5e5801.json",
+      "contentReview": "passed",
+      "submissionBuildMatch": "not-verified"
+    },
+    {
+      "file": "ja-03-export-windows.png",
+      "language": "ja",
+      "scene": "export",
+      "pixels": [2142, 1341],
+      "sha256": "2485e460ce89296cb7baca3fbf614462d7673906967e160681c8b32ee5b73626",
+      "bytes": 412007,
+      "record": "records/20261002-104744-f949d8ce.json",
+      "contentReview": "passed",
+      "submissionBuildMatch": "not-verified"
+    },
+    {
+      "file": "en-01-board-windows.png",
+      "language": "en",
+      "scene": "board",
+      "pixels": [2142, 1341],
+      "sha256": "642a36cbb8f00ebfdc020920d6dff1035f248378ad31e3be0b6ec02bde595e08",
+      "bytes": 119548,
+      "record": "records/20261002-104942-fe5b1153.json",
+      "contentReview": "passed",
+      "submissionBuildMatch": "not-verified"
+    },
+    {
+      "file": "en-02-memory-windows.png",
+      "language": "en",
+      "scene": "memory",
+      "pixels": [2142, 1341],
+      "sha256": "3b41fd3a919aa178cbdedc97a992d25285d8d76418a1515a393567f6ac354820",
+      "bytes": 315933,
+      "record": "records/20261002-105005-320960a7.json",
+      "contentReview": "passed",
+      "submissionBuildMatch": "not-verified"
+    },
+    {
+      "file": "en-03-export-windows.png",
+      "language": "en",
+      "scene": "export",
+      "pixels": [2142, 1341],
+      "sha256": "3edd2a29a89dd05023961d0b2dfd98d81f24663ad57251055f23b901cfa8603d",
+      "bytes": 371532,
+      "record": "records/20261002-105020-b04b6ad0.json",
+      "contentReview": "passed",
+      "submissionBuildMatch": "not-verified"
+    }
+  ]
+}

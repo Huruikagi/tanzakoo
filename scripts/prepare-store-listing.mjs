@@ -71,6 +71,43 @@ for (const language of ["ja", "en"]) {
     });
   }
 }
+const windowsFolder = "notes/windows-store/screenshots/native/20261002";
+const windowsSelection = JSON.parse(await read(`${windowsFolder}/selection.json`));
+const windowsSelections = [];
+for (const language of ["ja", "en"]) {
+  for (const [number, scene] of [
+    ["01", "board"],
+    ["02", "memory"],
+    ["03", "export"],
+  ]) {
+    const file = `${language}-${number}-${scene}-windows.png`;
+    const selected = windowsSelection.captures.filter((item) => item.file === file);
+    if (selected.length !== 1) throw new Error(`Missing or duplicate Windows screenshot: ${file}`);
+    const item = selected[0];
+    const bytes = await readFile(path.join(root, windowsFolder, file));
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const record = JSON.parse(await read(`${windowsFolder}/${item.record}`));
+    const capture = record.captures.find((entry) => entry.file === file);
+    const isPng = bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    if (
+      !isPng ||
+      bytes.length < 33 ||
+      bytes.readUInt32BE(16) < 1366 ||
+      bytes.readUInt32BE(20) < 768 ||
+      bytes.length >= 50 * 1024 * 1024 ||
+      item.sha256 !== sha256 ||
+      capture?.sha256 !== sha256 ||
+      item.pixels[0] !== bytes.readUInt32BE(16) ||
+      item.pixels[1] !== bytes.readUInt32BE(20) ||
+      capture.pixels.join("x") !== item.pixels.join("x") ||
+      item.contentReview !== "passed" ||
+      record.executableSHA256 !== windowsSelection.executableSHA256
+    ) {
+      throw new Error(`Windows screenshot provenance or image mismatch: ${file}`);
+    }
+    windowsSelections.push({ ...item, source: `${windowsFolder}/${file}` });
+  }
+}
 // Refuse to merge into an existing kit, where obsolete images might remain.
 await mkdir(target);
 for (const [platform, data, folder] of [
@@ -102,6 +139,13 @@ await writeFile(
   path.join(target, "mac/screenshots/selection.json"),
   JSON.stringify(selections, null, 2) + "\n",
 );
+await mkdir(path.join(target, "windows/screenshots"));
+for (const item of windowsSelections)
+  await copyFile(path.join(root, item.source), path.join(target, "windows/screenshots", item.file));
+await writeFile(
+  path.join(target, "windows/screenshots/selection.json"),
+  JSON.stringify(windowsSelections, null, 2) + "\n",
+);
 const pages = path.join(target, "pages-preview");
 await mkdir(pages);
 for (const page of publicPages) {
@@ -119,13 +163,14 @@ await writeFile(
       macFieldChecks: checks,
       windowsFieldChecks: windowsChecks,
       macScreenshotCount: selections.length,
-      windowsScreenshots: "not-captured-do-not-reuse-mac-images",
+      windowsScreenshotCount: windowsSelections.length,
+      windowsScreenshots: "native-captured-reviewed-final-build-match-pending",
       remaining: [
         "Final signed build and screenshot match",
         "Verify public privacy/support URLs and in-app links in the final signed build",
         "Finalize store privacy declarations and provider settings checks",
         "Private review code and contact",
-        "Windows packaged installation, certification and native screenshots",
+        "Windows packaged installation and certification",
         "Store pricing, distribution, age rating and final submission approval",
       ],
     },

@@ -5,6 +5,7 @@
     "src-tauri/resources/agent-runtime/**",
     "dist/**",
     "notes/app-store/screenshots/native/**/manifest.json",
+    "notes/windows-store/screenshots/native/**/records/*.json",
     "pnpm-lock.yaml"
   ]
 }

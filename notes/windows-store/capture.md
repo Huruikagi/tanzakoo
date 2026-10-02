@@ -27,6 +27,14 @@ pwsh -File scripts/capture-windows-store.ps1 -Languages ja -Scenes board -Ready
 2. `proposal`: 実際にAIに提案させた未承認の変更案を開き、差分と適用・却下の操作を見せる。
 3. `export`: 決定事項のMarkdownエクスポート画面を開く。ファイル保存ダイアログは閉じる。
 
+AIに接続せず撮影する場合は、2枚目に `memory`（保存済みプロジェクトメモリのプレビュー）を選べる。PowerShellからの呼び出し例:
+
+```powershell
+./scripts/capture-windows-store.ps1 -Scenes board,memory,export -Width 2160 -Height 1350
+```
+
+150%の表示スケールでは上のサイズで撮影し、ボードと詳細の境界を調整すると4列を見渡せる。モニターの作業領域に収まるサイズを選ぶ。
+
 設定でUI言語を日本語・Englishに切り替え、カード本文も対応する言語のプロジェクトに切り替える。撮影スクリプトはカード・会話・認証を作成・変更しない。AI返答の注入、ブラウザーモック、Mac画像の流用は行わない。
 
 実行ファイルのパスが一致するプロセスが1つ、タイトルが `Tanzakoo` のメインウィンドウが1つのときだけ撮影する。別のアプリや複数候補を自動で選ばない。撮影中にプロセスが再起動したり実行ファイルが変わった場合は止まる。
@@ -46,3 +54,5 @@ pwsh -File scripts/capture-windows-store.ps1 -Languages ja -Scenes board -Ready
 API: [PrintWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-printwindow)、[DWMのフレーム境界](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute)。
 
 ウィンドウに触れずコンパイルだけを確認するには `-CheckOnly` を指定する。
+
+2026-10-02にWindows上の実アプリで日英各3枚の取得を確認した。[選定画像と撮影記録](screenshots/native/20261002/README.md)を参照。
