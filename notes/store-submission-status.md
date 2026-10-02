@@ -4,6 +4,8 @@
 
 2026-10-02追記: Windowsは日英各3枚の画像・掲載原稿を登録済み。設定から公開ポリシー・サポートを開くリンクを含むMSIX **1.0.1.0**を作成し、Partner Centerで旧版から差し替え、`Validated`を確認した。[最新のWindows検証記録](windows-store/build-1.0.1.0.md)を優先する。以下は2026-10-01時点の記録であり、Windowsの登録・撮影・パッケージ更新の未完了記述は更新前の状態。
 
+2026-10-02追加: Windows提出専用の審査コードを発行し、同1.0.1.0のpayloadで実APIへの接続・カード作成・未承認提案・UIでの適用を確認した。コードはPartner Centerの非公開Credentialsへ、英語手順はAdditional Testing Infoの説明欄へ保存し、再読み込みで保持を確認。有効期限は2026-11-01 09:06:23 UTC、検証後の残量は293 API試行。MSIXのインストール後検証、WACK、審査提出は未実施。
+
 ## Mac
 
 - ソース `6c929b76907a017acc8bfcfdfdad49a22145954f` から **0.1.0 (3)** のMac App Store用PKGを作成した。[作成run 36746301459](https://github.com/Huruikagi/tanzakoo/actions/runs/36746301459)

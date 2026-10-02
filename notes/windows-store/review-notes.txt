@@ -1,10 +1,11 @@
-Tanzakoo [ENTER FINAL VERSION AND BUILD] is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI connects using Continue with ChatGPT and uses the user's eligible ChatGPT plan, subject to the external service's terms and limits. Tanzakoo does not sell AI credits or subscriptions.
+Tanzakoo 0.1.0 (Windows MSIX 1.0.1.0, x64) is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI connects using Continue with ChatGPT and uses the user's eligible ChatGPT plan, subject to the external service's terms and limits. Tanzakoo does not sell AI credits or subscriptions.
 
 For review, we provide developer-funded AI access so you do not need a personal ChatGPT account or API key. It uses the same local board, tools, and approval flow as regular AI access. The differences are relay routing, an assigned model, and expiry/usage limits. This is a visible option in Settings, not a hidden review mode.
 
-PRIVATE REVIEW ACCESS — replace the two placeholders before submitting:
-Code: [ENTER CURRENT CODE ONLY IN PARTNER CENTER]
-Valid until: [ENTER EXPIRY WITH TIME ZONE]
+PRIVATE REVIEW ACCESS:
+Code: See the separate Credentials entry named "Tanzakoo review access code (Windows)" on this Additional Testing Info page. Paste its value into the app's review-code field; no username or password is needed.
+Valid until: November 1, 2026, 09:06:23 UTC (18:06:23 Japan Standard Time).
+Assigned model: gpt-6-luna. Access has a cumulative API-attempt limit; one chat turn can use multiple attempts. Contact us if additional access is needed.
 Support: https://huruikagi.github.io/tanzakoo/support.html
 Private review-access assistance: huruikagi@gmail.com (do not post review codes in public issues).
 
