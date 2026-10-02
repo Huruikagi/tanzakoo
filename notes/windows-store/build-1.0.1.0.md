@@ -41,3 +41,12 @@
 - 検証後の `/review/status` は残り293試行。テストアプリは終了した。検証先は `.local/windows-review-access-20261002/`。これはインストール済みMSIXでの検証ではない。
 - [英語審査手順](review-notes.txt)にバージョン・期限・資格情報の参照方法を反映し、同ページの説明欄へ保存。ページ再読み込み後、全文一致と資格情報1件の保存を確認した。説明欄には秘密コードを含めていない。
 - 秘密値を表示しない画面証跡は `.local/windows-review-access-20261002/applied.png` と `partner-center-saved.jpg`。審査提出は未実施。期限・残量が不足する場合はコードを再発行して資格情報と手順を更新し、審査・追加確認中はRelayを稼働させる。
+
+## インストール・WACKの準備（2026-10-02）
+
+- 利用者からインストール後検証とWACK実行の依頼を受けた。開始時点で `Huruikagi.Tanzakoo` のパッケージ登録はない。環境はWindows 11 Home build 26300、WACKは10.0.26100.7705。
+- 提出済みMSIXは未署名。正式identityを変えず、検証用コピーに2日限定・コード署名専用・秘密鍵のエクスポート不可の自己署名証明書で署名した。元の提出ファイルは変更していない。
+- 検証用コピーは `.local/windows-installed-validation-20261002/Tanzakoo-1.0.1.0-x64-local-test.msix`。SHA-256は `8c3d45b2e8c30d6d258e8ffe9ddba4da08fe3ca1d7eaa95d87c6b2927be57760`。追加された署名・CodeIntegrityカタログとContent Types以外、元の1,435エントリが一致し、マニフェストとpayloadに変更がないことを確認した。
+- 同ディレクトリの `install-and-wack.ps1` は対象ハッシュ・既存登録の不在を確認し、証明書をLocalMachine TrustedPeopleへ一時登録してインストール、正式PFNの照合、WACKを行う。終了時は `finally` でこの証明書の信頼登録だけを除去する。WACK用データとWebView保存先は隔離する。
+- 管理者としての起動要求はWindowsから「この操作はユーザーによって取り消されました」と返された。スクリプトは未実行で、信頼登録・MSIXインストール・WACK結果はまだない。利用者によるUAC承認後に続行が必要。テスト署名用の鍵はCurrentUser/Myに残っており、検証終了時に今回の鍵のみ削除する。
+- Microsoftの手順: [テスト署名と信頼登録](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing)、[WACKの管理者実行](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-app-certification-kit)。
