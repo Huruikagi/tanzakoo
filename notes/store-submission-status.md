@@ -2,6 +2,8 @@
 
 2026-10-01の作業記録。MacとWindowsの審査提出・ストア公開は未実施。
 
+2026-10-02追記: Windowsは日英各3枚の画像・掲載原稿を登録済み。設定から公開ポリシー・サポートを開くリンクを含むMSIX **1.0.1.0**を作成し、Partner Centerで旧版から差し替え、`Validated`を確認した。[最新のWindows検証記録](windows-store/build-1.0.1.0.md)を優先する。以下は2026-10-01時点の記録であり、Windowsの登録・撮影・パッケージ更新の未完了記述は更新前の状態。
+
 ## Mac
 
 - ソース `6c929b76907a017acc8bfcfdfdad49a22145954f` から **0.1.0 (3)** のMac App Store用PKGを作成した。[作成run 36746301459](https://github.com/Huruikagi/tanzakoo/actions/runs/36746301459)
