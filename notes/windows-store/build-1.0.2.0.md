@@ -23,8 +23,27 @@
 
 ## インストールとWACK
 
-管理者実行を要求したが、Windowsから「この操作はユーザーによって取り消されました」と返り、インストールとWACKは開始されなかった。DPI警告の解消をまだ確定していない。
+2026-10-02の管理者実行はUAC取消で開始されなかった。2026-10-03、利用者の再開依頼とUAC承認を受け、同じ署名済みコピーでインストールとWACKの全検査を完了した。
 
-今回作成したCurrentUser/Myのテスト証明書と秘密鍵を削除した。パッケージ登録とLocalMachine TrustedPeopleへの信頼登録が存在しないこと、1.0.1.0の元ファイルが変更されていないことを確認した。`cleanup.json` に結果を保存。署名済みコピーと公開証明書は検証用ディレクトリに保持しており、有効期限内（2026-10-04 23:36:47 JST）なら、準備済み `install-and-wack.ps1` をUAC承認後に再実行できる。期限後は新しいテスト署名が必要。
+初回取消後にCurrentUser/Myのテスト証明書と秘密鍵は削除済み。再検証では保持していた公開証明書だけを一時的に信頼登録した。正式PFN・バージョン1.0.2.0でインストールでき、インストール先の全1,434 payloadファイルが未署名候補とハッシュ一致した。
+
+### WACK再実行の結果（2026-10-03）
+
+- 環境: Windows 11 Home 10.0.26300.0、WACK 10.0.26100.7705。
+- レポート生成: 2026-10-03 07:15:48 JST。`PARTIAL_RUN=FALSE`、総合 **WARNING**、終了コード0。
+- 24検査中22 PASS、任意の「ブロック済みの実行可能ファイル」1 FAIL、必須の `DPIAwarenessValidation` 1 WARNING。必須検査のみでは12 PASS・1 WARNING。全検査合格ではない。
+- 任意検査の失敗は前回同様、同梱実行系等の実行ファイル参照による。[Microsoftの説明](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-desktop-bridge-app-tests)では任意検査はStore登録判定に用いない。ただしSモードでの動作やStore承認を保証するものではない。
+
+### DPI警告の切り分け
+
+レポートの「バイナリを処理できませんでした」を調べると、WACKの診断ログに `BinaryInfoClass.IsPerMonitorV2DPIAwarenessSet()` 内のCOM `E_FAIL` が記録されていた。WACKは `SetProcessDpiAwarenessContext` のAPI参照も検出しているが、マニフェスト判定中の例外によりWARNINGを返している。例外の根本原因は未特定で、WACKの警告自体は解消していない。
+
+一方、インストール済みEXEから `mt.exe` で抽出したマニフェストにも `PerMonitorV2` 宣言があることを再確認した。さらに隔離データでインストール版を非昇格で起動し、[GetDpiAwarenessContextForProcess](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdpiawarenesscontextforprocess) と [AreDpiAwarenessContextsEqual](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-aredpiawarenesscontextsequal) でOSが認識するDPI設定を照合した結果、**Per-Monitor V2との一致がtrue**だった。診断プロセスは終了済み。これは実行中のDPI設定の確認であり、異なる倍率のディスプレイ間移動や表示品質の実機確認ではない。
+
+### 証跡と片付け
+
+- 同じ検証ディレクトリに `wack-report.xml`、`wack-tests.json`、`installed-package.json`、`installed-payload-verification.json`、`installed-exe-manifest.xml`、`dpi-diagnostic-trace.txt`、`dpi-diagnostic-log.xml`、`runtime-dpi-verification.json` を保存した。生ログには個人パスがあるためGitには追加しない。
+- 検証用パッケージをアンインストールし、パッケージ登録・一時信頼登録・今回の秘密鍵が残っていないことを確認した。未署名候補のSHA-256は変更なし。`revalidation-cleanup.json` に記録した。
+- 審査メモに説明する場合は「DPI設定は実行時に確認済み、WACKのマニフェスト検査がCOM例外となる」と区別し、WACK合格とは記載しない。
 
 現在Partner Centerに登録されているのは1.0.1.0であり、今回の1.0.2.0は未アップロード・審査未提出。
