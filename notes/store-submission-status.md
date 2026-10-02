@@ -8,6 +8,8 @@
 
 2026-10-02実機検証: 正式identityのMSIXをテスト署名してインストールし、審査接続・参照資料読み取り・カード作成・提案適用・Markdown出力・アプリ再起動後の保持と資料追記の読み取り・アンインストールが成功した。WACKの全検査は完了したが総合 **WARNING**（22 PASS、任意のブロック済み実行可能ファイル検査1 FAIL、必須のDPI検査1 WARNING）。一時証明書と秘密鍵は削除済み。DPI宣言の改善と再検証、最小OS・クリーン環境、旧版からの更新等は残る。詳細は[最新のWindows検証記録](windows-store/build-1.0.1.0.md)を参照。審査提出は未実施。
 
+2026-10-02 DPI対応: EXEのDPI宣言を追加し、MSIX **1.0.2.0**を新規作成した。releaseビルド、埋め込みマニフェスト、パッケージ検査は成功。WACK再実行はUAC取消で開始されず、警告解消は未確認。テスト秘密鍵は削除済み。Partner Centerは1.0.1.0のままで、新版のアップロード・審査送信はしていない。[DPI修正版の記録](windows-store/build-1.0.2.0.md)を参照。
+
 ## Mac
 
 - ソース `6c929b76907a017acc8bfcfdfdad49a22145954f` から **0.1.0 (3)** のMac App Store用PKGを作成した。[作成run 36746301459](https://github.com/Huruikagi/tanzakoo/actions/runs/36746301459)
