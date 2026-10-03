@@ -32,6 +32,7 @@ Appleの定義では、第三者が要求処理を超えて保持するデータ
 
 ## 未確認事項と解消方法
 
+- 2026-10-03、build 4のソース `83949a2` と同じ `reference-policy.json` / `codex.mjs` を再確認した。`analytics.enabled` / `otel` の明示設定はない。現行の[OpenAI公式設定リファレンス](https://learn.chatgpt.com/docs/config-file/config-reference)は、analytics未設定時にクライアント既定値が適用されると説明している。設定の不在を「計測なし」の根拠にしない。同梱ACP 1.13.1が起動するクライアントの既定値と送信内容は、引き続き確認が必要。
 - 通常のChatGPTプラン接続について、同梱バージョンの計測・診断の送信設定、アカウント識別子、保存と追加用途を確認する。OpenAI APIの保持条件だけでは通常接続を判断できない。
 - Railwayの実際のプランとログ設定を管理画面で確認する。公式文書のログ閲覧保持期間はFree 3日、Trial/Hobby 7日、Pro 30日、Enterprise最大90日だが、上位プランへの変更で過去ログが復元される記述があるため、これを完全消去期限と約束しない。[Railway Logs](https://docs.railway.com/observability/logs)
 - relay台帳は自動削除されない。2026-10-01、利用者が「審査・不正利用調査・問い合わせ対応に必要な間保持し、不要になったら手動削除」を承認した。削除時はバックアップや基盤側の保持も確認する。失効だけで削除済みとしない。

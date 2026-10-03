@@ -1,4 +1,4 @@
-Tanzakoo [ENTER FINAL VERSION AND BUILD] is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI connects using Continue with ChatGPT and uses the user's eligible ChatGPT plan, subject to the external service's terms and limits. Tanzakoo does not sell AI credits or subscriptions.
+Tanzakoo 0.1.0 (build 4) is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI connects using Continue with ChatGPT and uses the user's eligible ChatGPT plan, subject to the external service's terms and limits. Tanzakoo does not sell AI credits or subscriptions.
 
 For review, we provide developer-funded AI access so you do not need a personal ChatGPT account or API key. It uses the same local board, tools, and approval flow as regular AI access. The differences are relay routing, an assigned model, and expiry/usage limits. This is a visible option in Settings, not a hidden review mode.
 
