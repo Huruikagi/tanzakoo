@@ -1,0 +1,14 @@
+Subject: Data handling for Sign in with ChatGPT plan usage in an open-source desktop app
+
+We are preparing Tanzakoo, a free open-source macOS desktop app, for App Store privacy disclosures. Optional AI uses Sign in with ChatGPT with a user's Plus/Pro plan. The app sends text prompts, board context and user-selected reference excerpts to the eligible Responses endpoint through a bundled Codex/ACP runtime. A separate developer-funded review connection uses the ordinary OpenAI API; we are evaluating those two paths separately.
+
+Could you point us to the applicable policy or documentation for the ChatGPT-plan path and clarify:
+
+1. Which retention rules and user data controls apply to prompts and responses? Can they be used for model training or other product improvement, and under which settings?
+2. Are account/host identifiers, request metadata or usage records from this path used or shared for advertising, advertising measurement or data-broker purposes? We need to distinguish Apple's tracking definition from ordinary account association and service analytics.
+3. Does this path derive or retain approximate location from IP addresses? Which diagnostic and device data are retained beyond real-time request processing?
+4. For bundled Codex 0.156.1, which usage/health telemetry is sent by default when analytics.enabled and otel are not explicitly configured? Is there a version-specific data inventory, including any crash reporting and identifier linkage?
+
+We have reviewed the Sign in with ChatGPT integration documentation, Accounts and sessions, the general Privacy Policy, and Codex Advanced Configuration. We are not assuming that ordinary API data-handling terms also apply to ChatGPT plan usage.
+
+No credentials, review codes or user conversation data are attached.
