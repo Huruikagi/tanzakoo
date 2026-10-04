@@ -1,6 +1,6 @@
 # Appのプライバシー申告案
 
-2026-10-01、`6c929b7` のChatGPT認証・通知を反映。以前のbuild 2 (`2a5adab`) の調査記録を更新した。署名済みbuild 3とWindows MSIXは別途実機確認が必要。これは入力準備資料であり、App Store Connectへの申告は未実施。公開ポリシーとストアの申告判断は別に管理する。外部サービスの未確認事項を、収集しないという意味で扱わない。
+2026-10-04更新。提出対象は0.1.0 build 4（ソース `83949a2`）。App Store Connectには9種類の下書きとカスタマーサポートの詳細回答を保存済みだが、ラベルは未公開。build 4のMac実機実行は未確認。公開ポリシーとストアの申告判断は別に管理する。外部サービスの未確認事項を、収集しないという意味で扱わない。以下の過去の調査に対する訂正は末尾の固定バージョン調査を優先する。
 
 ## 実際のデータの流れ
 
@@ -60,3 +60,28 @@ App Store Connectでは、第三者も含めた収集を「はい」とし、メ
 ## GitHub Issue Formsへの案内
 
 2026-10-01、通常のお問い合わせを公開GitHub Issue Formsへ案内する変更を準備。投稿は利用者がGitHub上で行い、アプリからボードやログを自動転送しない。アカウント名・本文・添付・返信が公開され、回答・調査・改善の検討に利用することを日英ポリシーへ記載した。Issueを閉じることは削除ではなく、GitHubの保持条件や第三者のコピーも考慮する。個人情報・削除依頼・審査コード・セキュリティの問題は非公開メールへ案内する。ストアのCustomer Support等の申告判断では、この任意の外部フォームも考慮する。
+
+## 固定バージョン調査と訂正（2026-10-04）
+
+### 匿名メトリクスの既定値
+
+先の「現行Codexの一般文書では既定で送信」という説明は、Tanzakooの起動方式の既定値を証明しない。npm同梱物と公式タグ `rust-v0.156.1` を照合した結果、次が確認できた。
+
+- ACP 1.13.1の `dist/index.js` 内 `startCodexConnection` は、同梱Codexを `app-server` 引数で起動する。`--analytics-default-enabled` は付けない。
+- [Codex 0.156.1のCLI](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/cli/src/main.rs#L592)は、app-serverのanalytics既定値を無効と明記している。
+- [OTelの初期化](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/core/src/otel_init.rs#L68)は、`analytics_enabled.unwrap_or(default_analytics_enabled)` がfalseならmetrics exporterをNoneにする。[設定型の既定値](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/config/src/types.rs#L638)もlog/trace exporterはNone。
+- Tanzakooの `reference-policy.json` はanalytics/otelを上書きしない。したがって、追加のユーザー設定がない管理ランタイムでは、一般文書を根拠に匿名メトリクスが有効だとする判断を撤回する。
+
+これはすべてのネットワーク計測がないという証明ではない。[analyticsイベントクライアント](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/analytics/src/client.rs#L861)は別経路で、認証方式・イベント種別による送信制限がある。Tanzakooのgateway認証における全経路の通信実測、サーバーが保存する診断データ、利用者が後から加えた設定は今回未検証。製品の操作などの下書きを「匿名メトリクスが既定で有効だから確定」とは扱わず、最終的な分類は通常接続の処理も含めて判断する。
+
+### 通常接続に残る確認
+
+[Models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)と[Preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)は、OAuthトークンでResponsesを使用し `store:false` / `stream:true` を要求する。一方、確認した本文にはこの経路固有の保持期間・学習利用・広告目的の照合の説明はない。[利用者向け案内](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)も、プラン利用・接続解除の説明であり、その詳細を埋めるものではない。
+
+接続先がAPIのURLであることだけを理由にAPIキー契約のデータ条件を適用しない。逆に、一般プライバシーポリシーの広告・位置情報の項目をすべて本経路に適用することもしない。公開文書で解決できなかった点に絞った問い合わせ文案を更新した。問い合わせ自体はAppleが一律に要求する手続きではなく、未確定の申告事項を解消するための確認手段である。送信は利用者の明示指示待ち。
+
+### 保存したカスタマーサポートの回答
+
+用途は「アプリの機能」と「アナリティクス」。問い合わせへの回答・障害調査に加え、公開ポリシーに記載した改善の検討を含む。メールアドレスやGitHubアカウント名を除去して受信する仕組みではないため、ユーザーとの関連付けは「あり」。サポート内容を広告向けの照合やデータブローカーへ渡す運用ではなく、トラッキングは「なし」とした。[Gmailの公式説明](https://support.google.com/mail/answer/6603?hl=en)もメール本文を広告表示のために読む・走査する用途を否定している。外部サイトをブラウザーで開くことや公開Issueが第三者に閲覧可能なことと、Tanzakooが広告向けにサポートデータを共有することは区別する。
+
+App Store Connectで保存後、用途2件と関連付けの表示を確認。残り8種類の詳細回答とラベル公開は未実施。メールアドレスは認証でも利用されるため、サポートの回答をそのまま流用していない。

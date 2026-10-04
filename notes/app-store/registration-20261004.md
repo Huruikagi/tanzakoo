@@ -46,3 +46,9 @@
 追加証跡は `.local/mac-store-registration-20261004/non-trader.png`、`privacy-types-draft.png`、`content-rights.png`。OpenAIへの未送信の[確認文案](siwc-privacy-questions.txt)も用意した。審査送信・ストア公開は引き続き未実施。
 
 画面証跡は `.local/mac-store-registration-20261004/` の `listing-ja.png`、`listing-en.png`、`app-info-en.png`、`privacy-en.png`、`availability.png`、`age-rating.png`。公開先の情報のみを記録し、審査コードや個人電話番号はGitへ保存しない。
+
+## 続き：用途の入力と同梱ランタイム調査
+
+- カスタマーサポートの詳細を保存。用途はアプリの機能とアナリティクス（回答・調査・改善検討）、ユーザーとの関連付けあり、トラッキングなし。保存後に用途と関連付けの表示を確認した。証跡は `privacy-support-draft.png`。残り8種類は未確定、ラベルの公開は未実施。
+- 同梱ACPとCodex 0.156.1の公式タグを照合し、app-serverの匿名メトリクスは既定で無効と確認。前段の一般文書だけに基づく既定値の説明を訂正した。別経路のイベントやサーバー側のデータ保持まで未送信と断定するものではない。[調査詳細](privacy-assessment.md)を参照。
+- 通常接続の保持・学習利用・広告目的の照合等の不明点に合わせて[問い合わせ文案](siwc-privacy-questions.txt)を具体化。送信許可を利用者へ確認中であり、未送信。
