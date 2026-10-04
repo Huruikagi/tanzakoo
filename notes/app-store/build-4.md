@@ -1,5 +1,7 @@
 # Mac App Store build 4（作成・検証記録）
 
+2026-10-04追記: App Store Connectでbuild 4の処理完了・選択可能状態を確認し、提出バージョンに保存した。掲載情報・価格・地域も登録を進めた。[登録記録と残作業](registration-20261004.md)を優先する。人の審査への送信は未実施。
+
 2026-10-03、Mac側の提出準備を続ける利用者の依頼に基づき、GitHub Actionsの `macOS Store package` を起動した。バージョン0.1.0、build番号4、審査接続あり。
 
 - ソース: `83949a21b4f46c81be5c975a7aa97c106f04c337`（起動時のGitHub main）。
