@@ -78,7 +78,7 @@ App Store Connectでは、第三者も含めた収集を「はい」とし、メ
 
 [Models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)と[Preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)は、OAuthトークンでResponsesを使用し `store:false` / `stream:true` を要求する。一方、確認した本文にはこの経路固有の保持期間・学習利用・広告目的の照合の説明はない。[利用者向け案内](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)も、プラン利用・接続解除の説明であり、その詳細を埋めるものではない。
 
-接続先がAPIのURLであることだけを理由にAPIキー契約のデータ条件を適用しない。逆に、一般プライバシーポリシーの広告・位置情報の項目をすべて本経路に適用することもしない。公開文書で解決できなかった点に絞った問い合わせ文案を更新した。問い合わせ自体はAppleが一律に要求する手続きではなく、未確定の申告事項を解消するための確認手段である。送信は利用者の明示指示待ち。
+接続先がAPIのURLであることだけを理由にAPIキー契約のデータ条件を適用しない。逆に、一般プライバシーポリシーの広告・位置情報の項目をすべて本経路に適用することもしない。公開文書で解決できなかった点に絞った問い合わせ文案を更新した。問い合わせ自体はAppleが一律に要求する手続きではなく、未確定の申告事項を解消するための確認手段である。2026-10-04、利用者の明示指示後にサポートチャットへ送信した。初回の自動応答では解決せず担当者への引き継ぎを依頼済み。実質的な回答は未取得（[送信記録](registration-20261004.md)）。
 
 ### 保存したカスタマーサポートの回答
 
