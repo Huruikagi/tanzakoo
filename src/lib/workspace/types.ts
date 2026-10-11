@@ -28,6 +28,9 @@ export type Busy =
  */
 type Connection = { status: ConnectionStatus; launch: string };
 export type ProjectDraft = { name: string; memory: string; revision: number };
+export type SettingsTab = "general" | "connection";
+/** The settings dialog can be opened from the chat, focused on one connection. */
+export type SettingsView = { open: boolean; tab: SettingsTab; agent: string | null };
 export type QuestionDraft = { mode: "option" | "text"; optionIndex: number | null; text: string };
 export type Workspace = {
   newChatAgent: string;
@@ -45,6 +48,9 @@ export type Workspace = {
   questionDrafts: Record<string, Record<string, QuestionDraft>>;
   chatOpen: boolean;
   setChatOpen: (open: boolean) => void;
+  settings: SettingsView;
+  openSettings: (tab?: SettingsTab, agent?: string | null) => void;
+  setSettings: (view: Partial<SettingsView>) => void;
   chatError: string | null;
   /** Keyed by agent id. Read through `connectionStatus`. */
   connections: Record<string, Connection>;

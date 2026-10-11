@@ -8,7 +8,7 @@ import { createAgentSlice } from "./workspace/agent";
 import { createConnectionSlice } from "./workspace/connections";
 import { createPlanSlice } from "./workspace/plan";
 
-export type { Permission, Busy, ProjectDraft } from "./workspace/types";
+export type { Permission, Busy, ProjectDraft, SettingsTab } from "./workspace/types";
 export { chatRunning } from "./workspace/agent";
 export { connectionStatus } from "./workspace/connections";
 export { moveCard } from "./workspace/board";
@@ -44,6 +44,9 @@ export const useWorkspace = create<Workspace>((...args) => {
         /* Optional UI preference. */
       }
     },
+    settings: { open: false, tab: "general", agent: null },
+    openSettings: (tab = "general", agent = null) => set({ settings: { open: true, tab, agent } }),
+    setSettings: (view) => set((state) => ({ settings: { ...state.settings, ...view } })),
     snapshot: emptySnapshot,
     questionDrafts: {},
     loaded: false,

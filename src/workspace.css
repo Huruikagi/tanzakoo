@@ -1425,3 +1425,43 @@ summary:focus-visible {
   padding: 8px 0 8px 12px;
   border-left: 2px solid var(--border);
 }
+/* Connections other than ChatGPT stay listed so each CLI can be found by name. */
+.external-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.external-agents > h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.external-agents > .hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.external-agents > ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.external-agent {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.external-agent > .connection-heading > strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+.external-agent > div:last-child:not(.connection-heading) {
+  padding-top: 12px;
+}

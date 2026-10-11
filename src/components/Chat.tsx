@@ -1,4 +1,4 @@
-import { externalAgents } from "@/lib/external-agents";
+import { externalAgent, externalAgents } from "@/lib/external-agents";
 import { t, systemMessage } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -8,10 +8,11 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { chatRunning, useWorkspace } from "@/lib/workspace";
+import { chatRunning, connectionStatus, useWorkspace } from "@/lib/workspace";
 import { agentLabel, agentUnavailable, native } from "@/lib/api";
 import { ChatHistory } from "./ChatHistory";
 import { ChatActivity, ChatScrollAnchor } from "./ChatActivity";
@@ -20,6 +21,9 @@ import { AgentConnection, AgentConnectionDialog } from "./AgentConnection";
 import { PendingProposals } from "./PendingProposals";
 import { QuestionChoices } from "./QuestionChoices";
 import { useChatDraft } from "@/lib/use-chat-draft";
+
+/** A select entry that opens the connection settings instead of choosing an agent. */
+const MANAGE_CONNECTIONS = "@tanzakoo/manage-connections";
 
 export function Chat() {
   useTranslation();
@@ -40,6 +44,10 @@ export function Chat() {
   const consented =
     (selectedAgent === "codex" && !!reviewAccess) || snapshot.consents.includes(selectedAgent);
   const unavailable = agentUnavailable(snapshot, selectedAgent);
+  const external = !unavailable ? externalAgent(selectedAgent) : undefined;
+  const externalStatus = useWorkspace((s) => connectionStatus(s, selectedAgent));
+  // Consent is cleared when the launch settings change, so it marks a CLI already in use.
+  const needsSetup = !!external && (externalStatus ? externalStatus.state !== "ready" : !consented);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);
   const latestTurn = [...messages].reverse().find((m) => m.role === "user")?.id;
@@ -112,7 +120,13 @@ export function Chat() {
               <Select
                 value={agent}
                 disabled={!!busy}
-                onValueChange={(id) => useWorkspace.getState().setNewChatAgent(id)}
+                onValueChange={(id) =>
+                  id === MANAGE_CONNECTIONS
+                    ? useWorkspace
+                        .getState()
+                        .openSettings("connection", externalAgent(agent) ? agent : null)
+                    : useWorkspace.getState().setNewChatAgent(id)
+                }
               >
                 <SelectTrigger size="sm" aria-label={t("会話の接続先")}>
                   <SelectValue />
@@ -124,6 +138,8 @@ export function Chat() {
                       {a.name}
                     </SelectItem>
                   ))}
+                  <SelectSeparator />
+                  <SelectItem value={MANAGE_CONNECTIONS}>{t("接続先を設定…")}</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
@@ -149,6 +165,25 @@ export function Chat() {
           <p className="chat-error" role="alert">
             {systemMessage(chatError)}
           </p>
+        )}
+        {external && needsSetup && messages.length === 0 && !isThisBusy && (
+          <div className="agent-connection">
+            <p>
+              {externalStatus
+                ? systemMessage(externalStatus.message)
+                : t(
+                    "{{name}}はまだ接続を確認していません。CLIをインストールしてログインした後、設定で接続を確認してください。",
+                    { name: external.name },
+                  )}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => useWorkspace.getState().openSettings("connection", external.id)}
+            >
+              {t("{{name}}を設定", { name: external.name })}
+            </Button>
+          </div>
         )}
         {messages.length === 0 && !isThisBusy && !unavailable && (
           <div className="chat-welcome">

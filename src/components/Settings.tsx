@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useWorkspace, type SettingsTab } from "@/lib/workspace";
 import { ExternalConnections } from "./ExternalConnection";
 import { AgentConnection } from "./AgentConnection";
 import { NotificationSettings } from "./NotificationSettings";
@@ -26,8 +27,13 @@ import { SupportLinks } from "./SupportLinks";
 export function Settings() {
   useTranslation();
   const preference = useLanguage((s) => s.preference);
+  const view = useWorkspace((s) => s.settings);
+  const { openSettings, setSettings } = useWorkspace.getState();
   return (
-    <Dialog>
+    <Dialog
+      open={view.open}
+      onOpenChange={(open) => (open ? openSettings() : setSettings({ open }))}
+    >
       <DialogTrigger asChild>
         <Button size="icon-sm" variant="ghost" aria-label={t("設定")}>
           <Settings2 />
@@ -40,7 +46,7 @@ export function Settings() {
             {t("表示言語・通知と、AIの接続を設定します。")}
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="general">
+        <Tabs value={view.tab} onValueChange={(tab) => setSettings({ tab: tab as SettingsTab })}>
           <TabsList variant="line" aria-label={t("設定の種類")}>
             <TabsTrigger value="general">{t("一般")}</TabsTrigger>
             <TabsTrigger value="connection">{t("AI接続")}</TabsTrigger>

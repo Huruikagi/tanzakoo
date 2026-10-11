@@ -220,7 +220,7 @@ Tanzakoo自身のコードとドキュメントは [MIT License](LICENSE) で提
 
 ## インストール済みの外部CLI
 
-Mac App Store版以外では、設定 → AI接続 → インストール済みの外部CLIから、Antigravity / GitHub Copilot CLI / OpenCode / Devin CLIを設定できます。各CLIは利用者が公式手順でインストールし、ターミナルでログインしてください。TanzakooはCLIを自動インストールせず、外部CLIの認証情報を取得・保存しません。既存のChatGPT接続も引き続き利用できます。
+Mac App Store版以外では、設定 → AI接続 →「その他のAI」から、Antigravity / Claude API / GitHub Copilot CLI / OpenCode / Devin CLIを設定できます。チャットの接続先選択の「接続先を設定…」からも開けます。各CLIは利用者が公式手順でインストールし、ターミナルでログインしてください。TanzakooはCLIを自動インストールせず、外部CLIの認証情報を取得・保存しません。既存のChatGPT接続も引き続き利用できます。
 
 実行コマンドを保存し「接続を確認」を押してください。GUIアプリからPATHが見えない場合は実行ファイルの絶対パスを指定します。起動引数は文字列のJSON配列です。認証トークンやパスワードは引数に入力しないでください。新しい会話の接続先でCLIを選び、送信する内容への同意後に会話を開始します。接続確認はセッション作成までで、利用枠や実際の応答を保証しません。モデルはCLI側の既定値を利用し、ChatGPT用のモデル設定は渡しません。
 

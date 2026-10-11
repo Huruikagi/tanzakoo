@@ -1,5 +1,6 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CheckCircle2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { t, systemMessage } from "@/lib/i18n";
 import { native } from "@/lib/api";
@@ -8,33 +9,71 @@ import { externalAgent, externalAgents, externalConsent } from "@/lib/external-a
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
+
+/** A launch check is kept per project; before it runs the CLI is only "not checked". */
+export function externalState(status: ConnectionStatus | undefined) {
+  if (!status) return { label: t("未確認"), ready: false };
+  return status.state === "ready"
+    ? { label: t("接続を確認済み"), ready: true }
+    : { label: t("要対応"), ready: false };
+}
 
 export function ExternalConnections() {
   const available = useWorkspace((s) => s.snapshot.externalAgentsAvailable);
-  const project = useWorkspace((s) => s.snapshot.project.id);
-  const [agent, setAgent] = useState<string>(externalAgents[0].id);
   useTranslation();
   if (!available) return null;
   return (
-    <details className="connection-details">
-      <summary>{t("インストール済みの外部CLI")}</summary>
-      <div className="connection-stack">
-        <Select value={agent} onValueChange={setAgent}>
-          <SelectTrigger aria-label={t("外部CLI")}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {externalAgents.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <ExternalConnection key={`${project}:${agent}`} agent={agent} />
+    <section className="external-agents" aria-labelledby="external-agents-title">
+      <h3 id="external-agents-title">{t("その他のAI")}</h3>
+      <p className="hint muted">
+        {t("このPCにインストール・ログイン済みのCLIを使って、ChatGPT以外のAIと話せます。")}
+      </p>
+      <ul>
+        {externalAgents.map((a) => (
+          <ExternalAgentRow key={a.id} agent={a.id} name={a.name} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ExternalAgentRow({ agent, name }: { agent: string; name: string }) {
+  const project = useWorkspace((s) => s.snapshot.project.id);
+  const open = useWorkspace((s) => s.settings.agent === agent);
+  const status = useWorkspace((s) => connectionStatus(s, agent));
+  const state = externalState(status);
+  const id = useId();
+  const row = useRef<HTMLLIElement>(null);
+  // Opened from the chat, the row may sit below the ChatGPT section.
+  useEffect(() => {
+    if (open) row.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
+  return (
+    <li ref={row} className="external-agent" data-open={open}>
+      <div className="connection-heading">
+        <strong>{name}</strong>
+        <span className={state.ready ? "connection-state connected" : "connection-state"}>
+          {state.ready && <CheckCircle2 size={13} />}
+          {state.label}
+        </span>
+        <Button
+          size="sm"
+          variant={open ? "ghost" : "outline"}
+          aria-expanded={open}
+          aria-controls={id}
+          aria-label={open ? t("{{name}}の設定を閉じる", { name }) : t("{{name}}を設定", { name })}
+          onClick={() => useWorkspace.getState().setSettings({ agent: open ? null : agent })}
+        >
+          {open ? t("閉じる") : t("設定")}
+        </Button>
       </div>
-    </details>
+      {open && (
+        <div id={id}>
+          <ExternalConnection key={`${project}:${agent}`} agent={agent} />
+        </div>
+      )}
+    </li>
   );
 }
 
