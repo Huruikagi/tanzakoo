@@ -21,7 +21,7 @@ Tanzakooのコンパイル済みバイナリの診断経路（`--connection-chec
 | CLI                | バージョン         | 結果                                                                                                                  |
 | ------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | GitHub Copilot CLI | 1.0.95             | 既存の認証で接続・応答・カード作成・提案承認・再開後の選択質問が成功。Windowsの`.cmd`ラッパー経由。契約プランは未確認 |
-| OpenCode           | 1.19.0             | ローカルOllamaの`gemma3:4b`を指定し、接続・応答成功                                                                   |
+| OpenCode           | 1.19.0             | ローカルOllamaのQwen3.5 4Bで接続・応答・カード作成・会話再開・未承認変更提案が成功                                    |
 | Devin CLI          | 3000.11.3          | 以前にFreeとしてログインした既存アカウントで接続・応答・カード作成・提案承認・再起動後の再開・停止が成功              |
 | Gemini CLI         | 0.63.0             | Googleログイン再実行後、個人向けクライアントのサポート終了エラー。プロンプト送信なし                                  |
 | Cursor CLI         | 2026.10.01-e373342 | 認証が必要との応答を確認。終了時の子プロセス残留はWindows Job Objectで解消                                            |
@@ -68,12 +68,24 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 - カード作成・変更提案は前節の公式サーバー＋実MCP試験、アプリ側MCP配線は今回の回帰テストで確認した。Antigravityの実GUIでの承認・選択質問・停止操作は今回再検証していない。
 - リリース、公開、配布物の作り直し、Mac実機・ストア検証は利用者の意向により後回しとする。
 
+### OpenCode + ローカルQwen3.5 4B（2026-10-11）
+
+利用者の許可を得て、既存Ollama 0.32.1に`qwen3.5:4b`（Q4_K_M、約3.3GB、digest先頭`d8b0f5e9760c`）をダウンロードした。[公式モデル](https://ollama.com/library/qwen3.5:4b)はツール対応で、ローカル`/api/show`でも`tools`を確認した。モデルのライセンスはApache-2.0で、Tanzakoo製品の依存・同梱物には追加していない。
+
+- [OllamaのOpenCode向け案内](https://docs.ollama.com/integrations/opencode)に合わせ、重みを共有する別名`tanzakoo-qwen3.5-4b:latest`を作り、`num_ctx: 65536`を設定した。元モデルと既存Gemmaモデルはそのまま残す。専用GPUなしのRyzen 7 9700X・RAM約62GBで、`ollama ps`は100% CPU、コンテキスト65536、稼働時メモリ約5.6GBを示した。
+- OpenCode 1.19.0のACPを使用し、モデルを`ollama/tanzakoo-qwen3.5-4b:latest`、`tool_call: true`、context65536・output4096に設定。接続先は`http://127.0.0.1:11434/v1`のみで、クラウドモデル・有料APIは使用しない。
+- 試験用設定は`.local/opencode-qwen4b/opencode.json`、再利用ランチャーは同フォルダーの`launch.mjs`、Tanzakoo用起動設定は`tanzakoo-agent.json`。通常のOpenCode設定は上書きせず、ランチャーが`OPENCODE_CONFIG_CONTENT`で試験設定を渡す。`--pure`で外部プラグインを無効にする。
+- 合成DBは`.local/opencode-qwen4b/board.db`。新規会話で`get_board`・`create_candidate`を実行し、「Qwen 4B ACP check」1枚の保存に成功。別プロセスの`session/load`で同じ会話を復元し、`get_board`・`propose_card_change`でpending提案1件を作成できた。SQLiteでカード1枚・提案1件・元の本文とrevision 1の保持を確認した。
+- 権限は上記3つのMCPツールだけをaskとし、検証クライアントは対象ツールにallow_onceのみを返す。シェル・ファイル・ブラウザー操作などは許可しない。この設定は3ツールの検証用で、質問・参照資料など全機能を許可した利用設定ではない。
+- 初回のボード読み取り・カード作成・応答完了は約245秒、復元後のボード読み取り・提案作成・応答完了は約61秒。初回は会話タイトルなどの内部処理にも推論時間がかかる。復元後はモデルoptionsに`reasoningEffort: none`を指定したが、処理内容・キャッシュが異なるため、所要時間差をこの設定だけの効果とはしない。CPUの生成速度はOllamaログで約14〜16トークン/秒だった。
+- 記録は`.local/acp-probes/opencode-qwen4b*-result.json`。Tanzakoo本体の`--connection-check`でも同じランチャーを使いreadyを確認した。さらに本体の`--smoke`で`LOCAL_QWEN4B_OK`の応答と保存に約35秒で成功した（合成DBは`.local/opencode-qwen4b/native`）。実GUIでの提案適用・選択質問・停止や配布物の検証は今回の範囲に含めない。
+
 ### 残る確認
 
 - Geminiは同日、CLI 0.63.0でGoogleログインを再実行。ブラウザの完了後、ACP認証が個人向けクライアントのサポート終了エラーで拒否された。プロンプトは送信していない。[Googleの廃止告知](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)では、個人無料・Google AI Pro・UltraのGoogleログイン経路は2026-06-18に終了している。以前の認証ガイドに基づいた「個人Googleアカウントで利用可能」という案内は訂正する。対応する別の認証経路での会話・カード操作は未確認。後続の利用者判断でGeminiは候補から外し、Antigravityを追加した。Geminiの別認証経路や有料API接続の検証は今回は行わない。
 - Cursorは今回は採用しない。上表は除外前の調査履歴であり、現在の提供対象ではない。
 - Cursor除外後の`pnpm check`は141テスト成功。Rustの接続・外部CLI統合テスト8件（実Claude接続1件ignored）とClippyも成功。既存Cursor設定の保存・新規会話・起動を拒否し、保存済み会話は閲覧のみを維持する。
-- OpenCodeはローカルOllamaで会話できたが、検証中の`gemma3:4b`設定は`tool_call: false`。ツール対応モデルを設定した上でカード操作を確認する必要がある。
+- OpenCodeのカード作成・未承認提案は上記Qwen3.5 4Bで確認済み。実GUIでの提案適用・選択質問・停止の確認は残る。
 - Mac実機での直接配布版とMac App Store版の確認は未実施。Windows上での`app-sandbox`機能フラグ検証だけでは代替できない。
 - WindowsのMSIX作成と展開payloadの起動は確認できるが、インストール済みMSIXからの外部CLI実行・WACK・ストア審査は別途必要。検証用パッケージの記録は[Windows配布検証](windows-store/external-cli-validation-20261011.md)を参照する。
 - プライバシー案の文面更新は含むが、公開サイトへの反映・Partner Centerへのアップロード・審査提出は含まない。
