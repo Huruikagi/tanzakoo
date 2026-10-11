@@ -28,31 +28,19 @@ pub(crate) async fn send_prompt(
             .conversation(&conversation_id)
             .map_err(|e| e.system_message())?;
         let external = crate::external_agents::is_external(&conversation.agent);
-        if external {
-            crate::external_agents::ensure_available(&conversation.agent)?;
-        }
         if conversation.agent != "codex" && !external {
             return Err("この接続先には送信できません。".into());
         }
-        let review = state.runtime.review_session()?;
-        if external && review.is_some() {
-            return Err("先に審査用接続を解除してください。".into());
+        let connection =
+            agent::connection::Connection::select(&state.runtime, &conversation.agent)?;
+        if connection.review.is_none() && !external {
+            chatgpt_plan::require_account(connection.plan.as_ref())?;
         }
-        let plan = if review.is_none() && !external {
-            state.runtime.plan_account()?
-        } else {
-            None
-        };
-        if review.is_none() && !external {
-            chatgpt_plan::require_account(plan.as_ref())?;
-        }
-        chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan.as_ref())?;
-        review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
-        if let Some(access) = &review {
-            access.ensure_usable()?;
-        } else if !projects
-            .consented(&conversation.agent)
-            .map_err(|e| e.system_message())?
+        connection.validate_session(conversation.session_id.as_deref())?;
+        if connection.review.is_none()
+            && !projects
+                .consented(&conversation.agent)
+                .map_err(|e| e.system_message())?
         {
             return Err("AIへの送信に同意してください。".into());
         }

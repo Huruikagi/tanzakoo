@@ -1,3 +1,4 @@
+pub(crate) mod connection;
 mod notifications;
 mod permissions;
 mod prompt;
@@ -155,23 +156,13 @@ pub async fn run(
     let conversation = store
         .conversation(&conversation_id)
         .map_err(|e| e.system_message())?;
-    let external = crate::external_agents::is_external(&conversation.agent);
-    if external {
-        crate::external_agents::ensure_available(&conversation.agent)?;
-    }
-    let mut review = runtime.review_session()?;
-    if external && review.is_some() {
-        return Err("先に審査用接続を解除してください。".into());
-    }
-    let plan_account = if review.is_none() && !external {
-        runtime.plan_account()?
-    } else {
-        None
-    };
-    crate::chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan_account.as_ref())?;
-    crate::review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
+    let connection = connection::Connection::select(&runtime, &conversation.agent)?;
+    connection.validate_session(conversation.session_id.as_deref())?;
+    let connection::Connection {
+        mut review,
+        plan: plan_account,
+    } = connection;
     if let Some(access) = &mut review {
-        access.ensure_usable()?;
         access.status = tokio::select! {
             result = access.check() => result?,
             _ = &mut cancel => return Err("応答を停止しました。".into()),

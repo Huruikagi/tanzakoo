@@ -253,6 +253,68 @@ mod tests {
         assert!(session.ensure_usable().unwrap_err().contains("有効期限"));
     }
 
+    #[test]
+    fn selected_review_route_is_exclusive_and_rechecks_usability() {
+        use crate::agent::{AgentRuntime, connection::Connection};
+        let runtime = AgentRuntime::default();
+        *runtime.plan.lock().unwrap() = Some(crate::chatgpt_plan::PlanAccount {
+            id: "selected".into(),
+            label: "Account".into(),
+            signed_in: true,
+        });
+        *runtime.review.lock().unwrap() = Some(ReviewSession {
+            endpoint: "http://127.0.0.1:1".into(),
+            token: token(),
+            status: ReviewStatus {
+                model: "fixture-model".into(),
+                expires_at: now() + 60000.,
+                remaining_requests: 1,
+            },
+        });
+        let connection = Connection::select(&runtime, "codex").unwrap();
+        assert!(connection.plan.is_none());
+        assert!(connection.validate_session(None).is_ok());
+        assert!(
+            connection
+                .validate_session(Some("tanzakoo-review-v1:thread"))
+                .is_ok()
+        );
+        for session in ["tanzakoo-plan-v1:selected:thread", "tanzakoo-v1:thread"] {
+            assert!(connection.validate_session(Some(session)).is_err());
+        }
+        for agent in crate::external_agents::IDS {
+            assert!(Connection::select(&runtime, agent).is_err());
+        }
+        runtime
+            .review
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .status
+            .remaining_requests = 0;
+        assert!(
+            Connection::select(&runtime, "codex")
+                .unwrap()
+                .validate_session(None)
+                .unwrap_err()
+                .contains("利用上限")
+        );
+        {
+            let mut review = runtime.review.lock().unwrap();
+            let status = &mut review.as_mut().unwrap().status;
+            status.remaining_requests = 1;
+            status.expires_at = now() - 1.;
+        }
+        assert!(
+            Connection::select(&runtime, "codex")
+                .unwrap()
+                .validate_session(None)
+                .unwrap_err()
+                .contains("有効期限")
+        );
+    }
+
     #[tokio::test]
     async fn invalid_revoked_expired_exhausted_and_redirected_codes_fail_closed() {
         for (status, body, headers, message) in [
