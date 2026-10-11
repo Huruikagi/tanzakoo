@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Card } from "@/bindings/Card";
 import { api, emptySnapshot } from "./api";
 import { connectionStatus, moveCard, useWorkspace } from "./workspace";
-vi.mock("./api", () => ({
+vi.mock("./api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./api")>()),
   emptySnapshot: {
     project: { id: "a", name: "A", memory: "", revision: 1 },
     projects: [],
@@ -44,6 +45,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   useWorkspace.setState({
+    newChatAgent: "codex",
     snapshot: { ...emptySnapshot, cards: [card], consents: ["codex", "claude"] },
     loaded: true,
     switching: false,
@@ -523,4 +525,38 @@ it("moves into empty columns and between cards without changing other cards", ()
     revision: 1,
   });
   expect(cards[0].status).toBe("idea");
+});
+
+it("sends an external conversation without requiring a ChatGPT account and keeps its agent", async () => {
+  const c = { id: "ext", title: "External", agent: "copilot", sessionId: null, createdAt: 1 };
+  const snapshot = {
+    ...emptySnapshot,
+    externalAgentsAvailable: true,
+    conversations: [c],
+    consents: ["copilot"],
+  };
+  useWorkspace.setState({ snapshot, conversation: c.id, planStatus: null });
+  vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+  vi.mocked(api.send).mockResolvedValue();
+  expect(await useWorkspace.getState().send("hello", "codex")).toBe(true);
+  expect(api.send).toHaveBeenCalledWith("ext", "hello", [], "a");
+  expect(api.action).not.toHaveBeenCalled();
+});
+
+it("blocks saved external conversations on the Mac Store distribution before sending", async () => {
+  useWorkspace.setState({
+    snapshot: {
+      ...emptySnapshot,
+      externalAgentsAvailable: false,
+      consents: ["copilot"],
+      conversations: [
+        { id: "ext", title: "External", agent: "copilot", sessionId: null, createdAt: 1 },
+      ],
+    },
+    conversation: "ext",
+  });
+  expect(await useWorkspace.getState().send("hello", "copilot")).toBe(false);
+  expect(api.send).not.toHaveBeenCalled();
+  await useWorkspace.getState().connect("copilot", "check");
+  expect(api.connection).not.toHaveBeenCalled();
 });

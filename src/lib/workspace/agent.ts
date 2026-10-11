@@ -1,5 +1,5 @@
 import { t } from "@/lib/i18n";
-import { api } from "../api";
+import { api, agentUnavailable } from "../api";
 import type { WorkspaceSlice, Workspace, Busy, Permission } from "./types";
 import type { Snapshot } from "@/bindings/Snapshot";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
@@ -25,6 +25,8 @@ export function chatRunning(busy: Busy | null, conversation: string | null) {
 }
 
 export const createAgentSlice: WorkspaceSlice<
+  | "newChatAgent"
+  | "setNewChatAgent"
   | "reviewAccess"
   | "reviewError"
   | "reviewConnect"
@@ -48,6 +50,10 @@ export const createAgentSlice: WorkspaceSlice<
   | "event"
   | "answer"
 > = (set, get) => ({
+  newChatAgent: "codex",
+  setNewChatAgent: (agent) => {
+    if (!get().busy && !agentUnavailable(get().snapshot, agent)) set({ newChatAgent: agent });
+  },
   reviewAccess: null,
   reviewError: null,
   reviewConnect: async (action, code, consent = false) => {
@@ -65,7 +71,8 @@ export const createAgentSlice: WorkspaceSlice<
         consent,
       );
       set({ reviewAccess, connections: {}, chatError: null });
-      if (action !== "check") set({ conversation: null, references: [], stream: "" });
+      if (action !== "check")
+        set({ newChatAgent: "codex", conversation: null, references: [], stream: "" });
       return true;
     } catch (error) {
       set({ reviewError: String(error) });
@@ -87,7 +94,7 @@ export const createAgentSlice: WorkspaceSlice<
     }),
   connect: async (agent, action) => {
     if (get().busy || get().switching) return;
-    if (agent !== "codex") return;
+    if (agentUnavailable(get().snapshot, agent)) return;
     const launch = launchKey(get().snapshot, agent);
     set({
       busy: { kind: "connecting", agent },
@@ -151,21 +158,25 @@ export const createAgentSlice: WorkspaceSlice<
   broadenTopics: () => {
     if (get().busy || get().switching) return Promise.resolve(false);
     get().setChatOpen(true);
-    return get().send(t(BROADEN_TOPICS_PROMPT), "codex", { useReferences: false });
+    return get().send(t(BROADEN_TOPICS_PROMPT), get().newChatAgent, { useReferences: false });
   },
   send: async (text, agent, { useReferences = true, questionAnswers } = {}) => {
     if (get().busy || get().switching || !text.trim()) return false;
     const activeAgent =
       get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
-    if (activeAgent !== "codex") {
+    if (agentUnavailable(get().snapshot, activeAgent)) {
       set({ chatError: t("この会話は閲覧のみです。新しい会話をCodexで始めてください。") });
+      return false;
+    }
+    if (activeAgent !== "codex" && get().reviewAccess) {
+      set({ chatError: t("先に審査用接続を解除してください。") });
       return false;
     }
     if (!get().reviewAccess && !get().snapshot.consents.includes(activeAgent)) {
       set({ chatError: t("AIへの送信に同意してください。") });
       return false;
     }
-    if (!get().reviewAccess && !get().planStatus?.active?.signedIn) {
+    if (activeAgent === "codex" && !get().reviewAccess && !get().planStatus?.active?.signedIn) {
       set({ chatError: t("接続状況からChatGPTでサインインしてください。") });
       return false;
     }

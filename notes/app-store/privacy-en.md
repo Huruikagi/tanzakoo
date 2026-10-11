@@ -53,3 +53,7 @@ Support emails and attachments are kept for responding and necessary record keep
 Email **huruikagi@gmail.com**. Do not send access codes, API keys, passwords, or confidential reference materials. We will update this page when practices change and provide in-app notices or request consent when needed.
 
 References: [OpenAI Privacy Policy](https://openai.com/policies/privacy-policy/), [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data), [Railway logs](https://docs.railway.com/observability/logs). API documentation does not establish retention terms for regular ChatGPT access.
+
+## Optional connections to installed external CLIs
+
+Distributions other than the Mac App Store edition can connect to a CLI installed by the user. With consent, project information is passed to that CLI, which uses its configured AI providers or local models. Each service governs its destinations, retention, training use, charges, and deletion. The CLI may run its own tools or extensions, including additional processing or network requests. Tanzakoo does not automatically install external CLIs or copy or store their credentials. Launch commands and arguments are stored on your device; do not enter tokens or passwords there. Consent is shared across projects with identical launch settings and can be withdrawn in Settings. Use each CLI to sign out or delete its stored history.

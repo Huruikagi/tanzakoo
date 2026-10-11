@@ -98,20 +98,26 @@ impl Projects {
             "SELECT substr(key,9) FROM preferences WHERE key LIKE 'consent:%' ORDER BY key",
         )?;
         for row in query.query_map([], |r| r.get::<_, String>(0))? {
-            snapshot.consents.push(row?);
+            let agent = row?;
+            if self.consented(&agent)? {
+                snapshot.consents.push(agent);
+            }
         }
         Ok(snapshot)
     }
     pub fn consented(&self, agent: &str) -> Result<bool> {
-        Ok(self
+        let stored: Option<String> = self
             .catalog()?
             .query_row(
-                "SELECT 1 FROM preferences WHERE key=?1",
+                "SELECT value FROM preferences WHERE key=?1",
                 [format!("consent:{agent}")],
-                |_| Ok(()),
+                |r| r.get(0),
             )
-            .optional()?
-            .is_some())
+            .optional()?;
+        Ok(stored.is_some_and(|value| {
+            self.consent_value(agent)
+                .is_ok_and(|expected| value == expected)
+        }))
     }
     /// Only the registration ID is stored here; credentials stay in the plan helper.
     pub fn last_plan_account(&self) -> Result<Option<String>> {
@@ -154,13 +160,26 @@ impl Projects {
         )?;
         Ok(())
     }
+    fn consent_value(&self, agent: &str) -> Result<String> {
+        if crate::external_agents::is_external(agent) {
+            let config = self
+                .active_store()?
+                .snapshot()?
+                .agents
+                .into_iter()
+                .find(|a| a.id == agent)
+                .unwrap_or_else(|| crate::external_agents::default_config(agent));
+            return Ok(serde_json::to_string(&config)?);
+        }
+        Ok("1".into())
+    }
     pub fn set_consent(&self, agent: &str, granted: bool) -> Result<()> {
         let key = format!("consent:{agent}");
         let db = self.catalog()?;
         if granted {
             db.execute(
-                "INSERT OR REPLACE INTO preferences(key,value) VALUES (?1,'1')",
-                [key],
+                "INSERT OR REPLACE INTO preferences(key,value) VALUES (?1,?2)",
+                [key, self.consent_value(agent)?],
             )?;
         } else {
             db.execute("DELETE FROM preferences WHERE key=?1", [key])?;

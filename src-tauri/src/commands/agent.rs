@@ -27,13 +27,23 @@ pub(crate) async fn send_prompt(
         let conversation = store
             .conversation(&conversation_id)
             .map_err(|e| e.system_message())?;
+        let external = crate::external_agents::is_external(&conversation.agent);
+        if external {
+            crate::external_agents::ensure_available(&conversation.agent)?;
+        }
+        if conversation.agent != "codex" && !external {
+            return Err("この接続先には送信できません。".into());
+        }
         let review = state.runtime.review_session()?;
-        let plan = if review.is_none() {
+        if external && review.is_some() {
+            return Err("先に審査用接続を解除してください。".into());
+        }
+        let plan = if review.is_none() && !external {
             state.runtime.plan_account()?
         } else {
             None
         };
-        if review.is_none() {
+        if review.is_none() && !external {
             chatgpt_plan::require_account(plan.as_ref())?;
         }
         chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan.as_ref())?;
@@ -148,6 +158,13 @@ pub(crate) async fn agent_connection(
                 .unwrap_or_else(|e| e),
             can_login: false,
         });
+    }
+    if crate::external_agents::is_external(&agent) {
+        crate::external_agents::ensure_available(&agent)?;
+        if action != "check" {
+            return Err("外部CLIへのログインは、そのCLIで行ってください。".into());
+        }
+        return Ok(crate::agent_setup::probe(store, agent, action, cancel).await);
     }
     if let Some(account) = state.runtime.plan_account()? {
         if agent != "codex" || action != "check" {

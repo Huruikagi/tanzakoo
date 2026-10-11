@@ -10,7 +10,12 @@
       "allow": [
         { "url": "https://huruikagi.github.io/tanzakoo/privacy-ja.html" },
         { "url": "https://huruikagi.github.io/tanzakoo/privacy-en.html" },
-        { "url": "https://huruikagi.github.io/tanzakoo/support.html" }
+        { "url": "https://huruikagi.github.io/tanzakoo/support.html" },
+        { "url": "https://geminicli.com/docs/get-started/installation/" },
+        { "url": "https://docs.github.com/en/copilot/get-started/cli-quickstart" },
+        { "url": "https://opencode.ai/docs/" },
+        { "url": "https://cursor.com/docs/cli/installation" },
+        { "url": "https://docs.devin.ai/" }
       ]
     }
   ]

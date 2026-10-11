@@ -1,6 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--external-acp") {
+        match tanzakoo_lib::external_agents::relay(&args[2..]) {
+            Ok(code) => std::process::exit(code),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+    }
     #[cfg(all(target_os = "macos", feature = "sandbox-validation"))]
     if args.get(1).map(String::as_str) == Some("--sandbox-check") {
         if let Err(error) =

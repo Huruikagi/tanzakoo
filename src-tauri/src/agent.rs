@@ -103,6 +103,9 @@ impl AgentRuntime {
 }
 
 pub fn default_config(id: &str) -> AgentConfig {
+    if crate::external_agents::is_external(id) {
+        return crate::external_agents::default_config(id);
+    }
     if id == "codex" {
         return crate::agent_setup::managed_config();
     }
@@ -152,8 +155,15 @@ pub async fn run(
     let conversation = store
         .conversation(&conversation_id)
         .map_err(|e| e.system_message())?;
+    let external = crate::external_agents::is_external(&conversation.agent);
+    if external {
+        crate::external_agents::ensure_available(&conversation.agent)?;
+    }
     let mut review = runtime.review_session()?;
-    let plan_account = if review.is_none() {
+    if external && review.is_some() {
+        return Err("先に審査用接続を解除してください。".into());
+    }
+    let plan_account = if review.is_none() && !external {
         runtime.plan_account()?
     } else {
         None

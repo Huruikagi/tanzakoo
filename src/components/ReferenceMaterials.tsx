@@ -68,7 +68,7 @@ export function ReferenceMaterials() {
         </DialogHeader>
         <p className="hint muted">
           {t(
-            "会話に必要な箇所を読む際、その内容がOpenAIへ送信されます。登録だけでは送信しません。元ファイルの変更は次の読み取りに反映されます。",
+            "会話に必要な箇所を読む際、その内容が選択したAI接続先へ送信されます。登録だけでは送信しません。元ファイルの変更は次の読み取りに反映されます。",
           )}
         </p>
         <div className="flex flex-wrap gap-2">

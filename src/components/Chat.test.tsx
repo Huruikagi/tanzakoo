@@ -36,7 +36,11 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 beforeEach(() => {
   vi.resetAllMocks();
   Element.prototype.scrollIntoView = vi.fn();
+  Element.prototype.hasPointerCapture = vi.fn(() => false);
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
   useWorkspace.setState({
+    newChatAgent: "codex",
     loaded: true,
     snapshot: emptySnapshot,
     busy: null,
@@ -838,4 +842,31 @@ it("keeps legacy Claude history readable and starts new chats with ChatGPT", asy
   expect(screen.getByRole("button", { name: "ChatGPTで続ける" })).toBeEnabled();
   expect(useWorkspace.getState().snapshot.messages[0].text).toBe("過去の検討内容");
   expect(api.connection).not.toHaveBeenCalled();
+});
+
+it("lets a new chat select an external CLI without losing its draft", async () => {
+  const user = userEvent.setup();
+  useWorkspace.setState({
+    snapshot: {
+      ...emptySnapshot,
+      externalAgentsAvailable: true,
+      agents: [{ id: "copilot", command: "copilot", args: ["--acp", "--stdio"] }],
+    },
+    planStatus: null,
+  });
+  render(<Chat />);
+  const input = screen.getByRole("textbox", { name: "エージェントへのメッセージ" });
+  await user.type(input, "keep this draft");
+  await user.click(screen.getByRole("combobox", { name: "会話の接続先" }));
+  await user.click(screen.getByRole("option", { name: "GitHub Copilot CLI" }));
+  expect(input).toHaveValue("keep this draft");
+  expect(useWorkspace.getState().newChatAgent).toBe("copilot");
+  expect(screen.getByText(/選択したCLIとその接続先へ渡します/)).toBeInTheDocument();
+  expect(api.send).not.toHaveBeenCalled();
+});
+
+it("does not offer external connection choices in the Mac Store build", () => {
+  useWorkspace.setState({ snapshot: { ...emptySnapshot, externalAgentsAvailable: false } });
+  render(<Chat />);
+  expect(screen.queryByRole("combobox", { name: "会話の接続先" })).not.toBeInTheDocument();
 });

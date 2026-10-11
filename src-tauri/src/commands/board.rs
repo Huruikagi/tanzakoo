@@ -33,6 +33,7 @@ pub(crate) async fn board_action(
                 if runtime.review_session()?.is_some() {
                     return Err("審査用接続を解除してから起動設定を変更してください。".into());
                 }
+                crate::external_agents::validate(&config)?;
                 // A changed launch command may send data elsewhere, so ask again.
                 let agent = config.id.clone();
                 store
