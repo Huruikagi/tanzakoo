@@ -44,5 +44,5 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 - Gemini/Cursorは利用者によるCLIログイン後の実会話・カード操作が必要。
 - OpenCodeはローカルOllamaで会話できたが、検証中の`gemma3:4b`設定は`tool_call: false`。ツール対応モデルを設定した上でカード操作を確認する必要がある。
 - Mac実機での直接配布版とMac App Store版の確認は未実施。Windows上での`app-sandbox`機能フラグ検証だけでは代替できない。
-- WindowsのMSIX作成と展開payloadの起動は確認できるが、インストール済みMSIXからの外部CLI実行・WACK・ストア審査は別途必要。検証用パッケージの記録は後続のWindows検証記録を参照する。
+- WindowsのMSIX作成と展開payloadの起動は確認できるが、インストール済みMSIXからの外部CLI実行・WACK・ストア審査は別途必要。検証用パッケージの記録は[Windows配布検証](windows-store/external-cli-validation-20261011.md)を参照する。
 - プライバシー案の文面更新は含むが、公開サイトへの反映・Partner Centerへのアップロード・審査提出は含まない。
