@@ -108,6 +108,22 @@ export function ExternalConnection({ agent }: { agent: string }) {
           )}
         </p>
       )}
+      {"authUrl" in info && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void openUrl(info.authUrl).catch(() => setError(info.authUrl))}
+          >
+            {t("公式の認証手順")}
+          </Button>
+          <p className="hint">
+            {t(
+              "ACPアダプター（@agentclientprotocol/claude-agent-acp）を導入し、Anthropic APIキーを環境変数ANTHROPIC_API_KEYで設定するか、Claude CodeのConsoleログインを使ってください。Macでは環境変数がアプリに渡らないため、Consoleログインを推奨します。Claudeのサブスクリプションでは利用できません。利用料はAnthropicから直接請求されます。",
+            )}
+          </p>
+        </>
+      )}
       <p className="hint">{t("ターミナルでのログイン: {{command}}", { command: info.login })}</p>
       <label htmlFor={`${id}-command`}>{t("CLIの実行ファイルまたはコマンド名")}</label>
       <Input

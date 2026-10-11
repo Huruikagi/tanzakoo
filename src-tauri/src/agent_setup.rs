@@ -275,13 +275,25 @@ pub async fn probe(
                     .send_request(NewSessionRequest::new(check_dir))
                     .block_task()
                     .await;
-                if session.is_ok() && agent == "claude" {
+                if session.is_ok() && (agent == "claude" || agent == "claude-api") {
                     // The adapter reads the CLI's auth state in the background.
                     if auth.lock().unwrap().is_none() {
                         let _ = tokio::time::timeout(Duration::from_secs(6), auth_seen.notified())
                             .await;
                     }
-                    *output.lock().unwrap() = claude_status(auth.lock().unwrap().as_ref());
+                    let auth = auth.lock().unwrap();
+                    *output.lock().unwrap() = if agent == "claude" {
+                        claude_status(auth.as_ref())
+                    } else {
+                        crate::external_agents::claude_api_status(auth.as_ref())
+                    };
+                    return Ok(());
+                }
+                if agent == "claude-api"
+                    && let Err(e) = &session
+                    && let Some(message) = crate::external_agents::claude_api_auth_error(e)
+                {
+                    *output.lock().unwrap() = result("authRequired", message, false);
                     return Ok(());
                 }
                 *output.lock().unwrap() = match session {

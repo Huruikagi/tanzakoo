@@ -24,7 +24,7 @@ fn external_distribution_gate_covers_launch_and_saved_configuration() {
         let config = AgentConfig {
             id: agent.into(),
             command: std::env::current_exe().unwrap().to_string_lossy().into(),
-            args: vec![],
+            args: external_agents::default_config(agent).args,
         };
         assert_eq!(
             store.set_agent(config.clone()).is_ok(),
@@ -211,6 +211,106 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
             2
         );
     }
+}
+
+#[cfg(not(feature = "app-sandbox"))]
+#[test]
+fn claude_api_accepts_only_non_subscription_credentials() {
+    let dir = directory();
+    let node = std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into());
+    let fixture =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/external-agent.mjs");
+    let config = |kind: &str| AgentConfig {
+        id: "claude-api".into(),
+        command: node.clone(),
+        args: vec![
+            fixture.to_string_lossy().into(),
+            dir.join(format!("{kind}.jsonl")).to_string_lossy().into(),
+            format!("--claude-auth={kind}"),
+            external_agents::CLAUDE_API_GUARD.into(),
+        ],
+    };
+    let mut unguarded = config("account");
+    unguarded.args.pop();
+    assert!(
+        Store::open(dir.join("unguarded.db"))
+            .unwrap()
+            .set_agent(unguarded)
+            .is_err()
+    );
+    for (kind, state, message) in [
+        ("api_key", "ready", "Anthropic APIキー"),
+        (
+            "account",
+            "authRequired",
+            "サブスクリプションでは利用できません",
+        ),
+        ("none", "authRequired", "認証が見つかりません"),
+    ] {
+        let data = dir.join(kind);
+        std::fs::create_dir_all(&data).unwrap();
+        Store::open(data.join("check.db"))
+            .unwrap()
+            .set_agent(config(kind))
+            .unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+            .args(["--connection-check", "claude-api", data.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let status: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(status["state"], state, "{kind}: {status}");
+        let text = status["message"].as_str().unwrap();
+        assert!(text.contains(message), "{kind}: {text}");
+        assert!(!text.contains("example.com"));
+        let trace = std::fs::read_to_string(dir.join(format!("{kind}.jsonl"))).unwrap();
+        assert!(!trace.contains("\"method\":\"authenticate\""));
+        assert!(!trace.contains("session/prompt"));
+    }
+}
+
+/// Real claude-agent-acp from the dev dependencies, with an empty Claude home and no
+/// API key: the subscription guard must refuse before any prompt.
+/// `cargo test --test external_agents -- --ignored real_claude_api`.
+#[cfg(not(feature = "app-sandbox"))]
+#[test]
+#[ignore = "starts the real Claude adapter"]
+fn real_claude_api_adapter_refuses_without_api_credentials() {
+    let dir = directory();
+    let adapter = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js");
+    Store::open(dir.join("check.db"))
+        .unwrap()
+        .set_agent(AgentConfig {
+            id: "claude-api".into(),
+            command: std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into()),
+            args: vec![
+                adapter.to_string_lossy().into(),
+                external_agents::CLAUDE_API_GUARD.into(),
+            ],
+        })
+        .unwrap();
+    let home = dir.join("claude-home");
+    std::fs::create_dir_all(&home).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+        .args(["--connection-check", "claude-api", dir.to_str().unwrap()])
+        .env("CLAUDE_CONFIG_DIR", &home)
+        .env_remove("ANTHROPIC_API_KEY")
+        .env_remove("ANTHROPIC_AUTH_TOKEN")
+        .output()
+        .unwrap();
+    let status: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(status["state"], "authRequired", "{status}");
+    assert!(
+        status["message"]
+            .as_str()
+            .unwrap()
+            .contains("認証が見つかりません")
+    );
 }
 
 #[cfg(all(windows, not(feature = "app-sandbox")))]
