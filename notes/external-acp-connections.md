@@ -39,6 +39,22 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 - 会話切り替え後に前の「応答を停止しました」が残る不具合を修正し、GUIと回帰テストで確認した。
 - `pnpm check`（140テスト）・`cargo test --locked`（127成功、実Claude接続1件ignored）・Clippy・Windowsパッケージ用Pythonテスト6件が成功した。
 
+### Antigravity公式ACPの追加検証（2026-10-11）
+
+利用者の「ACPで繋げられるか調べて、いけそうなら試して」に基づき、公式ACPサーバーを別worktreeで検証した。製品の接続候補への追加や同梱はまだ行っていない。
+
+- [Google公式Zed連携ガイド](https://www.antigravity.google/docs/ide/extensions/zed)はACPレジストリ経由の導入と個人Googleアカウント（無料枠を含む）を案内している。
+- [ACPレジストリ](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json)の`antigravity-acp` 1.3.0を使用。作者はGoogle LLC、ライセンスはproprietary。`agy`の起動フラグを推測する方式ではなく、Googleが配布する`agy_acp_server.exe`を引数なしで起動する。
+- Windows x64配布URL: `https://dl.google.com/agy-extensions/releases/windows/agy-acp-server-1.3.0-windows-x86_64.zip`。SHA-256: `65215e0688681fa3116e048a9eab27ef53af1bbd6f3da3f1c52bd4911d8b17f9`。同梱の`agy_acp_server.exe`と`localharness_external.exe`は両方ともGoogle LLCの有効なAuthenticode署名を確認した。
+- 配置先は`.local/antigravity-probe/server`。グローバルインストールやPATH変更、認証情報の読み取り・コピーはしていない。公式サーバーの`authenticate`に`oauth-personal`を指定し、利用者がブラウザでログインした。アカウントの契約プラン自体は未確認。
+- `initialize`（protocolVersion 1）、認証、`session/new`、`session/prompt`に成功し、`TANZAKOO_ACP_OK` / `end_turn`を受信した。モデル・モードの選択肢もACP応答に含まれる。試験は既定モデル`gemini-3.8-flash-high`・`default`モードで実施した。
+- 別プロセスで保存済み認証を再利用し、Tanzakooの実MCP（`tanzakoo.exe --mcp <検証用DB> antigravity`）をstdioで渡した。`get_board`と`create_candidate`が成功し、合成カード1枚をSQLiteで確認した。
+- さらにプロセスを再起動し、`session/load`で同じ会話を復元。`propose_card_change`でpending提案1件を作成できた。元カードの本文とrevision 1は保持された。モデルが必須引数不足で数回再試行したため、最終成功だけでなくこの挙動も記録する。
+- ツール権限要求の名前は`tanzakoo_get_board`等。最初の試験では検証クライアントが未知の名前として拒否し、操作されなかった。実際の名前を確認後、合成データに対する上記3ツールだけに`allow_once`を返して再試験した。`allow_always`や`yolo`は使っていない。
+- 記録は`.local/acp-probes/antigravity*-result.json`、合成DBは`.local/antigravity-probe/board.db`。検証後にサーバーと子プロセスの終了を確認した。
+
+これは独立した検証クライアントとTanzakoo MCPによる技術検証であり、Tanzakoo GUIへの組み込み、停止・選択質問・配布パッケージの検証は未実施。Googleの[追加利用規約](https://antigravity.google/terms)には第三者ソフトウェアでのサービス利用に関する制限も記載されており、公式ACP連携の動作成功だけを任意の製品への組み込み・再配布の許諾として扱わない。
+
 ### 残る確認
 
 - Geminiは同日、CLI 0.63.0でGoogleログインを再実行。ブラウザの完了後、ACP認証が個人向けクライアントのサポート終了エラーで拒否された。プロンプトは送信していない。[Googleの廃止告知](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)では、個人無料・Google AI Pro・UltraのGoogleログイン経路は2026-06-18に終了している。以前の認証ガイドに基づいた「個人Googleアカウントで利用可能」という案内は訂正する。対応する別の認証経路での会話・カード操作は未確認。Antigravityへの移行・有料API接続は別途判断が必要で、今回自動では実施していない。
