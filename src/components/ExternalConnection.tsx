@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 export function ExternalConnections() {
   const available = useWorkspace((s) => s.snapshot.externalAgentsAvailable);
   const project = useWorkspace((s) => s.snapshot.project.id);
-  const [agent, setAgent] = useState("gemini");
+  const [agent, setAgent] = useState<string>(externalAgents[0].id);
   useTranslation();
   if (!available) return null;
   return (
@@ -83,6 +83,31 @@ export function ExternalConnection({ agent }: { agent: string }) {
       >
         {t("公式の導入手順")}
       </Button>
+      {"serverUrl" in info && (
+        <div className="connection-actions">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void openUrl(info.serverUrl).catch(() => setError(info.serverUrl))}
+          >
+            {t("公式ACPサーバーの配布情報")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void openUrl(info.loginUrl).catch(() => setError(info.loginUrl))}
+          >
+            {t("公式CLIのログイン手順")}
+          </Button>
+        </div>
+      )}
+      {agent === "antigravity" && (
+        <p className="hint">
+          {t(
+            "公式ACPサーバーを導入し、Windowsはagy_acp_server.exe、Macはagy_acp_server.parの絶対パスを指定してください。通常のagyコマンドは接続先に使いません。同じOSユーザーで公式CLIにログイン後、接続を確認してください。",
+          )}
+        </p>
+      )}
       <p className="hint">{t("ターミナルでのログイン: {{command}}", { command: info.login })}</p>
       <label htmlFor={`${id}-command`}>{t("CLIの実行ファイルまたはコマンド名")}</label>
       <Input

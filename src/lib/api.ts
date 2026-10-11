@@ -33,7 +33,9 @@ export const agentLabel = (agent?: string) =>
     ? "Claude"
     : agent === "cursor"
       ? "Cursor CLI"
-      : (externalAgent(agent ?? "")?.name ?? "ChatGPT");
+      : agent === "gemini"
+        ? "Gemini CLI"
+        : (externalAgent(agent ?? "")?.name ?? "ChatGPT");
 export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
   (agent !== "codex" && !(snapshot.externalAgentsAvailable && externalAgent(agent))) ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);

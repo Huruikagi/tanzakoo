@@ -786,7 +786,7 @@ it("checks connectivity without sending a prompt and preserves a draft when sign
   expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
 });
 
-it.each(["claude", "cursor"])(
+it.each(["claude", "cursor", "gemini"])(
   "keeps excluded %s history read-only without starting a connection",
   async (agent) => {
     const user = userEvent.setup();
@@ -854,13 +854,16 @@ it("keeps legacy Claude history readable and starts new chats with ChatGPT", asy
   expect(api.connection).not.toHaveBeenCalled();
 });
 
-it("lets a new chat select an external CLI without losing its draft", async () => {
+it.each([
+  ["copilot", "GitHub Copilot CLI"],
+  ["antigravity", "Antigravity"],
+])("lets a new chat select %s without losing its draft", async (agent, label) => {
   const user = userEvent.setup();
   useWorkspace.setState({
     snapshot: {
       ...emptySnapshot,
       externalAgentsAvailable: true,
-      agents: [{ id: "copilot", command: "copilot", args: ["--acp", "--stdio"] }],
+      agents: [{ id: agent, command: agent, args: [] }],
     },
     planStatus: null,
   });
@@ -869,9 +872,11 @@ it("lets a new chat select an external CLI without losing its draft", async () =
   await user.type(input, "keep this draft");
   await user.click(screen.getByRole("combobox", { name: "会話の接続先" }));
   expect(screen.queryByRole("option", { name: "Cursor CLI" })).not.toBeInTheDocument();
-  await user.click(screen.getByRole("option", { name: "GitHub Copilot CLI" }));
+  expect(screen.queryByRole("option", { name: "Gemini CLI" })).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Antigravity" })).toBeInTheDocument();
+  await user.click(screen.getByRole("option", { name: label }));
   expect(input).toHaveValue("keep this draft");
-  expect(useWorkspace.getState().newChatAgent).toBe("copilot");
+  expect(useWorkspace.getState().newChatAgent).toBe(agent);
   expect(screen.getByText(/選択したCLIとその接続先へ渡します/)).toBeInTheDocument();
   expect(api.send).not.toHaveBeenCalled();
 });

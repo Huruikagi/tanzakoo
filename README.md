@@ -219,10 +219,14 @@ Tanzakoo自身のコードとドキュメントは [MIT License](LICENSE) で提
 
 ## インストール済みの外部CLI
 
-Mac App Store版以外では、設定 → AI接続 → インストール済みの外部CLIから、Gemini CLI / GitHub Copilot CLI / OpenCode / Cursor CLI / Devin CLIを設定できます。各CLIは利用者が公式手順でインストールし、ターミナルでログインしてください。TanzakooはCLIを自動インストールせず、外部CLIの認証情報を取得・保存しません。既存のChatGPT接続も引き続き利用できます。
+Mac App Store版以外では、設定 → AI接続 → インストール済みの外部CLIから、Antigravity / GitHub Copilot CLI / OpenCode / Devin CLIを設定できます。各CLIは利用者が公式手順でインストールし、ターミナルでログインしてください。TanzakooはCLIを自動インストールせず、外部CLIの認証情報を取得・保存しません。既存のChatGPT接続も引き続き利用できます。
 
 実行コマンドを保存し「接続を確認」を押してください。GUIアプリからPATHが見えない場合は実行ファイルの絶対パスを指定します。起動引数は文字列のJSON配列です。認証トークンやパスワードは引数に入力しないでください。新しい会話の接続先でCLIを選び、送信する内容への同意後に会話を開始します。接続確認はセッション作成までで、利用枠や実際の応答を保証しません。モデルはCLI側の既定値を利用し、ChatGPT用のモデル設定は渡しません。
 
 送信先・利用料金・保存期間は各CLIとその接続先の設定・条件に従います。CLI自身のツールや拡張機能も動作する場合があります。起動設定を変えると送信同意とそのCLIの保存済みACPセッションを解除しますが、会話履歴は残します。Microsoft Store版はMSIXでの実動作と審査を別途確認します。
+
+Antigravityは通常の対話CLIではなく、Google公式ACPサーバーへ接続します。[ACPレジストリの配布情報](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json)でOS・CPUに対応するGoogle配布のアーカイブを選び、同梱ファイル一式を同じ場所へ展開してください。Windowsは`agy_acp_server.exe`、Macは`agy_acp_server.par`の絶対パスを設定し、引数は`[]`とします。Tanzakooは自動取得・更新・再配布しません。[公式CLIの手順](https://www.antigravity.google/docs/cli/install/)に従い、同じOSユーザーで`agy`を起動してログインします。公式拡張機能・CLI・デスクトップ間の共通認証を利用し、Tanzakooから認証情報は読み取りません。未認証・期限切れ時も公式側でログインし直してから「接続を確認」してください。
+
+Gemini CLIとCursorは接続候補から除外しています。保存済みの会話は閲覧でき、別の接続への自動移行・送信は行いません。
 
 実CLIの確認結果と未確認範囲は [外部ACP接続の検証記録](notes/external-acp-connections.md) を参照してください。

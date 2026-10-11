@@ -1,9 +1,12 @@
 export const externalAgents = [
   {
-    id: "gemini",
-    name: "Gemini CLI",
-    url: "https://geminicli.com/docs/get-started/installation/",
-    login: "gemini",
+    id: "antigravity",
+    name: "Antigravity",
+    url: "https://www.antigravity.google/docs/ide/extensions/zed",
+    login: "agy",
+    serverUrl:
+      "https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json",
+    loginUrl: "https://www.antigravity.google/docs/cli/install/",
   },
   {
     id: "copilot",

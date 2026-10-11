@@ -1,6 +1,6 @@
 # インストール済み外部ACP CLIへの接続
 
-2026-10-11実装。Mac App Store版以外（Microsoft Store候補を含む）で、利用者が導入・ログイン済みのCLIを選んで会話する。Mac App Store版はChatGPTサインインのみ。同日の利用者判断でCursorは接続候補から除外し、既存の試験用会話は閲覧だけを維持する。
+2026-10-11実装。Mac App Store版以外（Microsoft Store候補を含む）で、利用者が導入・ログイン済みのCLIを選んで会話する。Mac App Store版はChatGPTサインインのみ。同日の利用者判断でGemini CLI・Cursorは接続候補から除外し、Antigravityを追加した。除外した接続の既存会話は閲覧だけを維持する。
 
 ## 接続の境界
 
@@ -41,7 +41,7 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 
 ### Antigravity公式ACPの追加検証（2026-10-11）
 
-利用者の「ACPで繋げられるか調べて、いけそうなら試して」に基づき、公式ACPサーバーを別worktreeで検証した。製品の接続候補への追加や同梱はまだ行っていない。
+利用者の「ACPで繋げられるか調べて、いけそうなら試して」に基づき、公式ACPサーバーを別worktreeで検証した。この時点では製品の接続候補への追加や同梱は行わず、後続の組み込みは次節に記録する。
 
 - [Google公式Zed連携ガイド](https://www.antigravity.google/docs/ide/extensions/zed)はACPレジストリ経由の導入と個人Googleアカウント（無料枠を含む）を案内している。
 - [ACPレジストリ](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json)の`antigravity-acp` 1.3.0を使用。作者はGoogle LLC、ライセンスはproprietary。`agy`の起動フラグを推測する方式ではなく、Googleが配布する`agy_acp_server.exe`を引数なしで起動する。
@@ -55,9 +55,22 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 
 これは独立した検証クライアントとTanzakoo MCPによる技術検証であり、Tanzakoo GUIへの組み込み、停止・選択質問・配布パッケージの検証は未実施。Googleの[追加利用規約](https://antigravity.google/terms)には第三者ソフトウェアでのサービス利用に関する制限も記載されており、公式ACP連携の動作成功だけを任意の製品への組み込み・再配布の許諾として扱わない。
 
+### Gemini除外・Antigravity組み込み（2026-10-11）
+
+利用者の「GeminiアウトのAntigravityインで進められるだけ進めよう」に基づき、設定画面・新しい会話・バックエンドの接続候補を置き換えた。標準のChatGPT接続、Mac App Store版の外部CLI禁止、自動導入・認証情報コピーを行わない方針は維持する。公式サーバーは既存の外部実行経路から起動し、新たな依存関係や同梱バイナリは追加しない。
+
+- Windowsの既定コマンドは`agy_acp_server.exe`、Macは`agy_acp_server.par`。引数は空で、通常の`agy`や`--acp`を指定しない。Linuxの既定引数はレジストリの`--uid=`に合わせるが、Linuxの製品サポートを追加するものではない。
+- 導入は公式ACPレジストリに記載されたGoogle配布のアーカイブ一式を利用者が展開し、実行ファイルの絶対パスを設定する。[公式のログイン手順](https://www.antigravity.google/docs/cli/install/)では`agy`起動時に認証する。[共通認証の説明](https://www.antigravity.google/docs/ide/extensions/)に従い、同じOSユーザーの公式CLI・拡張機能側で認証済みの状態を使用する。アプリの接続確認から`authenticate`・`logout`を送ったり、トークンを読んだりしない。
+- Geminiの保存済み会話は「Gemini CLI」と表示したまま閲覧専用にする。保存済み設定・同意があっても設定更新・新規会話・起動は拒否する。Antigravityへの設定・同意・履歴の自動移行は行わない。
+- 利用条件について追加調査し、[Google AI Developers Forumの2026-09-16回答](https://discuss.ai.google.dev/t/clarification-request-is-local-ipc-pty-wrapping-of-agy-cli-for-open-standard-editor-bridges-e-g-acp-tos-compliant/175905/2)を確認した。この回答は、公式の未改変バイナリを利用者自身の認証で単一ユーザーの子プロセスとして動かし、トークンの抽出・保存・転送をしない方式について適合すると説明し、公式ACPサーバーへの直接接続を案内している。今回の構成はこの説明に沿う。回答はTanzakoo固有の認定やバイナリ再配布許可ではなく、追加利用規約そのものを置き換えるものでもない。
+- 変更後の`pnpm check`は144テスト・lint・整形・型検査・ビルド成功。`cargo test --locked --test external_agents --test agent_connection`は8件成功・実Claude接続1件ignored、Clippy成功。偽CLIによるアプリ本体テストで、Antigravityの新規・復元セッションに現在の会話・発言に対応するstdio MCPが渡り、認証要求やChatGPT認証の上書きをしないことを確認した。UIでは選択・下書き保持、Geminiの閲覧専用化、Mac Store版での選択不可を確認した。
+- 実装後のWindows debugバイナリでも`--connection-check antigravity`がreadyとなり、`--smoke`と別プロセスの`--smoke-resume`で短い確認文への応答・同じ会話への保存に成功した。以前の公式ACP認証を再利用し、今回は認証操作をしていない。データは`.local/antigravity-integration`だけに分離し、シェルプロセスのPATHに検証用公式サーバーのディレクトリを追加した（OSのPATH設定は未変更）。既存のユーザープロジェクトは使用していない。
+- カード作成・変更提案は前節の公式サーバー＋実MCP試験、アプリ側MCP配線は今回の回帰テストで確認した。Antigravityの実GUIでの承認・選択質問・停止操作は今回再検証していない。
+- リリース、公開、配布物の作り直し、Mac実機・ストア検証は利用者の意向により後回しとする。
+
 ### 残る確認
 
-- Geminiは同日、CLI 0.63.0でGoogleログインを再実行。ブラウザの完了後、ACP認証が個人向けクライアントのサポート終了エラーで拒否された。プロンプトは送信していない。[Googleの廃止告知](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)では、個人無料・Google AI Pro・UltraのGoogleログイン経路は2026-06-18に終了している。以前の認証ガイドに基づいた「個人Googleアカウントで利用可能」という案内は訂正する。対応する別の認証経路での会話・カード操作は未確認。Antigravityへの移行・有料API接続は別途判断が必要で、今回自動では実施していない。
+- Geminiは同日、CLI 0.63.0でGoogleログインを再実行。ブラウザの完了後、ACP認証が個人向けクライアントのサポート終了エラーで拒否された。プロンプトは送信していない。[Googleの廃止告知](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)では、個人無料・Google AI Pro・UltraのGoogleログイン経路は2026-06-18に終了している。以前の認証ガイドに基づいた「個人Googleアカウントで利用可能」という案内は訂正する。対応する別の認証経路での会話・カード操作は未確認。後続の利用者判断でGeminiは候補から外し、Antigravityを追加した。Geminiの別認証経路や有料API接続の検証は今回は行わない。
 - Cursorは今回は採用しない。上表は除外前の調査履歴であり、現在の提供対象ではない。
 - Cursor除外後の`pnpm check`は141テスト成功。Rustの接続・外部CLI統合テスト8件（実Claude接続1件ignored）とClippyも成功。既存Cursor設定の保存・新規会話・起動を拒否し、保存済み会話は閲覧のみを維持する。
 - OpenCodeはローカルOllamaで会話できたが、検証中の`gemma3:4b`設定は`tool_call: false`。ツール対応モデルを設定した上でカード操作を確認する必要がある。

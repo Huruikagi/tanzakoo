@@ -3,7 +3,7 @@ use crate::model::AgentConfig;
 use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
 use std::path::{Path, PathBuf};
 
-pub const IDS: &[&str] = &["gemini", "copilot", "opencode", "devin"];
+pub const IDS: &[&str] = &["antigravity", "copilot", "opencode", "devin"];
 pub const DISABLED: &str = "この配布版では外部CLI接続を利用できません。";
 
 pub fn available() -> bool {
@@ -23,7 +23,9 @@ pub fn ensure_available(id: &str) -> Result<(), String> {
 
 pub fn default_config(id: &str) -> AgentConfig {
     let (command, args): (&str, &[&str]) = match id {
-        "gemini" => ("gemini", &["--acp"]),
+        "antigravity" if cfg!(windows) => ("agy_acp_server.exe", &[]),
+        "antigravity" if cfg!(target_os = "linux") => ("agy_acp_server.par", &["--uid="]),
+        "antigravity" => ("agy_acp_server.par", &[]),
         "copilot" => ("copilot", &["--acp", "--stdio", "--disable-builtin-mcps"]),
         "opencode" => ("opencode", &["acp"]),
         "devin" => ("devin", &["acp"]),
@@ -192,6 +194,7 @@ mod tests {
         }
         assert!(ensure_available("claude").is_err());
         assert!(ensure_available("cursor").is_err());
+        assert!(ensure_available("gemini").is_err());
         assert!(ensure_available("unknown").is_err());
         assert!(resolve_command("./missing-agent").is_err());
     }
