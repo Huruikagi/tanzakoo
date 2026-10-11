@@ -1,6 +1,6 @@
 # インストール済み外部ACP CLIへの接続
 
-2026-10-11実装。Mac App Store版以外（Microsoft Store候補を含む）で、利用者が導入・ログイン済みのCLIを選んで会話する。Mac App Store版はChatGPTサインインのみ。
+2026-10-11実装。Mac App Store版以外（Microsoft Store候補を含む）で、利用者が導入・ログイン済みのCLIを選んで会話する。Mac App Store版はChatGPTサインインのみ。同日の利用者判断でCursorは接続候補から除外し、既存の試験用会話は閲覧だけを維持する。
 
 ## 接続の境界
 
@@ -23,7 +23,7 @@ Tanzakooのコンパイル済みバイナリの診断経路（`--connection-chec
 | GitHub Copilot CLI | 1.0.95             | 既存の認証で接続・応答・カード作成・提案承認・再開後の選択質問が成功。Windowsの`.cmd`ラッパー経由。契約プランは未確認 |
 | OpenCode           | 1.19.0             | ローカルOllamaの`gemma3:4b`を指定し、接続・応答成功                                                                   |
 | Devin CLI          | 3000.11.3          | 以前にFreeとしてログインした既存アカウントで接続・応答・カード作成・提案承認・再起動後の再開・停止が成功              |
-| Gemini CLI         | 0.63.0             | 認証が必要との応答を確認。ログイン後の会話は未確認                                                                    |
+| Gemini CLI         | 0.63.0             | Googleログイン再実行後、個人向けクライアントのサポート終了エラー。プロンプト送信なし                                  |
 | Cursor CLI         | 2026.10.01-e373342 | 認証が必要との応答を確認。終了時の子プロセス残留はWindows Job Objectで解消                                            |
 
 ## 自動検証と未確認範囲
@@ -41,7 +41,9 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 
 ### 残る確認
 
-- Gemini/Cursorは利用者によるCLIログイン後の実会話・カード操作が必要。
+- Geminiは同日、CLI 0.63.0でGoogleログインを再実行。ブラウザの完了後、ACP認証が個人向けクライアントのサポート終了エラーで拒否された。プロンプトは送信していない。[Googleの廃止告知](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)では、個人無料・Google AI Pro・UltraのGoogleログイン経路は2026-06-18に終了している。以前の認証ガイドに基づいた「個人Googleアカウントで利用可能」という案内は訂正する。対応する別の認証経路での会話・カード操作は未確認。Antigravityへの移行・有料API接続は別途判断が必要で、今回自動では実施していない。
+- Cursorは今回は採用しない。上表は除外前の調査履歴であり、現在の提供対象ではない。
+- Cursor除外後の`pnpm check`は141テスト成功。Rustの接続・外部CLI統合テスト8件（実Claude接続1件ignored）とClippyも成功。既存Cursor設定の保存・新規会話・起動を拒否し、保存済み会話は閲覧のみを維持する。
 - OpenCodeはローカルOllamaで会話できたが、検証中の`gemma3:4b`設定は`tool_call: false`。ツール対応モデルを設定した上でカード操作を確認する必要がある。
 - Mac実機での直接配布版とMac App Store版の確認は未実施。Windows上での`app-sandbox`機能フラグ検証だけでは代替できない。
 - WindowsのMSIX作成と展開payloadの起動は確認できるが、インストール済みMSIXからの外部CLI実行・WACK・ストア審査は別途必要。検証用パッケージの記録は[Windows配布検証](windows-store/external-cli-validation-20261011.md)を参照する。

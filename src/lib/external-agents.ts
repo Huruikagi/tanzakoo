@@ -17,12 +17,6 @@ export const externalAgents = [
     url: "https://opencode.ai/docs/",
     login: "opencode auth login",
   },
-  {
-    id: "cursor",
-    name: "Cursor CLI",
-    url: "https://cursor.com/docs/cli/installation",
-    login: "agent login",
-  },
   { id: "devin", name: "Devin CLI", url: "https://docs.devin.ai/", login: "devin auth login" },
 ] as const;
 export const externalAgent = (id: string) => externalAgents.find((a) => a.id === id);

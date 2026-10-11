@@ -786,29 +786,39 @@ it("checks connectivity without sending a prompt and preserves a draft when sign
   expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
 });
 
-it("shows Claude as not provided without starting a check, sign-in or send", async () => {
-  const user = userEvent.setup();
-  const conversation = { id: "c", title: "old", agent: "claude", sessionId: null, createdAt: 1 };
-  useWorkspace.setState({
-    conversation: "c",
-    snapshot: {
-      ...emptySnapshot,
-      consents: ["claude"],
-      conversations: [conversation],
-      agents: [{ id: "claude", command: "@tanzakoo/claude-unavailable", args: [] }],
-    },
-  });
-  render(<Chat />);
-  expect(screen.getByText(/この会話は閲覧のみです/)).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "接続を確認" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /サインイン/ })).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "履歴は読める");
-  expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
-  await user.keyboard("{Control>}{Enter}{/Control}");
-  expect(api.send).not.toHaveBeenCalled();
-  expect(api.connection).not.toHaveBeenCalled();
-  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("履歴は読める");
-});
+it.each(["claude", "cursor"])(
+  "keeps excluded %s history read-only without starting a connection",
+  async (agent) => {
+    const user = userEvent.setup();
+    const conversation = { id: "c", title: "old", agent, sessionId: null, createdAt: 1 };
+    useWorkspace.setState({
+      conversation: "c",
+      snapshot: {
+        ...emptySnapshot,
+        externalAgentsAvailable: true,
+        consents: [agent],
+        conversations: [conversation],
+        agents: [
+          {
+            id: agent,
+            command: agent === "claude" ? "@tanzakoo/claude-unavailable" : "agent",
+            args: [],
+          },
+        ],
+      },
+    });
+    render(<Chat />);
+    expect(screen.getByText(/この会話は閲覧のみです/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "接続を確認" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /サインイン/ })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("エージェントへのメッセージ"), "履歴は読める");
+    expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.connection).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("履歴は読める");
+  },
+);
 
 it("keeps legacy Claude history readable and starts new chats with ChatGPT", async () => {
   const user = userEvent.setup();
@@ -858,6 +868,7 @@ it("lets a new chat select an external CLI without losing its draft", async () =
   const input = screen.getByRole("textbox", { name: "エージェントへのメッセージ" });
   await user.type(input, "keep this draft");
   await user.click(screen.getByRole("combobox", { name: "会話の接続先" }));
+  expect(screen.queryByRole("option", { name: "Cursor CLI" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("option", { name: "GitHub Copilot CLI" }));
   expect(input).toHaveValue("keep this draft");
   expect(useWorkspace.getState().newChatAgent).toBe("copilot");

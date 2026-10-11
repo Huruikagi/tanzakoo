@@ -29,7 +29,11 @@ export const native = isTauri();
 export const CLAUDE_UNAVAILABLE = "@tanzakoo/claude-unavailable";
 /** Keep the stored engine id while showing the user's connection in the UI. */
 export const agentLabel = (agent?: string) =>
-  agent === "claude" ? "Claude" : (externalAgent(agent ?? "")?.name ?? "ChatGPT");
+  agent === "claude"
+    ? "Claude"
+    : agent === "cursor"
+      ? "Cursor CLI"
+      : (externalAgent(agent ?? "")?.name ?? "ChatGPT");
 export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
   (agent !== "codex" && !(snapshot.externalAgentsAvailable && externalAgent(agent))) ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);

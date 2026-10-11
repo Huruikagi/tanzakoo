@@ -3,7 +3,7 @@ use crate::model::AgentConfig;
 use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
 use std::path::{Path, PathBuf};
 
-pub const IDS: &[&str] = &["gemini", "copilot", "opencode", "cursor", "devin"];
+pub const IDS: &[&str] = &["gemini", "copilot", "opencode", "devin"];
 pub const DISABLED: &str = "この配布版では外部CLI接続を利用できません。";
 
 pub fn available() -> bool {
@@ -26,7 +26,6 @@ pub fn default_config(id: &str) -> AgentConfig {
         "gemini" => ("gemini", &["--acp"]),
         "copilot" => ("copilot", &["--acp", "--stdio", "--disable-builtin-mcps"]),
         "opencode" => ("opencode", &["acp"]),
-        "cursor" => ("agent", &["acp"]),
         "devin" => ("devin", &["acp"]),
         _ => ("", &[]),
     };
@@ -192,6 +191,7 @@ mod tests {
             assert_eq!(validate(&default_config(id)).is_ok(), available());
         }
         assert!(ensure_available("claude").is_err());
+        assert!(ensure_available("cursor").is_err());
         assert!(ensure_available("unknown").is_err());
         assert!(resolve_command("./missing-agent").is_err());
     }

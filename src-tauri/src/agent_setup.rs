@@ -119,6 +119,9 @@ pub fn launch_with_review(
         // Preserve the CLI's own environment/home. Never inject app-owned credentials.
         return crate::external_agents::launch(config, store);
     }
+    if !["codex", "claude"].contains(&config.id.as_str()) {
+        return Err(crate::external_agents::DISABLED.into());
+    }
     if cfg!(feature = "app-sandbox") && config.command != MANAGED && review_model.is_none() {
         return Err(crate::external_agents::DISABLED.into());
     }

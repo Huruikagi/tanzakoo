@@ -38,6 +38,14 @@ fn external_distribution_gate_covers_launch_and_saved_configuration() {
         external_agents::available()
     );
     assert!(agent_setup::launch_with_review(config, &store, Some("review-model")).is_err());
+    let removed = AgentConfig {
+        id: "cursor".into(),
+        command: std::env::current_exe().unwrap().to_string_lossy().into(),
+        args: vec![],
+    };
+    assert!(store.set_agent(removed.clone()).is_err());
+    assert!(store.create_conversation("cursor").is_err());
+    assert!(agent_setup::launch(removed, &store).is_err());
     if !external_agents::available() {
         let output = Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
             .args(["--external-acp", "copilot"])
