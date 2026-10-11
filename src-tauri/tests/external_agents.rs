@@ -1,7 +1,11 @@
 use std::{path::PathBuf, process::Command};
 #[cfg(not(feature = "app-sandbox"))]
 use tanzakoo_lib::projects::Projects;
-use tanzakoo_lib::{agent_setup, external_agents, model::AgentConfig, store::Store};
+use tanzakoo_lib::{
+    agent_setup, external_agents,
+    model::{AgentConfig, ChatSettings},
+    store::Store,
+};
 
 fn directory() -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -211,6 +215,176 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
             2
         );
     }
+}
+
+#[cfg(not(feature = "app-sandbox"))]
+#[test]
+fn external_model_and_effort_follow_the_cli_pickers() {
+    let dir = directory();
+    let trace = dir.join("trace.jsonl");
+    let config = AgentConfig {
+        id: "devin".into(),
+        command: std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into()),
+        args: vec![
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/external-agent.mjs")
+                .to_string_lossy()
+                .into(),
+            trace.to_string_lossy().into(),
+            "--config-options".into(),
+        ],
+    };
+    Store::open(dir.join("check.db"))
+        .unwrap()
+        .set_agent(config.clone())
+        .unwrap();
+    let store = Store::open(dir.join("smoke.db")).unwrap();
+    store.set_agent(config.clone()).unwrap();
+    store
+        .create_card("PRIVATE_BOARD_CONTENT".into(), "test only".into(), "user")
+        .unwrap();
+    let app = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let path = dir.to_str().unwrap();
+    // Discovery reports the pickers by role, whatever the CLI calls them.
+    for (model, efforts) in [
+        (None, Some(vec!["low", "medium", "high"])),
+        (Some("sonnet"), Some(vec!["low", "high"])),
+        (Some("haiku"), None),
+    ] {
+        let mut args = vec!["--chat-options", "devin", path];
+        args.extend(model);
+        let output = app(&args);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let values: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let ids: Vec<_> = values
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| o["id"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids[0], "model");
+        assert_eq!(values[0]["currentValue"], model.unwrap_or("opus"));
+        assert_eq!(values[0]["options"][1]["name"], "SONNET");
+        let found = values
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|o| o["id"] == "reasoning_effort")
+            .map(|o| {
+                o["options"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v["value"].as_str().unwrap().to_owned())
+                    .collect::<Vec<_>>()
+            });
+        assert_eq!(
+            found,
+            efforts.map(|e| e.iter().map(|v| v.to_string()).collect())
+        );
+        assert!(!ids.contains(&"mode"));
+    }
+    let discovery = std::fs::read_to_string(&trace).unwrap();
+    assert!(!discovery.contains("PRIVATE_BOARD_CONTENT"));
+    assert!(!discovery.contains("session/prompt"));
+    assert!(!discovery.contains("\"name\":\"tanzakoo\""));
+    assert!(
+        !app(&["--chat-options", "devin", path, "unknown"])
+            .status
+            .success()
+    );
+
+    let requests = |from: usize| -> Vec<serde_json::Value> {
+        std::fs::read_to_string(&trace)
+            .unwrap()
+            .lines()
+            .skip(from)
+            .map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap())
+            .filter(|l| l.get("method").is_some())
+            .collect()
+    };
+    let lines = || std::fs::read_to_string(&trace).unwrap().lines().count();
+    let methods = |requests: &[serde_json::Value]| -> Vec<String> {
+        requests
+            .iter()
+            .map(|r| r["method"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    let settings = |model: &str, effort: Option<&str>| ChatSettings {
+        model: Some(model.into()),
+        reasoning_effort: effort.map(Into::into),
+    };
+    let smoke = |mode: &str| app(&[mode, "devin", path, "Reply only EXTERNAL_ACP_OK"]);
+
+    // The model is applied before effort, using the CLI's own ids.
+    store
+        .set_chat_settings("devin", settings("sonnet", Some("high")))
+        .unwrap();
+    let start = lines();
+    assert!(smoke("--smoke").status.success());
+    let turn = requests(start);
+    assert_eq!(
+        methods(&turn),
+        [
+            "initialize",
+            "session/new",
+            "session/set_config_option",
+            "session/set_config_option",
+            "session/prompt"
+        ]
+    );
+    assert_eq!(turn[2]["params"]["configId"], "model");
+    assert_eq!(turn[2]["params"]["value"], "sonnet");
+    assert_eq!(turn[3]["params"]["configId"], "effort");
+    assert_eq!(turn[3]["params"]["value"], "high");
+
+    // Selections the restored session already uses are not sent again.
+    store
+        .set_chat_settings("devin", settings("opus", Some("medium")))
+        .unwrap();
+    let start = lines();
+    assert!(smoke("--smoke-resume").status.success());
+    assert_eq!(
+        methods(&requests(start)),
+        ["initialize", "session/load", "session/prompt"]
+    );
+
+    // An effort the chosen model does not offer stops before the prompt.
+    store
+        .set_chat_settings("devin", settings("sonnet", Some("medium")))
+        .unwrap();
+    let start = lines();
+    let refused = smoke("--smoke-resume");
+    assert!(!refused.status.success());
+    let stderr = String::from_utf8_lossy(&refused.stderr);
+    assert!(
+        stderr.contains("チャット設定を確認してください"),
+        "{stderr}"
+    );
+    assert!(!methods(&requests(start)).contains(&"session/prompt".to_string()));
+
+    // Settings belong to one CLI and are dropped when its launch changes.
+    let snapshot = store.snapshot().unwrap();
+    assert_eq!(snapshot.chat_settings, ChatSettings::default());
+    assert_eq!(snapshot.external_chat_settings.len(), 1);
+    assert!(
+        store
+            .set_chat_settings("gemini", settings("x", None))
+            .is_err()
+    );
+    let mut changed = config.clone();
+    changed.args.push("--verbose".into());
+    store.set_agent(changed).unwrap();
+    assert!(store.snapshot().unwrap().external_chat_settings.is_empty());
 }
 
 #[cfg(not(feature = "app-sandbox"))]

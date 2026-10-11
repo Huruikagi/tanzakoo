@@ -53,6 +53,7 @@ export const emptySnapshot: Snapshot = {
   questions: [],
   agents: [],
   chatSettings: { model: null, reasoningEffort: null },
+  externalChatSettings: {},
   consents: [],
 };
 export const api = {
@@ -109,8 +110,8 @@ export const api = {
   connection: (projectId: string, agent: string, action: "check" | "login" | "logout") =>
     invoke<ConnectionStatus>("agent_connection", { projectId, agent, action }),
   cancel: () => invoke<void>("cancel_prompt"),
-  chatOptions: (projectId: string, model: string | null) =>
-    invoke<ChatOption[]>("chat_options", { projectId, model }),
+  chatOptions: (projectId: string, agent: string, model: string | null) =>
+    invoke<ChatOption[]>("chat_options", { projectId, agent, model }),
   permission: (id: string, option: string | null) =>
     invoke<void>("answer_permission", { id, option }),
   subscribe: (handler: (event: AgentEvent) => void) =>

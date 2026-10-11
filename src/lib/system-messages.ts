@@ -35,6 +35,10 @@ export const systemMessages = {
     ja: "モデル一覧を取得できませんでした。Codexの接続とサインインを確認してください: {{detail}}",
     en: "Could not load models. Check the Codex connection and sign-in status: {{detail}}",
   },
+  external_model_options: {
+    ja: "モデル一覧を取得できませんでした。CLIの起動設定と認証を確認してください: {{detail}}",
+    en: "Could not load models. Check the CLI launch settings and authentication: {{detail}}",
+  },
   agent_connection: {
     ja: "エージェント接続に失敗しました: {{detail}}. ログインと起動設定を確認してください。",
     en: "Agent connection failed: {{detail}}. Check sign-in and launch settings.",

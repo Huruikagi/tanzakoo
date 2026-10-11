@@ -21,8 +21,11 @@ import {
 import { api, native } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import type { ChatOption } from "@/bindings/ChatOption";
+import type { ChatSettings as Settings } from "@/bindings/ChatSettings";
+import type { Snapshot } from "@/bindings/Snapshot";
 
 const effortNames: Record<string, string> = {
+  default: "既定",
   none: "なし",
   minimal: "最小",
   low: "低",
@@ -33,9 +36,12 @@ const effortNames: Record<string, string> = {
   ultra: "Ultra",
 };
 
-function ChatSettingsForm() {
+const savedSettings = (snapshot: Snapshot, agent: string): Settings | undefined =>
+  agent === "codex" ? snapshot.chatSettings : snapshot.externalChatSettings?.[agent];
+
+function ChatSettingsForm({ agent }: { agent: string }) {
   useTranslation();
-  const saved = useWorkspace((s) => s.snapshot.chatSettings);
+  const saved = useWorkspace((s) => savedSettings(s.snapshot, agent));
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
   const [options, setOptions] = useState<ChatOption[] | null>(null);
@@ -56,7 +62,7 @@ function ChatSettingsForm() {
     setError("");
     setMessage("");
     try {
-      const result = await useWorkspace.getState().loadChatOptions(nextModel);
+      const result = await useWorkspace.getState().loadChatOptions(agent, nextModel);
       const nextModels = result.find((o) => o.id === "model");
       const nextEfforts = result.find((o) => o.id === "reasoning_effort");
       setOptions(result);
@@ -78,6 +84,7 @@ function ChatSettingsForm() {
     setMessage("");
     const result = await useWorkspace.getState().act({
       type: "configureChat",
+      agent,
       settings: { model, reasoningEffort: efforts ? effort : null },
     });
     setSaving(false);
@@ -127,7 +134,9 @@ function ChatSettingsForm() {
         )}
       </div>
       <p className="hint muted">
-        {t("ChatGPTプランで利用できるモデルを取得します。会話やボードの内容は送信しません。")}
+        {agent === "codex"
+          ? t("ChatGPTプランで利用できるモデルを取得します。会話やボードの内容は送信しません。")
+          : t("CLIを起動して、選べるモデルを取得します。会話やボードの内容は送信しません。")}
       </p>
       {models && (
         <>
@@ -187,15 +196,15 @@ function ChatSettingsForm() {
   );
 }
 
-export function ChatSettings() {
+export function ChatSettings({ agent = "codex" }: { agent?: string }) {
   useTranslation();
-  const reviewAccess = useWorkspace((s) => s.reviewAccess);
+  const reviewAccess = useWorkspace((s) => (agent === "codex" ? s.reviewAccess : null));
   const accountId = useWorkspace((s) => s.planStatus?.active?.id);
   const snapshot = useWorkspace((s) => s.snapshot);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
-  const config = snapshot.agents.find((a) => a.id === "codex");
-  const settings = snapshot.chatSettings;
+  const config = snapshot.agents.find((a) => a.id === agent);
+  const settings = savedSettings(snapshot, agent);
   return (
     <Dialog
       onOpenChange={(open) => {
@@ -228,7 +237,9 @@ export function ChatSettings() {
           <DialogDescription>
             {reviewAccess
               ? t("審査用コードに指定されたモデルで接続します。")
-              : t("このプロジェクトのすべてのAI会話に、次の送信から反映します。")}
+              : agent === "codex"
+                ? t("このプロジェクトのすべてのAI会話に、次の送信から反映します。")
+                : t("このプロジェクトでこのCLIを使う会話に、次の送信から反映します。")}
           </DialogDescription>
         </DialogHeader>
         {reviewAccess ? (
@@ -238,7 +249,10 @@ export function ChatSettings() {
             })}
           </p>
         ) : (
-          <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config, accountId])} />
+          <ChatSettingsForm
+            agent={agent}
+            key={JSON.stringify([snapshot.project.id, agent, config, accountId])}
+          />
         )}
       </DialogContent>
     </Dialog>

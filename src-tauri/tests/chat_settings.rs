@@ -106,7 +106,7 @@ async fn settings_persist_and_apply_before_new_and_resumed_turns() {
             model: Some(model.into()),
             reasoning_effort: Some(effort.into()),
         };
-        store.set_chat_settings(settings.clone()).unwrap();
+        store.set_chat_settings("codex", settings.clone()).unwrap();
         let reopened = Store::open(store.path()).unwrap();
         assert_eq!(reopened.snapshot().unwrap().chat_settings, settings);
         store
@@ -226,10 +226,13 @@ async fn prompt_language_reaches_new_and_resumed_sessions_and_can_change_each_tu
 async fn unsupported_settings_stop_the_turn_before_sending_a_prompt() {
     let (store, dir) = fixture(false);
     store
-        .set_chat_settings(ChatSettings {
-            model: Some("model-b".into()),
-            reasoning_effort: Some("high".into()),
-        })
+        .set_chat_settings(
+            "codex",
+            ChatSettings {
+                model: Some("model-b".into()),
+                reasoning_effort: Some("high".into()),
+            },
+        )
         .unwrap();
     let conversation = store.create_conversation("codex").unwrap();
     store

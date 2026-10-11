@@ -83,12 +83,12 @@ export const createConnectionSlice: WorkspaceSlice<
       set({ busy: null, activity: "" });
     }
   },
-  loadChatOptions: async (model) => {
+  loadChatOptions: async (agent, model) => {
     if (get().busy || get().switching) throw new Error(t("処理が終わってから設定してください。"));
     const projectId = get().snapshot.project.id;
     set({ busy: { kind: "settings" }, activity: t("モデルの選択肢を確認しています…") });
     try {
-      return await api.chatOptions(projectId, model);
+      return await api.chatOptions(projectId, agent, model);
     } finally {
       set({ busy: null, activity: "" });
     }

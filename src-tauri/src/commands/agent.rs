@@ -226,6 +226,7 @@ pub(crate) async fn review_connection(
 #[tauri::command]
 pub(crate) async fn chat_options(
     project_id: String,
+    agent: Option<String>,
     model: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ChatOption>, String> {
@@ -234,6 +235,13 @@ pub(crate) async fn chat_options(
         guard: _guard,
         cancel,
     } = state.begin_project_operation(&project_id, |_, _| Ok(()))?;
+    if let Some(agent) = agent.filter(|a| a != "codex") {
+        crate::external_agents::ensure_available(&agent)?;
+        if state.runtime.review_session()?.is_some() {
+            return Err("先に審査用接続を解除してください。".into());
+        }
+        return crate::chat_settings::discover_external(store, &agent, model, cancel).await;
+    }
     if let Some(access) = state.runtime.review_session()? {
         return Ok(vec![ChatOption {
             id: "model".into(),

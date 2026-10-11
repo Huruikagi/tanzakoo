@@ -254,6 +254,9 @@ pub struct Snapshot {
     pub questions: Vec<ChoiceQuestion>,
     pub agents: Vec<AgentConfig>,
     pub chat_settings: ChatSettings,
+    /// Model and effort chosen for each external CLI, keyed by agent id.
+    #[serde(default)]
+    pub external_chat_settings: std::collections::BTreeMap<String, ChatSettings>,
     /// Agents the user has agreed to send project content to. App-wide, not per project.
     pub consents: Vec<String>,
 }
@@ -317,6 +320,8 @@ pub enum BoardAction {
         config: AgentConfig,
     },
     ConfigureChat {
+        /// `codex`, or an external CLI id.
+        agent: String,
         settings: ChatSettings,
     },
 }

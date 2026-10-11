@@ -40,12 +40,15 @@ pub(crate) async fn board_action(
                     .set_agent(config)
                     .and_then(|_| projects.set_consent(&agent, false))
             }
-            BoardAction::ConfigureChat { settings } => {
+            BoardAction::ConfigureChat { agent, settings } => {
                 runtime.ensure_idle()?;
-                if runtime.review_session()?.is_some() {
+                if agent == "codex" && runtime.review_session()?.is_some() {
                     return Err("審査用接続では指定されたモデルを使います。".into());
                 }
-                store.set_chat_settings(settings)
+                if agent != "codex" {
+                    crate::external_agents::ensure_available(&agent)?;
+                }
+                store.set_chat_settings(&agent, settings)
             }
         };
         result.map_err(|e| e.system_message())

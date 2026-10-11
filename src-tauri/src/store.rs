@@ -103,6 +103,17 @@ fn list<T: DeserializeOwned>(db: &Connection, kind: &str) -> Result<Vec<T>> {
     let rows = statement.query_map([kind], |r| r.get::<_, String>(0))?;
     rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
 }
+fn keyed<T: DeserializeOwned>(db: &Connection, kind: &str) -> Result<Vec<(String, T)>> {
+    let mut statement = db.prepare("SELECT id,data FROM records WHERE kind=?1 ORDER BY rowid")?;
+    let rows = statement.query_map([kind], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+    })?;
+    rows.map(|row| {
+        let (id, data) = row?;
+        Ok((id, serde_json::from_str(&data)?))
+    })
+    .collect()
+}
 fn id(db: &Connection) -> Result<String> {
     Ok(db.query_row("SELECT lower(hex(randomblob(16)))", [], |r| r.get(0))?)
 }
@@ -137,6 +148,8 @@ impl Store {
     pub fn snapshot(&self) -> Result<Snapshot> {
         let mut db = self.connect()?;
         let tx = db.transaction()?;
+        let mut chat_settings: std::collections::BTreeMap<String, ChatSettings> =
+            keyed(&tx, "chatSettings")?.into_iter().collect();
         let snapshot = Snapshot {
             external_agents_available: crate::external_agents::available(),
             project: get(&tx, "project", "current")?,
@@ -150,7 +163,11 @@ impl Store {
             discussions: list(&tx, "discussion")?,
             questions: list(&tx, "question")?,
             agents: list(&tx, "agent")?,
-            chat_settings: list(&tx, "chatSettings")?.pop().unwrap_or_default(),
+            chat_settings: chat_settings.remove("codex").unwrap_or_default(),
+            external_chat_settings: chat_settings
+                .into_iter()
+                .filter(|(id, _)| crate::external_agents::is_external(id))
+                .collect(),
             consents: vec![],
         };
         tx.commit()?;
@@ -180,13 +197,21 @@ impl Store {
                         put(&tx, "conversation", &conversation.id, &conversation)?;
                     }
                 }
+                // Another CLI may name its models differently.
+                tx.execute(
+                    "DELETE FROM records WHERE kind='chatSettings' AND id=?1",
+                    [&config.id],
+                )?;
             }
         }
         put(&tx, "agent", &config.id, &config)?;
         tx.commit()?;
         Ok(())
     }
-    pub fn set_chat_settings(&self, settings: ChatSettings) -> Result<()> {
+    pub fn set_chat_settings(&self, agent: &str, settings: ChatSettings) -> Result<()> {
+        if agent != "codex" && !crate::external_agents::is_external(agent) {
+            return Err(invalid("接続先が不正です。"));
+        }
         if [&settings.model, &settings.reasoning_effort]
             .into_iter()
             .flatten()
@@ -196,6 +221,6 @@ impl Store {
                 "モデルと推論強度は1〜200バイトで指定してください。",
             ));
         }
-        put(&self.connect()?, "chatSettings", "codex", &settings)
+        put(&self.connect()?, "chatSettings", agent, &settings)
     }
 }

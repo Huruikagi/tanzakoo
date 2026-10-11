@@ -31,6 +31,28 @@ const claudeRefusal =
         ...(claudeAuth === "account" && { data: { reason: "claude_subscription_not_supported" } }),
       }
     : undefined;
+// `--config-options` mimics claude-agent-acp's pickers: ids differ from Codex,
+// categories identify them, and the effort choices depend on the model.
+const pickers = process.argv.includes("--config-options");
+let model = "opus";
+let effort = "medium";
+const efforts = () => ({ opus: ["low", "medium", "high"], sonnet: ["low", "high"] })[model];
+const select = (id, category, currentValue, values) => ({
+  id,
+  name: id,
+  category,
+  type: "select",
+  currentValue,
+  options: values.map((value) => ({ value, name: value.toUpperCase() })),
+});
+const configOptions = () =>
+  pickers
+    ? [
+        select("mode", "mode", "default", ["default", "plan"]),
+        select("model", "model", model, ["opus", "sonnet", "haiku"]),
+        ...(efforts() ? [select("effort", "thought_level", effort, efforts())] : []),
+      ]
+    : undefined;
 createInterface({ input: process.stdin }).on("line", (line) => {
   const request = JSON.parse(line);
   appendFileSync(trace, line + "\n");
@@ -45,7 +67,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         send({ id: request.id, error: claudeRefusal });
         return;
       }
-      result = { sessionId: "external-session" };
+      result = { sessionId: "external-session", configOptions: configOptions() };
       if (claudeAuth) {
         send({ id: request.id, result });
         send({
@@ -56,8 +78,22 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       break;
     case "session/load":
-      result = {};
+      result = { configOptions: configOptions() };
       break;
+    case "session/set_config_option": {
+      const { configId, value } = request.params;
+      const option = configOptions()?.find((o) => o.id === configId);
+      if (!option?.options.some((o) => o.value === value)) {
+        send({ id: request.id, error: { code: -32602, message: "Unsupported selection" } });
+        return;
+      }
+      if (configId === "model") {
+        model = value;
+        if (!efforts()?.includes(effort)) effort = efforts()?.[0];
+      } else if (configId === "effort") effort = value;
+      result = { configOptions: configOptions() };
+      break;
+    }
     case "session/prompt":
       send({
         method: "session/update",

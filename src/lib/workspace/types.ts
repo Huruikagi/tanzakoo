@@ -56,7 +56,7 @@ export type Workspace = {
   connections: Record<string, Connection>;
   setConsent: (agent: string, granted: boolean) => Promise<void>;
   connect: (agent: string, action: "check" | "login" | "logout") => Promise<void>;
-  loadChatOptions: (model: string | null) => Promise<ChatOption[]>;
+  loadChatOptions: (agent: string, model: string | null) => Promise<ChatOption[]>;
   snapshot: Snapshot;
   loaded: boolean;
   switching: boolean;

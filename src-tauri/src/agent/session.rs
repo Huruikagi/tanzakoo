@@ -12,6 +12,8 @@ use std::{
 pub(super) struct PreparedSession {
     pub(super) id: SessionId,
     pub(super) restoring: bool,
+    /// Pickers the agent reported for this session, used to apply chat settings.
+    pub(super) config_options: Vec<SessionConfigOption>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -58,15 +60,16 @@ pub(super) async fn prepare(
         }
     });
     let restoring = saved_session.is_some() && initialized.agent_capabilities.load_session;
-    let session_id = if let Some(saved) =
+    let (session_id, config_options) = if let Some(saved) =
         saved_session.filter(|_| initialized.agent_capabilities.load_session)
     {
         replaying.store(true, Ordering::SeqCst);
-        cx.send_request(LoadSessionRequest::new(saved.clone(), workspace).mcp_servers(mcp))
+        let response = cx
+            .send_request(LoadSessionRequest::new(saved.clone(), workspace).mcp_servers(mcp))
             .block_task()
             .await?;
         replaying.store(false, Ordering::SeqCst);
-        SessionId::new(saved)
+        (SessionId::new(saved), response.config_options)
     } else {
         let response = cx
             .send_request(NewSessionRequest::new(workspace).mcp_servers(mcp))
@@ -82,10 +85,11 @@ pub(super) async fn prepare(
                 },
             )
             .map_err(|e| agent_client_protocol::Error::internal_error().data(e.to_string()))?;
-        response.session_id
+        (response.session_id, response.config_options)
     };
     Ok(PreparedSession {
         id: session_id,
         restoring,
+        config_options: config_options.unwrap_or_default(),
     })
 }

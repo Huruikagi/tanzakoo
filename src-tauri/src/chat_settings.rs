@@ -10,37 +10,64 @@ use std::{
 };
 use tokio::sync::oneshot;
 
-fn options(values: Vec<SessionConfigOption>) -> Vec<ChatOption> {
+/// The UI role of a picker. ACP names the standard pickers by category; the
+/// bundled Codex adapter predates categories, so its ids are recognized too.
+fn role(option: &SessionConfigOption) -> Option<&'static str> {
+    match &option.category {
+        Some(SessionConfigOptionCategory::Model) => Some("model"),
+        Some(SessionConfigOptionCategory::ThoughtLevel) => Some("reasoning_effort"),
+        _ => match option.id.to_string().as_str() {
+            "model" => Some("model"),
+            "reasoning_effort" => Some("reasoning_effort"),
+            _ => None,
+        },
+    }
+}
+
+fn find<'a>(values: &'a [SessionConfigOption], id: &str) -> Option<&'a SessionConfigOption> {
     values
-        .into_iter()
-        .filter_map(|option| {
-            let id = option.id.to_string();
-            if !["model", "reasoning_effort"].contains(&id.as_str()) {
-                return None;
+        .iter()
+        .find(|o| role(o) == Some(id) && matches!(o.kind, SessionConfigKind::Select(_)))
+}
+
+/// Pickers keyed by role, keeping the first option an agent offers for each.
+fn options(values: Vec<SessionConfigOption>) -> Vec<ChatOption> {
+    let mut result: Vec<ChatOption> = Vec::new();
+    for option in values {
+        let Some(id) = role(&option) else {
+            continue;
+        };
+        let SessionConfigKind::Select(select) = option.kind else {
+            continue;
+        };
+        if result.iter().any(|o| o.id == id) {
+            continue;
+        }
+        let choices = match select.options {
+            SessionConfigSelectOptions::Ungrouped(values) => values,
+            SessionConfigSelectOptions::Grouped(groups) => {
+                groups.into_iter().flat_map(|g| g.options).collect()
             }
-            let SessionConfigKind::Select(select) = option.kind else {
-                return None;
-            };
-            let choices = match select.options {
-                SessionConfigSelectOptions::Ungrouped(values) => values,
-                SessionConfigSelectOptions::Grouped(groups) => {
-                    groups.into_iter().flat_map(|g| g.options).collect()
-                }
-                _ => return None,
-            };
-            Some(ChatOption {
-                id,
-                current_value: select.current_value.to_string(),
-                options: choices
-                    .into_iter()
-                    .map(|v| ChatOptionValue {
-                        value: v.value.to_string(),
-                        name: v.name,
-                    })
-                    .collect(),
-            })
-        })
-        .collect()
+            _ => continue,
+        };
+        result.push(ChatOption {
+            id: id.into(),
+            current_value: select.current_value.to_string(),
+            options: choices
+                .into_iter()
+                .map(|v| ChatOptionValue {
+                    value: v.value.to_string(),
+                    name: v.name,
+                })
+                .collect(),
+        });
+    }
+    result
+}
+
+fn not_applied() -> agent_client_protocol::Error {
+    agent_client_protocol::Error::invalid_params()
+        .data("モデル・推論強度を適用できませんでした。チャット設定を確認してください。")
 }
 
 pub async fn apply(
@@ -66,10 +93,52 @@ pub async fn apply(
                 .iter()
                 .any(|o| o.id == id && o.current_value == *value)
             {
-                return Err(agent_client_protocol::Error::invalid_params().data(
-                    "モデル・推論強度を適用できませんでした。チャット設定を確認してください。",
-                ));
+                return Err(not_applied());
             }
+        }
+    }
+    Ok(())
+}
+
+/// External CLIs name their pickers freely, so resolve ids from the session's
+/// current options. Selections already in effect are not sent again.
+pub async fn apply_external(
+    cx: &ConnectionTo<Agent>,
+    session_id: &SessionId,
+    settings: &ChatSettings,
+    mut available: Vec<SessionConfigOption>,
+) -> Result<(), agent_client_protocol::Error> {
+    // Changing the model can change the supported effort values. Apply effort second.
+    for (id, value) in [
+        ("model", &settings.model),
+        ("reasoning_effort", &settings.reasoning_effort),
+    ] {
+        let Some(value) = value else {
+            continue;
+        };
+        let current = |values: &[SessionConfigOption]| {
+            options(values.to_vec()).into_iter().find(|o| o.id == id)
+        };
+        let picker = current(&available).ok_or_else(not_applied)?;
+        if picker.current_value == *value {
+            continue;
+        }
+        // A saved choice the current model no longer offers needs the user to choose again.
+        if !picker.options.iter().any(|o| o.value == *value) {
+            return Err(not_applied());
+        }
+        let config_id = find(&available, id).ok_or_else(not_applied)?.id.clone();
+        available = cx
+            .send_request(SetSessionConfigOptionRequest::new(
+                session_id.clone(),
+                config_id,
+                value.as_str(),
+            ))
+            .block_task()
+            .await?
+            .config_options;
+        if current(&available).is_none_or(|o| o.current_value != *value) {
+            return Err(not_applied());
         }
     }
     Ok(())
@@ -88,7 +157,27 @@ pub async fn discover(
         .find(|a| a.id == "codex")
         .unwrap_or_else(agent_setup::managed_config);
     let launch = agent_setup::launch(config, &store)?;
-    discover_with_launch(store, launch, model, None, cancel).await
+    discover_with_launch(store, launch, "codex", model, None, cancel).await
+}
+
+/// Reads the pickers of a user-installed CLI. Like Codex discovery, this starts a
+/// session without MCP servers or project content and never sends a prompt.
+pub async fn discover_external(
+    store: Store,
+    agent: &str,
+    model: Option<String>,
+    cancel: oneshot::Receiver<()>,
+) -> Result<Vec<ChatOption>, String> {
+    crate::external_agents::ensure_available(agent)?;
+    let config = store
+        .snapshot()
+        .map_err(|e| e.system_message())?
+        .agents
+        .into_iter()
+        .find(|a| a.id == agent)
+        .unwrap_or_else(|| crate::external_agents::default_config(agent));
+    let launch = agent_setup::launch(config, &store)?;
+    discover_with_launch(store, launch, agent, model, None, cancel).await
 }
 
 pub async fn discover_plan(
@@ -102,12 +191,13 @@ pub async fn discover_plan(
     let selected = model.filter(|m| access.models.iter().any(|o| o.value == *m));
     let model = access.model(selected.as_deref())?;
     let launch = agent_setup::launch_with_plan(&store, account, &model)?;
-    discover_with_launch(store, launch, Some(model), Some(access), cancel).await
+    discover_with_launch(store, launch, "codex", Some(model), Some(access), cancel).await
 }
 
 async fn discover_with_launch(
     store: Store,
     launch: AcpAgentConfig,
+    agent: &str,
     model: Option<String>,
     plan: Option<chatgpt_plan::PlanAccess>,
     mut cancel: oneshot::Receiver<()>,
@@ -138,11 +228,16 @@ async fn discover_with_launch(
                 .send_request(NewSessionRequest::new(directory))
                 .block_task()
                 .await?;
+            let available = session.config_options.unwrap_or_default();
             let mut values = if let Some(model) = model {
+                let id = find(&available, "model")
+                    .ok_or_else(agent_client_protocol::Error::invalid_params)?
+                    .id
+                    .clone();
                 let response = cx
                     .send_request(SetSessionConfigOptionRequest::new(
                         session.session_id,
-                        "model",
+                        id,
                         model.as_str(),
                     ))
                     .block_task()
@@ -156,7 +251,7 @@ async fn discover_with_launch(
                 }
                 values
             } else {
-                options(session.config_options.unwrap_or_default())
+                options(available)
             };
             if let Some(access) = plan {
                 // ACP may expose cached models unavailable to this account. Keep
@@ -177,6 +272,17 @@ async fn discover_with_launch(
             response.map_err(|_| "モデル一覧の取得がタイムアウトしました。")?.map_err(|e| if is_plan {
                 // Credentials passed through ACP must never enter UI diagnostics.
                 chatgpt_plan::message("runtime")
+            } else if let Some(message) = (agent == "claude-api")
+                .then(|| crate::external_agents::claude_api_auth_error(&e))
+                .flatten()
+            {
+                message.into()
+            } else if crate::external_agents::is_external(agent) {
+                crate::system_message::detail(
+                    crate::system_message::Code::ExternalModelOptions,
+                    &e.to_string(),
+                    &format!("モデル一覧を取得できませんでした。CLIの起動設定と認証を確認してください: {e}"),
+                )
             } else { crate::system_message::detail(
                 crate::system_message::Code::ModelOptions,
                 &e.to_string(),
@@ -233,6 +339,7 @@ mod tests {
             let values = discover_with_launch(
                 store.clone(),
                 launch,
+                "codex",
                 Some(model.into()),
                 Some(access),
                 cancel,

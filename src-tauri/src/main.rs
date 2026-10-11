@@ -46,6 +46,29 @@ fn main() {
             eprintln!("{error}");
             std::process::exit(1);
         }
+    } else if args.get(1).map(String::as_str) == Some("--chat-options") {
+        let agent = args.get(2).expect("agent").clone();
+        let path = std::path::PathBuf::from(args.get(3).expect("test data directory"));
+        std::fs::create_dir_all(&path).expect("test directory");
+        let store = tanzakoo_lib::store::Store::open(path.join("check.db")).expect("test database");
+        let runtime = std::sync::Arc::new(tanzakoo_lib::agent::AgentRuntime::default());
+        let (guard, cancel) = runtime.begin().unwrap();
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(
+            tanzakoo_lib::chat_settings::discover_external(
+                store,
+                &agent,
+                args.get(4).cloned(),
+                cancel,
+            ),
+        );
+        drop(guard);
+        match result {
+            Ok(values) => println!("{}", serde_json::to_string(&values).unwrap()),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
     } else if args.get(1).map(String::as_str) == Some("--connection-check") {
         let agent = args.get(2).expect("agent").clone();
         let path = std::path::PathBuf::from(args.get(3).expect("test data directory"));

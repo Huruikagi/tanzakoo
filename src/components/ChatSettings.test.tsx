@@ -57,16 +57,27 @@ beforeEach(() => {
       warning: null,
     },
   });
-  vi.mocked(api.chatOptions).mockImplementation(async (_, model) => choices(model ?? undefined));
+  vi.mocked(api.chatOptions).mockImplementation(async (_, __, model) =>
+    choices(model ?? undefined),
+  );
   vi.mocked(api.action).mockImplementation(async (action) => ({
     ...useWorkspace.getState().snapshot,
-    ...(action.type === "configureChat" ? { chatSettings: action.settings } : {}),
+    ...(action.type === "configureChat"
+      ? action.agent === "codex"
+        ? { chatSettings: action.settings }
+        : {
+            externalChatSettings: {
+              ...useWorkspace.getState().snapshot.externalChatSettings,
+              [action.agent]: action.settings,
+            },
+          }
+      : {}),
   }));
 });
 
-async function open() {
+async function open(agent?: string) {
   const user = userEvent.setup();
-  render(<ChatSettings />);
+  render(<ChatSettings agent={agent} />);
   await user.click(screen.getByRole("button", { name: "モデル・推論強度の設定" }));
   return user;
 }
@@ -75,17 +86,21 @@ it("loads on request, refreshes effort choices after changing model, and saves f
   const user = await open();
   expect(api.chatOptions).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "選択肢を取得" }));
-  expect(api.chatOptions).toHaveBeenCalledWith("project-a", null);
+  expect(api.chatOptions).toHaveBeenCalledWith("project-a", "codex", null);
   const model = screen.getByRole("combobox", { name: "モデル" });
   fireEvent.keyDown(model, { key: "ArrowDown" });
   await user.click(await screen.findByRole("option", { name: "Model B" }));
-  expect(api.chatOptions).toHaveBeenLastCalledWith("project-a", "model-b");
+  expect(api.chatOptions).toHaveBeenLastCalledWith("project-a", "codex", "model-b");
   await waitFor(() =>
     expect(screen.getByRole("combobox", { name: "推論強度" })).toHaveTextContent("低"),
   );
   await user.click(screen.getByRole("button", { name: "チャット設定を保存" }));
   expect(api.action).toHaveBeenCalledWith(
-    { type: "configureChat", settings: { model: "model-b", reasoningEffort: "low" } },
+    {
+      type: "configureChat",
+      agent: "codex",
+      settings: { model: "model-b", reasoningEffort: "low" },
+    },
     "project-a",
   );
   expect(await screen.findByText("保存しました。次の送信から反映します。")).toBeVisible();
@@ -119,7 +134,11 @@ it("saves a supported plan effort and shows it in the current settings", async (
   await user.click(await screen.findByRole("option", { name: "高" }));
   await user.click(screen.getByRole("button", { name: "チャット設定を保存" }));
   expect(api.action).toHaveBeenCalledWith(
-    { type: "configureChat", settings: { model: "model-a", reasoningEffort: "high" } },
+    {
+      type: "configureChat",
+      agent: "codex",
+      settings: { model: "model-a", reasoningEffort: "high" },
+    },
     "project-a",
   );
   expect(await screen.findByText("現在の設定: model-a · 高")).toBeVisible();
@@ -129,7 +148,7 @@ it("clears a previous effort when the selected model has no advertised choices",
   useWorkspace.setState((s) => ({
     snapshot: { ...s.snapshot, chatSettings: { model: "model-a", reasoningEffort: "high" } },
   }));
-  vi.mocked(api.chatOptions).mockImplementation(async (_, model) =>
+  vi.mocked(api.chatOptions).mockImplementation(async (_, __, model) =>
     model === "model-b" ? choices(model).filter((o) => o.id === "model") : choices(),
   );
   const user = await open();
@@ -142,7 +161,11 @@ it("clears a previous effort when the selected model has no advertised choices",
   expect(screen.queryByRole("combobox", { name: "推論強度" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "チャット設定を保存" }));
   expect(api.action).toHaveBeenCalledWith(
-    { type: "configureChat", settings: { model: "model-b", reasoningEffort: null } },
+    {
+      type: "configureChat",
+      agent: "codex",
+      settings: { model: "model-b", reasoningEffort: null },
+    },
     "project-a",
   );
 });
@@ -161,4 +184,54 @@ it("keeps saved values on save failure and disables entry during a response", as
   await user.keyboard("{Escape}");
   act(() => useWorkspace.setState({ busy: { kind: "chat", conversation: "c" } }));
   expect(screen.getByRole("button", { name: "モデル・推論強度の設定" })).toBeDisabled();
+});
+
+it("chooses an external CLI's model and effort separately from the ChatGPT settings", async () => {
+  useWorkspace.setState((s) => ({
+    reviewAccess: { model: "review-model" } as never,
+    snapshot: {
+      ...s.snapshot,
+      externalAgentsAvailable: true,
+      chatSettings: { model: "model-a", reasoningEffort: "high" },
+    },
+  }));
+  vi.mocked(api.chatOptions).mockImplementation(async (_, __, model) => [
+    {
+      id: "model",
+      currentValue: model ?? "opus",
+      options: [
+        { value: "default", name: "Default (recommended)" },
+        { value: "opus", name: "Opus" },
+        { value: "sonnet", name: "Sonnet" },
+      ],
+    },
+    {
+      id: "reasoning_effort",
+      currentValue: "medium",
+      options: ["default", "low", "medium", "max"].map((value) => ({ value, name: value })),
+    },
+  ]);
+  const user = await open("claude-api");
+  expect(
+    screen.getByText("このプロジェクトでこのCLIを使う会話に、次の送信から反映します。"),
+  ).toBeVisible();
+  expect(screen.getByText("現在の設定: 接続先の既定値 · 会話の既定の推論強度")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "選択肢を取得" }));
+  expect(api.chatOptions).toHaveBeenCalledWith("project-a", "claude-api", null);
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "モデル" }), { key: "ArrowDown" });
+  await user.click(await screen.findByRole("option", { name: "Sonnet" }));
+  expect(api.chatOptions).toHaveBeenLastCalledWith("project-a", "claude-api", "sonnet");
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "推論強度" }), { key: "ArrowDown" });
+  await user.click(await screen.findByRole("option", { name: "既定" }));
+  await user.click(screen.getByRole("button", { name: "チャット設定を保存" }));
+  expect(api.action).toHaveBeenCalledWith(
+    {
+      type: "configureChat",
+      agent: "claude-api",
+      settings: { model: "sonnet", reasoningEffort: "default" },
+    },
+    "project-a",
+  );
+  expect(await screen.findByText("現在の設定: sonnet · 既定")).toBeVisible();
+  expect(useWorkspace.getState().snapshot.chatSettings.model).toBe("model-a");
 });

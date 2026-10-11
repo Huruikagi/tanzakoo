@@ -41,7 +41,7 @@ export const ChatComposer = memo(function ChatComposer({
   );
   return (
     <div className="composer-area">
-      {selectedAgent === "codex" && <ChatSettings />}
+      {!unavailable && <ChatSettings agent={selectedAgent} />}
       {usingPlan && (
         <div className="hint muted">
           {planSignedIn ? t("ChatGPTプランを使用中") : t("ChatGPTプランへの再サインインが必要です")}

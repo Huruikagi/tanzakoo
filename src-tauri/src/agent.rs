@@ -238,6 +238,11 @@ pub async fn run(
     let is_review = review.is_some();
     let is_plan = plan_account.is_some();
     let is_claude_api = conversation.agent == "claude-api";
+    let external_settings = snapshot
+        .external_chat_settings
+        .get(&conversation.agent)
+        .filter(|_| crate::external_agents::is_external(&conversation.agent))
+        .cloned();
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
@@ -295,6 +300,14 @@ pub async fn run(
                         &cx,
                         &session_id,
                         settings.as_ref().unwrap_or(&snapshot.chat_settings),
+                    )
+                    .await?;
+                } else if let Some(settings) = &external_settings {
+                    crate::chat_settings::apply_external(
+                        &cx,
+                        &session_id,
+                        settings,
+                        prepared.config_options,
                     )
                     .await?;
                 }

@@ -13,6 +13,7 @@ pub enum Code {
     ExportWrite,
     ExportPartial,
     ModelOptions,
+    ExternalModelOptions,
     AgentConnection,
     ProjectCleanup,
 }

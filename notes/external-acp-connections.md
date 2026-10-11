@@ -98,6 +98,17 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 - 2026-10-12：Windowsでnpmグローバル導入したアダプターが「接続処理が完了しませんでした」で失敗した。npmは`.cmd`と同じ場所に拡張子なしの`#!/bin/sh`シムも作り、名前解決が先にそれを選んでCreateProcessに拒否されていた。Windowsでは`.exe`・`.cmd`・`.bat`だけを候補にし、拡張子なしの絶対パスもこれらを補うよう修正した。npm配布のCopilot CLI・OpenCodeなど名前だけで指定する全外部CLIに共通する。修正後、miseのNode配下にある実アダプター0.89.1を`.cmd`経由で起動し、`--connection-check claude-api`が未認証の`authRequired`となることを確認した（修正前は同条件でerror）。0.89.1はAPIキーなしでも`session/new`に成功し、`_auth/status_update`の`kind: none`で未認証を伝える。
 - 実APIキーでの会話・カード作成・提案承認、利用者のサブスクリプションログイン状態での拒否、Mac実機は未確認。
 
+### モデル・推論強度の選択（2026-10-12）
+
+外部CLIでも、ChatGPT接続と同じダイアログでモデル・推論強度を選べるようにした。新たな依存関係は追加していない。
+
+- ACPの`session/new`が返す`configOptions`のうち、カテゴリーが`model`・`thought_level`の選択肢を使う。カテゴリーのない同梱Codexは、従来どおりID（`model`・`reasoning_effort`）で判定する。claude-agent-acp 0.89.1のIDは`model`・`effort`。モード・fast・エージェント選択は扱わない。
+- 選択肢の取得では、CLIを起動して作業用フォルダーでセッションを作るだけで、MCP・プロジェクト内容・プロンプトは送らない。
+- 設定はプロジェクトごと・CLIごとに保存し、ChatGPT接続の設定とは別にする。CLIの起動コマンド・引数を変えると、そのCLIの設定を消す。
+- 送信前に、新規・復元セッションの`configOptions`から実際のIDを調べ、モデル、推論強度の順に`session/set_config_option`で適用する。適用済みの値は送らない。モデルが提供しない値が保存されていれば、プロンプトを送る前に止めて、チャット設定の確認を求める。
+- アダプターのソースでは、モデル・推論強度の変更はセッション単位で、利用者のClaude設定ファイルには書き込まない。
+- 確認：`pnpm check`（Vitest 151件）・`cargo test --locked`・Clippy・`cargo fmt --check`・`test:plan`・`test:review`が成功した。Claude風の偽CLIで、取得時にプロンプトを送らないこと、実際のIDでの適用順、適用済みの値の省略、未提供値での停止、起動設定の変更時の削除を確認した。実アダプター0.89.1（APIキー認証済み）で`--chat-options claude-api`がモデル5件・推論強度6件を返し、モデル指定後も現在値が切り替わることを確認した。実APIでの会話送信（課金が発生）とGUIでの操作は未確認。
+
 ### 残る確認
 
 - Geminiは同日、CLI 0.63.0でGoogleログインを再実行。ブラウザの完了後、ACP認証が個人向けクライアントのサポート終了エラーで拒否された。プロンプトは送信していない。[Googleの廃止告知](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)では、個人無料・Google AI Pro・UltraのGoogleログイン経路は2026-06-18に終了している。以前の認証ガイドに基づいた「個人Googleアカウントで利用可能」という案内は訂正する。対応する別の認証経路での会話・カード操作は未確認。後続の利用者判断でGeminiは候補から外し、Antigravityを追加した。Geminiの別認証経路や有料API接続の検証は今回は行わない。
