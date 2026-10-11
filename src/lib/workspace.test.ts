@@ -298,15 +298,27 @@ describe("chat lifecycle", () => {
     expect(useWorkspace.getState().references).toEqual(references);
     expect(useWorkspace.getState().busy).toBeNull();
   });
-  it("clears references on every conversation selection without losing content drafts", () => {
+  it("clears references and previous errors on conversation selection without losing drafts", () => {
     useWorkspace.getState().draft(card.id, { title: card.title, body: "編集中", revision: 1 });
     for (const id of ["history", null]) {
+      useWorkspace.setState({ chatError: "Response stopped." });
       useWorkspace.getState().attach(card);
       useWorkspace.getState().selectConversation(id);
       expect(useWorkspace.getState().conversation).toBe(id);
       expect(useWorkspace.getState().references).toEqual([]);
+      expect(useWorkspace.getState().chatError).toBeNull();
       expect(useWorkspace.getState().drafts[card.id].body).toBe("編集中");
     }
+  });
+  it("clears a previous connection error when choosing another external CLI", () => {
+    useWorkspace.setState({
+      snapshot: { ...emptySnapshot, externalAgentsAvailable: true },
+      newChatAgent: "devin",
+      chatError: "Response stopped.",
+    });
+    useWorkspace.getState().setNewChatAgent("copilot");
+    expect(useWorkspace.getState().newChatAgent).toBe("copilot");
+    expect(useWorkspace.getState().chatError).toBeNull();
   });
   it("creates one conversation on double submit and sends explicit references", async () => {
     const conversation = { id: "c1", title: "new", agent: "codex", sessionId: null, createdAt: 1 };

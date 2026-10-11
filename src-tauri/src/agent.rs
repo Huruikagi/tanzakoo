@@ -199,7 +199,7 @@ pub async fn run(
         .ok_or("現在のユーザー発言が見つかりません。")?
         .id
         .clone();
-    let config = snapshot
+    let mut config = snapshot
         .agents
         .iter()
         .find(|a| a.id == conversation.agent)
@@ -211,7 +211,8 @@ pub async fn run(
         .ok_or("保存先が不正です。")?
         .join("agent-workspace");
     std::fs::create_dir_all(&workspace).map_err(|e| e.to_string())?;
-    let mcp = McpServer::Stdio(
+    let mcp = crate::external_agents::session_mcp(
+        &mut config,
         McpServerStdio::new("tanzakoo", crate::agent_setup::mcp_binary()?).args(vec![
             "--mcp".into(),
             store.path().to_string_lossy().into(),

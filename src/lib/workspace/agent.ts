@@ -52,7 +52,8 @@ export const createAgentSlice: WorkspaceSlice<
 > = (set, get) => ({
   newChatAgent: "codex",
   setNewChatAgent: (agent) => {
-    if (!get().busy && !agentUnavailable(get().snapshot, agent)) set({ newChatAgent: agent });
+    if (!get().busy && !agentUnavailable(get().snapshot, agent))
+      set({ newChatAgent: agent, chatError: null });
   },
   reviewAccess: null,
   reviewError: null,
@@ -129,7 +130,7 @@ export const createAgentSlice: WorkspaceSlice<
   stream: "",
   activity: "",
   permissions: [],
-  selectConversation: (conversation) => set({ conversation, references: [] }),
+  selectConversation: (conversation) => set({ conversation, references: [], chatError: null }),
   newConversation: async (agent) => {
     const snapshot = await get().act({ type: "newConversation", agent });
     const id = snapshot?.conversations.at(-1)?.id ?? null;

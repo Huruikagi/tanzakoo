@@ -1,5 +1,6 @@
 //! Optional, user-installed ACP executables. Credentials and installation stay with the CLI.
 use crate::model::AgentConfig;
+use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
 use std::path::{Path, PathBuf};
 
 pub const IDS: &[&str] = &["gemini", "copilot", "opencode", "cursor", "devin"];
@@ -51,6 +52,31 @@ pub fn validate(config: &AgentConfig) -> Result<(), String> {
         return Err("起動設定が不正です。".into());
     }
     Ok(())
+}
+
+/// Copilot rejects stdio servers supplied by ACP clients, but accepts its official
+/// session-only CLI configuration. Rebuild it each turn so restored conversations
+/// bind questions and discussion activity to the current message. Never edit the CLI's settings
+/// or add permission overrides. Connection probes do not call this function.
+pub fn session_mcp(config: &mut AgentConfig, mcp: McpServerStdio) -> Vec<McpServer> {
+    if config.id != "copilot" {
+        return vec![McpServer::Stdio(mcp)];
+    }
+    config.args.extend([
+        "--additional-mcp-config".into(),
+        serde_json::json!({
+            "mcpServers": {
+                mcp.name: {
+                    "type": "local",
+                    "command": mcp.command,
+                    "args": mcp.args,
+                    "tools": ["*"],
+                }
+            }
+        })
+        .to_string(),
+    ]);
+    vec![]
 }
 
 /// Resolve without a shell or login-shell evaluation; absolute paths work for GUI launches too.
@@ -168,5 +194,49 @@ mod tests {
         assert!(ensure_available("claude").is_err());
         assert!(ensure_available("unknown").is_err());
         assert!(resolve_command("./missing-agent").is_err());
+    }
+
+    #[test]
+    fn copilot_mcp_is_turn_scoped_and_preserves_permission_flags() {
+        let original = AgentConfig {
+            id: "copilot".into(),
+            command: "copilot".into(),
+            args: vec!["--acp".into(), "--deny-tool".into(), "shell".into()],
+        };
+        for message in ["first", "second"] {
+            let mut config = original.clone();
+            let command = std::path::PathBuf::from("C:/Test space/日本語/tanzakoo.exe");
+            let args = vec![
+                "--mcp".into(),
+                "test.db".into(),
+                "copilot".into(),
+                "chat".into(),
+                message.into(),
+            ];
+            let servers = session_mcp(
+                &mut config,
+                McpServerStdio::new("tanzakoo", &command).args(args.clone()),
+            );
+            assert!(servers.is_empty());
+            assert_eq!(&config.args[..3], &original.args);
+            assert_eq!(config.args[3], "--additional-mcp-config");
+            let injected: serde_json::Value = serde_json::from_str(&config.args[4]).unwrap();
+            assert_eq!(
+                injected["mcpServers"]["tanzakoo"]["command"],
+                command.to_string_lossy().as_ref()
+            );
+            assert_eq!(
+                injected["mcpServers"]["tanzakoo"]["args"],
+                serde_json::json!(args)
+            );
+            assert_eq!(config.args.len(), 5);
+        }
+        let mut other = default_config("devin");
+        let saved = other.args.clone();
+        assert_eq!(
+            session_mcp(&mut other, McpServerStdio::new("tanzakoo", "app")).len(),
+            1
+        );
+        assert_eq!(other.args, saved);
     }
 }

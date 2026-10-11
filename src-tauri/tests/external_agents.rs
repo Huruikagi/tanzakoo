@@ -145,6 +145,26 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
     assert!(full.contains("tanzakoo"));
     let snapshot = store.snapshot().unwrap();
     assert_eq!(snapshot.conversations.len(), 1);
+    let launches: Vec<serde_json::Value> = full
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .filter(|line| line.get("cwd").is_some())
+        .collect();
+    assert_eq!(launches.len(), 3);
+    assert_eq!(launches[0]["args"], serde_json::json!([]));
+    for (launch, message) in launches[1..].iter().zip(
+        snapshot
+            .messages
+            .iter()
+            .filter(|message| message.role == "user"),
+    ) {
+        assert_eq!(launch["args"][0], "--additional-mcp-config");
+        let mcp: serde_json::Value =
+            serde_json::from_str(launch["args"][1].as_str().unwrap()).unwrap();
+        let args = &mcp["mcpServers"]["tanzakoo"]["args"];
+        assert_eq!(args[3], snapshot.conversations[0].id);
+        assert_eq!(args[4], message.id);
+    }
     assert_eq!(
         snapshot
             .messages

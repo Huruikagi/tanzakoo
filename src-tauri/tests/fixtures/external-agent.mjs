@@ -3,7 +3,14 @@ import { appendFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 const trace = process.argv[2];
 const send = (m) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
-appendFileSync(trace, JSON.stringify({ cwd: process.cwd(), home: process.env.CODEX_HOME }) + "\n");
+appendFileSync(
+  trace,
+  JSON.stringify({
+    cwd: process.cwd(),
+    home: process.env.CODEX_HOME,
+    args: process.argv.slice(3),
+  }) + "\n",
+);
 if (process.argv.includes("--descendant")) {
   const child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], {
     stdio: "inherit",
