@@ -3,8 +3,16 @@ use crate::model::AgentConfig;
 use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
 use std::path::{Path, PathBuf};
 
-pub const IDS: &[&str] = &["antigravity", "copilot", "opencode", "devin"];
+pub const IDS: &[&str] = &["antigravity", "claude-api", "copilot", "opencode", "devin"];
 pub const DISABLED: &str = "この配布版では外部CLI接続を利用できません。";
+/// claude-agent-acp refuses turns billed to a claude.ai subscription under this flag.
+/// Anthropic directs third-party Agent SDK products to API key authentication
+/// (notes/claude-connection-terms.md), so the flag cannot be removed from the launch arguments.
+pub const CLAUDE_API_GUARD: &str = "--hide-claude-auth";
+const CLAUDE_API_GUARD_MESSAGE: &str =
+    "Claude APIの起動引数から--hide-claude-authを外すことはできません。";
+const CLAUDE_SUBSCRIPTION_REFUSED: &str = "Claudeのサブスクリプションでは利用できません。Anthropic APIキーを設定するか、Consoleアカウントでログインしてください。";
+const CLAUDE_API_SIGNED_OUT: &str = "Claudeの認証が見つかりません。Anthropic APIキーを設定するか、Consoleアカウントでログインしてください。";
 
 pub fn available() -> bool {
     !cfg!(feature = "app-sandbox")
@@ -26,6 +34,7 @@ pub fn default_config(id: &str) -> AgentConfig {
         "antigravity" if cfg!(windows) => ("agy_acp_server.exe", &[]),
         "antigravity" if cfg!(target_os = "linux") => ("agy_acp_server.par", &["--uid="]),
         "antigravity" => ("agy_acp_server.par", &[]),
+        "claude-api" => ("claude-agent-acp", &[CLAUDE_API_GUARD]),
         "copilot" => ("copilot", &["--acp", "--stdio", "--disable-builtin-mcps"]),
         "opencode" => ("opencode", &["acp"]),
         "devin" => ("devin", &["acp"]),
@@ -52,7 +61,53 @@ pub fn validate(config: &AgentConfig) -> Result<(), String> {
     {
         return Err("起動設定が不正です。".into());
     }
+    if config.id == "claude-api" && !config.args.iter().any(|a| a == CLAUDE_API_GUARD) {
+        return Err(CLAUDE_API_GUARD_MESSAGE.into());
+    }
     Ok(())
+}
+
+/// The adapter answers both a signed-out CLI and a subscription-only account with
+/// `authRequired`; only the latter carries a reason.
+pub fn claude_api_auth_error(error: &agent_client_protocol::Error) -> Option<&'static str> {
+    use agent_client_protocol::schema::v1::ErrorCode;
+    (error.code == ErrorCode::AuthRequired).then(|| {
+        match error.data.as_ref().and_then(|d| d["reason"].as_str()) {
+            Some("claude_subscription_not_supported") => CLAUDE_SUBSCRIPTION_REFUSED,
+            _ => CLAUDE_API_SIGNED_OUT,
+        }
+    })
+}
+
+/// Reported by the adapter after session creation. The account e-mail is never shown or kept.
+pub fn claude_api_status(auth: Option<&serde_json::Value>) -> crate::model::ConnectionStatus {
+    let status = |state: &str, message: String| crate::model::ConnectionStatus {
+        state: state.into(),
+        message,
+        can_login: false,
+    };
+    let label = auth
+        .and_then(|a| a["label"].as_str())
+        .map(|l| l.chars().take(60).collect::<String>())
+        .unwrap_or_default();
+    match auth.and_then(|a| a["kind"].as_str()) {
+        Some("none") => status("authRequired", CLAUDE_API_SIGNED_OUT.into()),
+        Some("account") => status("authRequired", CLAUDE_SUBSCRIPTION_REFUSED.into()),
+        Some("api_key") => status(
+            "ready",
+            "接続を確認しました（Anthropic APIキー）。利用料はAnthropicから直接請求されます。"
+                .into(),
+        ),
+        Some("gateway" | "external") => status(
+            "ready",
+            format!("接続を確認しました（{label}）。料金はその接続先の契約に従います。"),
+        ),
+        _ => status(
+            "ready",
+            "接続を確認しました。認証の種類は確認できませんでした。送信時に認証が確認されます。"
+                .into(),
+        ),
+    }
 }
 
 /// Copilot rejects stdio servers supplied by ACP clients, but accepts its official
@@ -197,6 +252,47 @@ mod tests {
         assert!(ensure_available("gemini").is_err());
         assert!(ensure_available("unknown").is_err());
         assert!(resolve_command("./missing-agent").is_err());
+    }
+
+    #[test]
+    fn claude_api_keeps_the_subscription_guard() {
+        let config = default_config("claude-api");
+        assert_eq!(config.args, [CLAUDE_API_GUARD]);
+        let mut extended = config.clone();
+        extended.args.push("--verbose".into());
+        assert_eq!(validate(&extended).is_ok(), available());
+        let mut removed = config.clone();
+        removed.args.clear();
+        assert!(validate(&removed).is_err());
+        if available() {
+            assert_eq!(validate(&removed).unwrap_err(), CLAUDE_API_GUARD_MESSAGE);
+        }
+    }
+
+    #[test]
+    fn claude_api_explains_refused_credentials() {
+        let refused = agent_client_protocol::Error::auth_required()
+            .data(serde_json::json!({"reason": "claude_subscription_not_supported"}));
+        assert_eq!(
+            claude_api_auth_error(&refused),
+            Some(CLAUDE_SUBSCRIPTION_REFUSED)
+        );
+        let signed_out = agent_client_protocol::Error::auth_required();
+        assert_eq!(
+            claude_api_auth_error(&signed_out),
+            Some(CLAUDE_API_SIGNED_OUT)
+        );
+        let other = agent_client_protocol::Error::internal_error();
+        assert_eq!(claude_api_auth_error(&other), None);
+        let state = |kind: &str| {
+            claude_api_status(Some(
+                &serde_json::json!({"kind": kind, "label": "a@example.com"}),
+            ))
+        };
+        assert_eq!(state("api_key").state, "ready");
+        assert_eq!(state("account").state, "authRequired");
+        assert_eq!(state("none").state, "authRequired");
+        assert!(!state("api_key").message.contains("example.com"));
     }
 
     #[test]
