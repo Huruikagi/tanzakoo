@@ -95,7 +95,8 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 - `pnpm check`（Vitest 145件・lint・整形・型・ビルド）成功。`cargo test --locked`は133件成功・実Claude接続1件ignored。Clippy・`cargo fmt --check`成功。
 - 偽CLIで、APIキーは接続可、サブスクリプションと未認証は区別した`authRequired`、メールアドレス非表示、`authenticate`・プロンプト未送信、フラグなしの設定保存拒否を確認した。
 - 実アダプター0.77.0を空の`CLAUDE_CONFIG_DIR`・APIキーなしで起動し、`--connection-check`がプロンプト送信前に未認証の`authRequired`となることを確認した（`--ignored real_claude_api`）。
-- 実APIキーでの会話・カード作成・提案承認、利用者のサブスクリプションログイン状態での拒否、Windowsの`.cmd`ラッパー経由の起動、Mac実機は未確認。
+- 2026-10-12：Windowsでnpmグローバル導入したアダプターが「接続処理が完了しませんでした」で失敗した。npmは`.cmd`と同じ場所に拡張子なしの`#!/bin/sh`シムも作り、名前解決が先にそれを選んでCreateProcessに拒否されていた。Windowsでは`.exe`・`.cmd`・`.bat`だけを候補にし、拡張子なしの絶対パスもこれらを補うよう修正した。npm配布のCopilot CLI・OpenCodeなど名前だけで指定する全外部CLIに共通する。修正後、miseのNode配下にある実アダプター0.89.1を`.cmd`経由で起動し、`--connection-check claude-api`が未認証の`authRequired`となることを確認した（修正前は同条件でerror）。0.89.1はAPIキーなしでも`session/new`に成功し、`_auth/status_update`の`kind: none`で未認証を伝える。
+- 実APIキーでの会話・カード作成・提案承認、利用者のサブスクリプションログイン状態での拒否、Mac実機は未確認。
 
 ### 残る確認
 

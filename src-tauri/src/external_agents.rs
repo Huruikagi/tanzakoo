@@ -135,31 +135,48 @@ pub fn session_mcp(config: &mut AgentConfig, mcp: McpServerStdio) -> Vec<McpServ
     vec![]
 }
 
+/// Windows starts only these. npm also writes an extensionless `#!/bin/sh` shim
+/// beside its `.cmd`, which CreateProcess rejects, so never pick a bare name there.
+const WINDOWS_EXTENSIONS: &[&str] = &["exe", "cmd", "bat"];
+
+fn candidates(path: &Path) -> Vec<PathBuf> {
+    let runnable = path
+        .extension()
+        .is_some_and(|e| WINDOWS_EXTENSIONS.iter().any(|w| e.eq_ignore_ascii_case(w)));
+    if !cfg!(windows) || runnable {
+        return vec![path.into()];
+    }
+    WINDOWS_EXTENSIONS
+        .iter()
+        .map(|e| {
+            let mut name = path.as_os_str().to_owned();
+            name.push(format!(".{e}"));
+            name.into()
+        })
+        .collect()
+}
+
 /// Resolve without a shell or login-shell evaluation; absolute paths work for GUI launches too.
 pub fn resolve_command(command: &str) -> Result<PathBuf, String> {
+    resolve_in(command, &std::env::var_os("PATH").unwrap_or_default())
+}
+
+fn resolve_in(command: &str, dirs: &std::ffi::OsStr) -> Result<PathBuf, String> {
     let path = Path::new(command);
-    if path.is_absolute() && path.is_file() {
-        return Ok(path.into());
-    }
-    if path.components().count() == 1 {
-        let dirs = std::env::var_os("PATH").unwrap_or_default();
-        for dir in std::env::split_paths(&dirs).filter(|p| p.is_absolute()) {
-            for suffix in if cfg!(windows) {
-                &["", ".exe", ".cmd", ".bat"][..]
-            } else {
-                &[""][..]
-            } {
-                let candidate = dir.join(format!("{command}{suffix}"));
-                if candidate.is_file() {
-                    return Ok(candidate);
-                }
-            }
-        }
-    }
-    Err(
+    let found = if path.is_absolute() {
+        candidates(path).into_iter().find(|c| c.is_file())
+    } else if path.components().count() == 1 {
+        std::env::split_paths(dirs)
+            .filter(|p| p.is_absolute())
+            .flat_map(|dir| candidates(&dir.join(path)))
+            .find(|c| c.is_file())
+    } else {
+        None
+    };
+    found.ok_or_else(|| {
         "CLIが見つかりません。公式手順でインストールし、実行ファイルの絶対パスを指定してください。"
-            .into(),
-    )
+            .into()
+    })
 }
 
 /// The ACP library inherits the GUI's working directory. Re-exec our small stdio
@@ -252,6 +269,33 @@ mod tests {
         assert!(ensure_available("gemini").is_err());
         assert!(ensure_available("unknown").is_err());
         assert!(resolve_command("./missing-agent").is_err());
+    }
+
+    #[test]
+    fn resolve_skips_npm_shell_shims_on_windows() {
+        let dir = std::env::temp_dir().join(format!("tanzakoo-resolve-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let shim = dir.join("claude-agent-acp");
+        std::fs::write(&shim, "#!/bin/sh\n").unwrap();
+        std::fs::write(dir.join("claude-agent-acp.cmd"), "@echo off\r\n").unwrap();
+        let expected = if cfg!(windows) {
+            dir.join("claude-agent-acp.cmd")
+        } else {
+            shim.clone()
+        };
+        let path = std::env::join_paths([&dir]).unwrap();
+        assert_eq!(resolve_in("claude-agent-acp", &path).unwrap(), expected);
+        assert_eq!(resolve_in(shim.to_str().unwrap(), &path).unwrap(), expected);
+        let explicit = dir.join("claude-agent-acp.cmd");
+        assert_eq!(
+            resolve_in(explicit.to_str().unwrap(), &path).unwrap(),
+            explicit
+        );
+        if cfg!(windows) {
+            std::fs::remove_file(dir.join("claude-agent-acp.cmd")).unwrap();
+            assert!(resolve_in("claude-agent-acp", &path).is_err());
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
