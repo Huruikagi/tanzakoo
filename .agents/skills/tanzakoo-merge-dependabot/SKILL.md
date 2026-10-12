@@ -38,6 +38,12 @@ pnpm workspaceはルートで一括installし、workspace単位に別ロック�
 
 互換性を保つ小さな修正は依頼された更新の範囲内で行い、修正後のcommitを再検証する。MSRVの引上げ、保存形式の移行、接続方式や外部送信・費用の変更が必要なら、そのPRを保留し具体的な判断事項を示す。無関係なリファクタリングや設定変更を混ぜない。
 
+### ACP / 同梱ランタイムの更新
+
+- `pnpm-workspace.yaml` の `patchedDependencies` と `patches/README.md` を確認する。ACP更新では起動時のanalytics / OTel設定が上流で解決済みか調べ、必要ならパッチ・適用バージョン・ロックファイルを更新する。パッチを外す場合も、継承した不正なtelemetry設定を使う `test:review` が成功することを確認する。installを通すためだけにパッチや検証を外さない。
+- 間接依存の `@openai/codex` まで解決バージョンを確認する。Codex本体が変わる場合は `packages/agent-runtime/licenses/` のLICENSE・NOTICE・出典と `scripts/stage-runtime.mjs` のバージョンガードを合わせて更新する。ガードの削除で済ませない。
+- 下記の通常検証に加え、`mise exec -- pnpm test:runtime`、`mise exec -- pnpm test:plan`、`mise exec -- pnpm test:review` を行う。新しいツール・認証・送信設定への影響を確認し、テストの期待値だけを変更して通さない。梱包後は `TANZAKOO_TEST_RUNTIME_ENTRY` にステージ済みの `codex.mjs` の絶対パスを指定して `scripts/review-connection.test.mjs` をmiseのNodeで実行し、配布ランタイムにもパッチが反映されていることを確認する。環境変数は確認後に元へ戻す。
+
 ## PRごとの検証
 
 PRを最新の対象ブランチに追従させてから差分とhead SHAを読み直し、そのcommitを独立worktreeまたはクリーンな作業場所にcheckoutして検証する。競合をロックファイルの片側採用だけで解消しない。次の対応表は最低限の目安で、複数に該当する更新では必要な検証を合わせて行う。
