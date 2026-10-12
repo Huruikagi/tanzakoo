@@ -1,0 +1,133 @@
+{
+  "app": {
+    "targetMode": "executable",
+    "bundleID": null,
+    "version": null,
+    "build": null,
+    "executableSHA256": "b50d30ef4576064541fc49f74a7e055712dfad6878f2db6a97109f8af1cbf4fc",
+    "capturePID": 35246
+  },
+  "macOS": [
+    "26.6.1",
+    [
+      "",
+      "",
+      ""
+    ],
+    "arm64"
+  ],
+  "kind": "local-native-capture",
+  "checkoutAtStart": {
+    "commit": "6c929b76907a017acc8bfcfdfdad49a22145954f",
+    "dirty": false,
+    "isBuildProvenance": false
+  },
+  "contentReview": "pending",
+  "submissionBuildMatch": "not-verified",
+  "note": "Native Tanzakoo window. The capture script does not inject data, call AI, or resample images. Inspect images and match the final submission build before use.",
+  "status": "captured-awaiting-visual-review",
+  "captures": [
+    {
+      "file": "ja-01-board-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "f44e0a6a102c819b4386da8a3483fc4309058147acb08356e54f441ca4a13e0d",
+      "capturedAt": "2026-09-30T16:18:29.197451+00:00",
+      "language": "ja",
+      "scene": "board"
+    },
+    {
+      "file": "ja-02-proposal-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "61dc60ddfd12bb87922cf0da4919aa8549c14a90f4971b72df2c4c1f604d9fae",
+      "capturedAt": "2026-09-30T16:19:14.337783+00:00",
+      "language": "ja",
+      "scene": "proposal"
+    },
+    {
+      "file": "ja-03-export-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "3fe47134877237708740d5b355271e2ed34058a87ccb2668940bcbb2bde0f282",
+      "capturedAt": "2026-09-30T16:20:04.801409+00:00",
+      "language": "ja",
+      "scene": "export"
+    },
+    {
+      "file": "en-01-board-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "4a594d67e21e7f792d03e484d574318d9afd7fce53ebc799369e620df387e669",
+      "capturedAt": "2026-09-30T16:20:29.449028+00:00",
+      "language": "en",
+      "scene": "board"
+    },
+    {
+      "file": "en-02-proposal-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "dc850b94abc4d0f733b650bdf60c35785f20e8e50a32b6848ec9a88b2f36b329",
+      "capturedAt": "2026-09-30T16:21:15.426883+00:00",
+      "language": "en",
+      "scene": "proposal"
+    },
+    {
+      "file": "en-03-export-local.jpg",
+      "pixels": [
+        2560,
+        1600
+      ],
+      "windowPoints": [
+        1280,
+        800
+      ],
+      "windowID": 19351,
+      "pid": 35246,
+      "sha256": "7cb7a9d44f282888ac820acec818fbb70623f08a0126e595da8306b97910a8e0",
+      "capturedAt": "2026-09-30T16:21:29.196440+00:00",
+      "language": "en",
+      "scene": "export"
+    }
+  ]
+}

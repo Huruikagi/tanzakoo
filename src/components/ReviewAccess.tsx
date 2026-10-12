@@ -34,7 +34,7 @@ export function ReviewAccess() {
     }
   }
   return (
-    <div className="agent-settings review-access">
+    <div className="connection-stack review-access">
       {access && (
         <>
           <strong>{t("審査用接続")}</strong>
@@ -86,7 +86,7 @@ export function ReviewAccess() {
           {access ? t("新しい審査用コードを入力") : t("審査用アクセスを利用する")}
         </Button>
       ) : (
-        <div className="agent-settings">
+        <div className="connection-stack">
           <label htmlFor={`${id}-code`}>{t("審査用コード")}</label>
           <Input
             id={`${id}-code`}

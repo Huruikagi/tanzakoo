@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CardDetails } from "./CardDetails";
+import { PendingProposals } from "./PendingProposals";
 import { useWorkspace } from "@/lib/workspace";
 import { emptySnapshot, api } from "@/lib/api";
 import type { Card } from "@/bindings/Card";
@@ -41,8 +42,10 @@ const card: Card = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  Element.prototype.scrollTo = vi.fn();
   useWorkspace.setState({
     selected: card.id,
+    proposalNavigation: null,
     drafts: {},
     references: [],
     snapshot: {
@@ -64,6 +67,37 @@ beforeEach(() => {
       ],
     },
   });
+});
+it("navigates to proposals on each pending item click, but not on ordinary selection or refresh", async () => {
+  const user = userEvent.setup();
+  render(
+    <>
+      <CardDetails />
+      <PendingProposals />
+    </>,
+  );
+  expect(Element.prototype.scrollTo).not.toHaveBeenCalled();
+  const item = within(screen.getByRole("region", { name: "未承認のカード変更" })).getByRole(
+    "button",
+    { name: card.title },
+  );
+  await user.click(item);
+  await waitFor(() => expect(Element.prototype.scrollTo).toHaveBeenCalledTimes(1));
+  expect(useWorkspace.getState().proposalNavigation).toBeNull();
+  act(() => {
+    const snapshot = useWorkspace.getState().snapshot;
+    useWorkspace.setState({ snapshot: { ...snapshot, proposals: [...snapshot.proposals] } });
+    useWorkspace.getState().select(card.id);
+  });
+  expect(Element.prototype.scrollTo).toHaveBeenCalledTimes(1);
+  await user.click(item);
+  await waitFor(() => expect(Element.prototype.scrollTo).toHaveBeenCalledTimes(2));
+  expect(api.action).not.toHaveBeenCalled();
+  expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(card.title);
+  await user.clear(screen.getByLabelText("タイトル"));
+  await user.type(screen.getByLabelText("タイトル"), "新しいタイトル");
+  expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("新しいタイトル");
+  expect(Element.prototype.scrollTo).toHaveBeenCalledTimes(2);
 });
 it("shows a proposal separately and only applies after clicking Apply", async () => {
   const user = userEvent.setup();

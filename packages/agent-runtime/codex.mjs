@@ -7,6 +7,7 @@ for (const key of [
   "CODEX_ACCESS_TOKEN",
   "CODEX_PATH",
   "CODEX_CONFIG",
+  "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
   "DEFAULT_AUTH_REQUEST",
   "MODEL_PROVIDER",
   "OPENAI_BASE_URL",
@@ -20,11 +21,22 @@ if (!process.env.CODEX_HOME) throw new Error("Tanzakoo must provide CODEX_HOME")
 // Start with the relay-authorized model: ACP rejects switching to a model that
 // is absent from its bundled catalog, but accepts a configured current model.
 const reviewModel = process.env.TANZAKOO_REVIEW_MODEL;
+const planModel = process.env.TANZAKOO_PLAN_MODEL;
+delete process.env.TANZAKOO_PLAN_MODEL;
 delete process.env.TANZAKOO_REVIEW_MODEL;
 if (reviewModel && !/^[a-zA-Z0-9._-]{1,100}$/.test(reviewModel))
   throw new Error("Invalid review model");
+if (planModel && !/^[a-zA-Z0-9._-]{1,100}$/.test(planModel)) throw new Error("Invalid plan model");
 process.env.CODEX_CONFIG = JSON.stringify({
   ...referencePolicy,
   ...(reviewModel ? { model: reviewModel } : {}),
+  ...(planModel
+    ? {
+        model: planModel,
+        // The pinned ACP gateway uses HTTP/SSE. Authenticate supplies the token
+        // only in memory after initialize; the offline fixture checks this route.
+        features: { ...referencePolicy.features, tool_search: false },
+      }
+    : {}),
 });
 await import("@agentclientprotocol/codex-acp");

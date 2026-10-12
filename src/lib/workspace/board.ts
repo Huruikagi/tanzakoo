@@ -4,10 +4,11 @@ import type { WorkspaceSlice } from "./types";
 import type { Card } from "@/bindings/Card";
 import { proposalBlockReason } from "../proposals";
 import { serialized, snapshotUpdate } from "./snapshot";
-import { launchKey } from "./agent";
+import { launchKey } from "./connections";
 
 export const createBoardSlice: WorkspaceSlice<
   | "selected"
+  | "proposalNavigation"
   | "archivePending"
   | "archiveNotice"
   | "setArchived"
@@ -17,6 +18,7 @@ export const createBoardSlice: WorkspaceSlice<
   | "draft"
 > = (set, get) => ({
   selected: null,
+  proposalNavigation: null,
   archivePending: false,
   archiveNotice: null,
   setArchived: async (id, archived) => {
@@ -59,7 +61,12 @@ export const createBoardSlice: WorkspaceSlice<
     });
   },
   drafts: {},
-  select: (id) => set({ selected: id }),
+  select: (id, target) =>
+    set({
+      selected: id,
+      proposalNavigation:
+        target === "proposals" ? { projectId: get().snapshot.project.id, cardId: id } : null,
+    }),
   act: (action) => {
     if (get().switching) return Promise.resolve(null);
     const projectId = get().snapshot.project.id;

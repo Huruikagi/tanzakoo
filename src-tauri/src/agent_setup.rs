@@ -24,6 +24,59 @@ pub fn initialize(resources: PathBuf, data: PathBuf) {
     let _ = PATHS.set((resources, data));
 }
 
+pub fn app_data(store: &Store) -> PathBuf {
+    PATHS
+        .get()
+        .map(|p| p.1.clone())
+        .unwrap_or_else(|| store.path().parent().unwrap().to_owned())
+}
+
+pub fn managed_entry(filename: &str) -> Result<(PathBuf, PathBuf), String> {
+    let resources = PATHS
+        .get()
+        .map(|p| p.0.clone())
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_owned()))
+        })
+        .ok_or("アプリの保存場所を取得できません。")?;
+    let runtime = resources.join("agent-runtime");
+    let node = runtime
+        .join("bin")
+        .join(if cfg!(windows) { "node.exe" } else { "node" });
+    let entry = runtime.join(filename);
+    if node.is_file() && entry.is_file() {
+        return Ok((node, entry));
+    }
+    if cfg!(debug_assertions) {
+        return Ok((
+            std::env::var("TANZAKOO_NODE")
+                .unwrap_or_else(|_| "node".into())
+                .into(),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../packages/agent-runtime")
+                .join(filename),
+        ));
+    }
+    Err("同梱エージェントが見つかりません。カードの閲覧・編集は引き続き利用できます。".into())
+}
+
+pub fn launch_with_plan(
+    store: &Store,
+    account: &crate::chatgpt_plan::PlanAccount,
+    model: &str,
+) -> Result<AcpAgentConfig, String> {
+    let launch = launch(managed_config(), store)?;
+    let directory = app_data(store)
+        .join("chatgpt-plan/runtime")
+        .join(&account.id);
+    let home = crate::storage::credential_dir(&directory).map_err(|e| e.to_string())?;
+    Ok(launch
+        .env("CODEX_HOME", home.to_string_lossy())
+        .env("TANZAKOO_PLAN_MODEL", model))
+}
+
 pub fn mcp_binary() -> Result<PathBuf, String> {
     let executable = std::env::current_exe().map_err(|e| e.to_string())?;
     #[cfg(all(target_os = "macos", feature = "app-sandbox"))]
@@ -58,6 +111,20 @@ pub fn launch_with_review(
     store: &Store,
     review_model: Option<&str>,
 ) -> Result<AcpAgentConfig, String> {
+    if crate::external_agents::is_external(&config.id) {
+        crate::external_agents::validate(&config)?;
+        if review_model.is_some() {
+            return Err("先に審査用接続を解除してください。".into());
+        }
+        // Preserve the CLI's own environment/home. Never inject app-owned credentials.
+        return crate::external_agents::launch(config, store);
+    }
+    if !["codex", "claude"].contains(&config.id.as_str()) {
+        return Err(crate::external_agents::DISABLED.into());
+    }
+    if cfg!(feature = "app-sandbox") && config.command != MANAGED && review_model.is_none() {
+        return Err(crate::external_agents::DISABLED.into());
+    }
     let review = review_model.is_some();
     // Only the pinned, app-owned runtime may receive review credentials.
     let config = if review { managed_config() } else { config };
@@ -71,37 +138,9 @@ pub fn launch_with_review(
         if config.id != "codex" {
             return Err("このエージェントの同梱版はまだ利用できません。".into());
         }
-        let resources = PATHS
-            .get()
-            .map(|p| p.0.clone())
-            .or_else(|| {
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|p| p.parent().map(|p| p.to_owned()))
-            })
-            .ok_or("アプリの保存場所を取得できません。")?;
-        let runtime = resources.join("agent-runtime");
-        let node = runtime
-            .join("bin")
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        let entry = runtime.join("codex.mjs");
-        if node.is_file() && entry.is_file() {
-            command = node.to_string_lossy().into();
-            args = vec![entry.to_string_lossy().into()];
-        } else if cfg!(debug_assertions) {
-            command = std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into());
-            args = vec![
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../packages/agent-runtime/codex.mjs")
-                    .to_string_lossy()
-                    .into(),
-            ];
-        } else {
-            return Err(
-                "同梱エージェントが見つかりません。カードの閲覧・編集は引き続き利用できます。"
-                    .into(),
-            );
-        }
+        let (node, entry) = managed_entry("codex.mjs")?;
+        command = node.to_string_lossy().into();
+        args = vec![entry.to_string_lossy().into()];
     }
     let mut launch = AcpAgentConfig::new(command)
         .args(args)
@@ -109,6 +148,7 @@ pub fn launch_with_review(
     if managed {
         launch = launch
             .env("NODE_OPTIONS", "")
+            .env("TANZAKOO_PLAN_MODEL", "")
             .env("TANZAKOO_REVIEW_MODEL", review_model.unwrap_or(""));
     }
     if config.id == "codex" {
@@ -139,16 +179,20 @@ pub async fn probe(
         can_login,
     };
     if !["check", "login", "logout"].contains(&action.as_str())
-        || !["codex", "claude"].contains(&agent.as_str())
+        || (!["codex", "claude"].contains(&agent.as_str())
+            && !crate::external_agents::is_external(&agent))
     {
         return result("error", "接続操作が不正です。", false);
     }
-    // Claude sign-in and sign-out stay with the user's own Claude Code; Tanzakoo
-    // neither starts them nor advertises terminal auth to the adapter.
+    // External CLI authentication stays with the user's installation.
     if action != "check" && agent != "codex" {
         return result(
             "unsupported",
-            "TanzakooはClaudeのサインイン・サインアウトを提供していません。提供条件を確認中です。",
+            if crate::external_agents::is_external(&agent) {
+                "ログイン・ログアウトはCLIの公式手順で行ってください。"
+            } else {
+                "TanzakooはClaudeのサインイン・サインアウトを提供していません。提供条件を確認中です。"
+            },
             false,
         );
     }
@@ -231,13 +275,25 @@ pub async fn probe(
                     .send_request(NewSessionRequest::new(check_dir))
                     .block_task()
                     .await;
-                if session.is_ok() && agent == "claude" {
+                if session.is_ok() && (agent == "claude" || agent == "claude-api") {
                     // The adapter reads the CLI's auth state in the background.
                     if auth.lock().unwrap().is_none() {
                         let _ = tokio::time::timeout(Duration::from_secs(6), auth_seen.notified())
                             .await;
                     }
-                    *output.lock().unwrap() = claude_status(auth.lock().unwrap().as_ref());
+                    let auth = auth.lock().unwrap();
+                    *output.lock().unwrap() = if agent == "claude" {
+                        claude_status(auth.as_ref())
+                    } else {
+                        crate::external_agents::claude_api_status(auth.as_ref())
+                    };
+                    return Ok(());
+                }
+                if agent == "claude-api"
+                    && let Err(e) = &session
+                    && let Some(message) = crate::external_agents::claude_api_auth_error(e)
+                {
+                    *output.lock().unwrap() = result("authRequired", message, false);
                     return Ok(());
                 }
                 *output.lock().unwrap() = match session {

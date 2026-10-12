@@ -1,0 +1,61 @@
+name: 不具合の報告 / Bug report
+description: 動作しない・想定と違う挙動を報告する / Report a problem with Tanzakoo.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        日本語・英語どちらでも書けます。投稿と添付は**インターネット上に公開**されます。
+        認証コード・APIキー・パスワード・メールアドレス・私的なカードや資料・未加工のログは貼らないでください。
+        個人情報、削除依頼、審査用コード、セキュリティの問題は [非公開の連絡先](mailto:huruikagi@gmail.com) へ。
+
+        Japanese and English are welcome. Your issue and attachments will be **public**.
+        Do not include access codes, API keys, passwords, email addresses, private cards or files, or unredacted logs.
+        Use [private email](mailto:huruikagi@gmail.com) for personal data, deletion requests, review access codes, or security reports.
+        Check [existing issues](https://github.com/Huruikagi/tanzakoo/issues) before opening a new report.
+  - type: input
+    id: version
+    attributes:
+      label: アプリのバージョン / App version
+      description: 分からなければ「不明」と記入してください。 / Enter "Unknown" if you cannot find it.
+      placeholder: "0.1.0 (3)"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS・入手方法 / OS and installation source
+      description: OSのバージョンと、ストア・DMG・ローカルビルドなどの入手方法。 / OS version and Store, DMG, or local build.
+      placeholder: "macOS 26 / Mac App Store, Windows 11 / Microsoft Store"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 起きたこと / What happened?
+      description: 実際の挙動と、期待した挙動を教えてください。 / Describe the actual and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順 / Steps to reproduce
+      description: 個人情報を含まない例を使ってください。再現方法が分からなくても構いません。 / Use a non-private example. It is OK if the steps are unknown.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: 補足・エラー表示 / Additional details or error message
+      description: 任意。画像やエラーの抜粋は、本文・ファイルパス・認証情報を伏せてください。 / Optional. Redact private content, file paths, and credentials before attaching images or error excerpts.
+  - type: checkboxes
+    id: public-report
+    attributes:
+      label: 公開前の確認 / Before posting
+      options:
+        - label: 内容と添付が公開されることを理解し、個人情報や秘密情報を除きました。 / I understand this report is public and have removed personal and secret information.
+          required: true

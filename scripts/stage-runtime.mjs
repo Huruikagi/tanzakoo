@@ -48,6 +48,7 @@ const license = join(nodeRoot, "LICENSE");
 if (!existsSync(license))
   throw new Error("Node LICENSE was not found; do not distribute this staging directory.");
 cpSync(license, join(destination, "NODE-LICENSE.txt"));
+cpSync(join(root, "LICENSE"), join(destination, "TANZAKOO-LICENSE.txt"));
 writeFileSync(
   join(destination, "runtime.json"),
   JSON.stringify(

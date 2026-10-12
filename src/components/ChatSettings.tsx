@@ -88,7 +88,7 @@ function ChatSettingsForm() {
     <div className="agent-settings">
       <p className="hint muted">
         {t("現在の設定: {{value0}} · {{value1}}", {
-          value0: saved?.model ?? t("Codexの既定値"),
+          value0: saved?.model ?? t("接続先の既定値"),
           value1: saved?.reasoningEffort
             ? t(effortNames[saved.reasoningEffort] ?? saved.reasoningEffort)
             : t("会話の既定の推論強度"),
@@ -127,7 +127,7 @@ function ChatSettingsForm() {
         )}
       </div>
       <p className="hint muted">
-        {t("サインイン済みのCodexから取得します。この操作では会話やボードの内容は送信しません。")}
+        {t("ChatGPTプランで利用できるモデルを取得します。会話やボードの内容は送信しません。")}
       </p>
       {models && (
         <>
@@ -168,7 +168,9 @@ function ChatSettingsForm() {
               </Select>
             </>
           ) : (
-            <p className="hint muted">{t("このモデルでは推論強度を選択できません。")}</p>
+            <p className="hint muted">
+              {t("この接続では推論強度の選択肢を確認できないため、既定値を使います。")}
+            </p>
           )}
           <Button type="button" size="sm" disabled={disabled || !valid} onClick={() => void save()}>
             {t("チャット設定を保存")}
@@ -188,6 +190,7 @@ function ChatSettingsForm() {
 export function ChatSettings() {
   useTranslation();
   const reviewAccess = useWorkspace((s) => s.reviewAccess);
+  const accountId = useWorkspace((s) => s.planStatus?.active?.id);
   const snapshot = useWorkspace((s) => s.snapshot);
   const busy = useWorkspace((s) => s.busy);
   const switching = useWorkspace((s) => s.switching);
@@ -225,7 +228,7 @@ export function ChatSettings() {
           <DialogDescription>
             {reviewAccess
               ? t("審査用コードに指定されたモデルで接続します。")
-              : t("このプロジェクトのすべてのCodex会話に、次の送信から反映します。")}
+              : t("このプロジェクトのすべてのAI会話に、次の送信から反映します。")}
           </DialogDescription>
         </DialogHeader>
         {reviewAccess ? (
@@ -235,7 +238,7 @@ export function ChatSettings() {
             })}
           </p>
         ) : (
-          <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config])} />
+          <ChatSettingsForm key={JSON.stringify([snapshot.project.id, config, accountId])} />
         )}
       </DialogContent>
     </Dialog>

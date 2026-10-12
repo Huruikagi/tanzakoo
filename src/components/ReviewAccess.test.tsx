@@ -9,12 +9,22 @@ import { api, emptySnapshot } from "@/lib/api";
 vi.mock("@/lib/api", async (original) => ({
   ...(await original<typeof import("@/lib/api")>()),
   native: true,
-  api: { reviewConnection: vi.fn(), connection: vi.fn(), cancel: vi.fn(), action: vi.fn() },
+  api: {
+    reviewConnection: vi.fn(),
+    connection: vi.fn(),
+    cancel: vi.fn(),
+    action: vi.fn(),
+    notificationSettings: vi.fn(),
+  },
 }));
 const access = { model: "review-model", expiresAt: Date.now() + 3600000, remainingRequests: 50 };
 const code = `trr_${"a".repeat(43)}`;
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(api.notificationSettings).mockResolvedValue({
+    mode: "inactive",
+    permission: "granted",
+  });
   localStorage.clear();
   useWorkspace.setState({
     snapshot: {
@@ -25,6 +35,9 @@ beforeEach(() => {
     },
     reviewAccess: null,
     reviewError: null,
+    loaded: true,
+    planStatus: { available: true, accounts: [], active: null, warning: null },
+    planError: null,
     busy: null,
     switching: false,
     connections: {},
@@ -82,7 +95,8 @@ it("Enter in the review code field never submits the surrounding launch settings
   const user = userEvent.setup();
   vi.mocked(api.reviewConnection).mockResolvedValue(access);
   render(<Settings />);
-  await user.click(screen.getByRole("button", { name: "エージェント設定" }));
+  await user.click(screen.getByRole("button", { name: "設定" }));
+  await user.click(screen.getByRole("tab", { name: "AI接続" }));
   await user.click(screen.getByRole("button", { name: "審査用アクセスを利用する" }));
   await user.type(screen.getByLabelText("審査用コード"), code);
   await user.click(screen.getByRole("checkbox"));

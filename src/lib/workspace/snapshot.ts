@@ -62,6 +62,7 @@ export function snapshotUpdate(state: Workspace, snapshot: Snapshot) {
 export function projectView(snapshot: Snapshot, view = restoredView(snapshot)) {
   return {
     ...view,
+    proposalNavigation: null,
     archiveNotice: null,
     references: [],
     stream: "",

@@ -1,0 +1,30 @@
+{
+  "kind": "windows-native-capture",
+  "status": "captured-awaiting-visual-review",
+  "executable": "G:\\tanzakoo\\.local\\windows-store-candidate-20261001\\payload\\tanzakoo.exe",
+  "executableSHA256": "753a8983410464e16fe31767b06a92cb86923e1327387260be6204e11c9e00a7",
+  "pid": 13912,
+  "processStartedAt": "2026-10-02T01:33:43.5925549Z",
+  "windows": "Microsoft Windows NT 10.0.26300.0",
+  "checkoutAtStart": {
+    "commit": "9b757a907774e2187648eee6c801cd6229eb5a8b",
+    "isBuildProvenance": false,
+    "dirty": true
+  },
+  "contentReview": "pending",
+  "submissionBuildMatch": "not-verified",
+  "note": "Real Windows application. No mock rendering, AI injection, pixel resampling or automatic upload. Visible DWM frame only. Verify final submission build separately.",
+  "captures": [
+    {
+      "sha256": "3edd2a29a89dd05023961d0b2dfd98d81f24663ad57251055f23b901cfa8603d",
+      "capturedAt": "2026-10-02T01:50:21.6988831Z",
+      "scene": "export",
+      "language": "en",
+      "file": "en-03-export-windows.png",
+      "pixels": [
+        2142,
+        1341
+      ]
+    }
+  ]
+}

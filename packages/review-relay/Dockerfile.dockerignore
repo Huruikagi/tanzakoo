@@ -1,8 +1,11 @@
 # Allowlist the Docker build context; never send credentials, local DBs or app data.
 **
+!LICENSE
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
+!patches/
+!patches/*.patch
 !packages/
 !packages/agent-runtime/
 !packages/agent-runtime/package.json

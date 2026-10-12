@@ -2,13 +2,18 @@
   "name": "@tanzakoo/agent-runtime",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "files": [
     "codex.mjs",
+    "plan-cli.mjs",
+    "plan",
     "reference-policy.json",
     "licenses"
   ],
   "type": "module",
   "dependencies": {
-    "@agentclientprotocol/codex-acp": "1.13.1"
+    "@agentclientprotocol/codex-acp": "1.13.1",
+    "jose": "6.2.12",
+    "open": "11.0.4"
   }
 }

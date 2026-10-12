@@ -10,13 +10,31 @@ import { Board } from "@/components/Board";
 import { CardDetails } from "@/components/CardDetails";
 import { Chat } from "@/components/Chat";
 import { Settings } from "@/components/Settings";
+import { PlanWelcome } from "@/components/PlanWelcome";
+import { PlanConnectionRestore } from "@/components/PlanAccess";
 import { Projects } from "@/components/Projects";
 import { ExportDecisions } from "@/components/ExportDecisions";
 import { useWorkspace } from "@/lib/workspace";
 import { api, native } from "@/lib/api";
+import { openNotification } from "@/lib/notification-navigation";
 
 export default function App() {
   useTranslation();
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void api
+      .subscribeNotifications((target) => void openNotification(target))
+      .then((stop) => {
+        if (disposed) stop();
+        else unlisten = stop;
+      })
+      .catch((error) => useWorkspace.setState({ error: String(error) }));
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
   const { error, busy, loaded, refresh, projectId, switching, chatOpen, setChatOpen } =
     useWorkspace(
       useShallow((s) => ({
@@ -72,6 +90,8 @@ export default function App() {
   }, [busy, refresh]);
   return (
     <div className="app-shell">
+      <PlanConnectionRestore />
+      <PlanWelcome />
       <header className="app-header">
         <div className="brand">
           <span className="brand-symbol" aria-hidden="true">

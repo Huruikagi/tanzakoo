@@ -238,6 +238,8 @@ pub struct MemoryProposal {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct Snapshot {
+    #[serde(default)]
+    pub external_agents_available: bool,
     pub project: Project,
     #[serde(default)]
     pub materials: Vec<ReferenceMaterial>,

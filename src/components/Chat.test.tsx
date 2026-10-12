@@ -29,13 +29,18 @@ vi.mock("@/lib/api", async (importOriginal) => ({
     send: vi.fn(),
     cancel: vi.fn(),
     connection: vi.fn(),
+    planConnection: vi.fn(),
     setConsent: vi.fn(),
   },
 }));
 beforeEach(() => {
   vi.resetAllMocks();
   Element.prototype.scrollIntoView = vi.fn();
+  Element.prototype.hasPointerCapture = vi.fn(() => false);
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
   useWorkspace.setState({
+    newChatAgent: "codex",
     loaded: true,
     snapshot: emptySnapshot,
     busy: null,
@@ -47,6 +52,14 @@ beforeEach(() => {
     error: null,
     chatError: null,
     connections: {},
+    reviewAccess: null,
+    planStatus: {
+      available: true,
+      accounts: [],
+      active: { id: "account-a", label: "Account A", signedIn: true },
+      warning: null,
+    },
+    planError: null,
     selected: null,
     switching: false,
     drafts: {},
@@ -726,7 +739,7 @@ it("shows the freeform starting point with no conversation and no active agent",
   expect(screen.getByRole("button", { name: /個人用のTODOアプリ/ })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: "応答を停止" })).not.toBeInTheDocument();
-  expect(screen.getByText("Codex")).toBeInTheDocument();
+  expect(screen.getByText("ChatGPT")).toBeInTheDocument();
   expect(screen.queryByRole("combobox", { name: "エージェント" })).not.toBeInTheDocument();
 });
 it("keeps ordinary Enter for newlines and sends with Ctrl+Enter", async () => {
@@ -753,10 +766,8 @@ it("keeps ordinary Enter for newlines and sends with Ctrl+Enter", async () => {
 
 it("checks connectivity without sending a prompt and preserves a draft when sign-in is required", async () => {
   const user = userEvent.setup();
-  vi.mocked(api.connection).mockResolvedValue({
-    state: "authRequired",
-    message: "サインインが必要です。",
-    canLogin: true,
+  useWorkspace.setState({
+    planStatus: { available: true, accounts: [], active: null, warning: null },
   });
   render(<Chat />);
   await user.type(screen.getByLabelText("エージェントへのメッセージ"), "残しておきたい文章");
@@ -764,8 +775,8 @@ it("checks connectivity without sending a prompt and preserves a draft when sign
   expect(screen.queryByText("Codexの接続はまだ確認していません。")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "接続状況" }));
   expect(api.connection).not.toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: "接続を確認" }));
-  expect(await screen.findByRole("button", { name: "ChatGPTでサインイン" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "ChatGPTで続ける" })).toBeEnabled();
+  expect(api.planConnection).not.toHaveBeenCalled();
   expect(api.send).not.toHaveBeenCalled();
   expect(api.action).not.toHaveBeenCalled();
   await user.keyboard("{Escape}");
@@ -775,31 +786,41 @@ it("checks connectivity without sending a prompt and preserves a draft when sign
   expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
 });
 
-it("shows Claude as not provided without starting a check, sign-in or send", async () => {
-  const user = userEvent.setup();
-  const conversation = { id: "c", title: "old", agent: "claude", sessionId: null, createdAt: 1 };
-  useWorkspace.setState({
-    conversation: "c",
-    snapshot: {
-      ...emptySnapshot,
-      consents: ["claude"],
-      conversations: [conversation],
-      agents: [{ id: "claude", command: "@tanzakoo/claude-unavailable", args: [] }],
-    },
-  });
-  render(<Chat />);
-  expect(screen.getByText(/この会話は閲覧のみです/)).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "接続を確認" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /サインイン/ })).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText("エージェントへのメッセージ"), "履歴は読める");
-  expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
-  await user.keyboard("{Control>}{Enter}{/Control}");
-  expect(api.send).not.toHaveBeenCalled();
-  expect(api.connection).not.toHaveBeenCalled();
-  expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("履歴は読める");
-});
+it.each(["claude", "cursor", "gemini"])(
+  "keeps excluded %s history read-only without starting a connection",
+  async (agent) => {
+    const user = userEvent.setup();
+    const conversation = { id: "c", title: "old", agent, sessionId: null, createdAt: 1 };
+    useWorkspace.setState({
+      conversation: "c",
+      snapshot: {
+        ...emptySnapshot,
+        externalAgentsAvailable: true,
+        consents: [agent],
+        conversations: [conversation],
+        agents: [
+          {
+            id: agent,
+            command: agent === "claude" ? "@tanzakoo/claude-unavailable" : "agent",
+            args: [],
+          },
+        ],
+      },
+    });
+    render(<Chat />);
+    expect(screen.getByText(/この会話は閲覧のみです/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "接続を確認" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /サインイン/ })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("エージェントへのメッセージ"), "履歴は読める");
+    expect(screen.getByRole("button", { name: "メッセージを送信" })).toBeDisabled();
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.connection).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("エージェントへのメッセージ")).toHaveValue("履歴は読める");
+  },
+);
 
-it("keeps legacy Claude history readable and starts new chats with Codex", async () => {
+it("keeps legacy Claude history readable and starts new chats with ChatGPT", async () => {
   const user = userEvent.setup();
   const conversation = { id: "c", title: "dev", agent: "claude", sessionId: null, createdAt: 1 };
   useWorkspace.setState({
@@ -825,9 +846,43 @@ it("keeps legacy Claude history readable and starts new chats with Codex", async
   expect(screen.queryByRole("button", { name: "接続を確認" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /サインイン/ })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "新しい会話" }));
-  expect(screen.getByText("Codex")).toBeInTheDocument();
+  expect(screen.getByText("ChatGPT")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "接続状況" }));
-  expect(screen.getByRole("button", { name: "接続を確認" })).toBeEnabled();
+  await user.click(screen.getByText("アカウント管理"));
+  expect(screen.getByRole("button", { name: "ChatGPTで続ける" })).toBeEnabled();
   expect(useWorkspace.getState().snapshot.messages[0].text).toBe("過去の検討内容");
   expect(api.connection).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["copilot", "GitHub Copilot CLI"],
+  ["antigravity", "Antigravity"],
+])("lets a new chat select %s without losing its draft", async (agent, label) => {
+  const user = userEvent.setup();
+  useWorkspace.setState({
+    snapshot: {
+      ...emptySnapshot,
+      externalAgentsAvailable: true,
+      agents: [{ id: agent, command: agent, args: [] }],
+    },
+    planStatus: null,
+  });
+  render(<Chat />);
+  const input = screen.getByRole("textbox", { name: "エージェントへのメッセージ" });
+  await user.type(input, "keep this draft");
+  await user.click(screen.getByRole("combobox", { name: "会話の接続先" }));
+  expect(screen.queryByRole("option", { name: "Cursor CLI" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Gemini CLI" })).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Antigravity" })).toBeInTheDocument();
+  await user.click(screen.getByRole("option", { name: label }));
+  expect(input).toHaveValue("keep this draft");
+  expect(useWorkspace.getState().newChatAgent).toBe(agent);
+  expect(screen.getByText(/選択したCLIとその接続先へ渡します/)).toBeInTheDocument();
+  expect(api.send).not.toHaveBeenCalled();
+});
+
+it("does not offer external connection choices in the Mac Store build", () => {
+  useWorkspace.setState({ snapshot: { ...emptySnapshot, externalAgentsAvailable: false } });
+  render(<Chat />);
+  expect(screen.queryByRole("combobox", { name: "会話の接続先" })).not.toBeInTheDocument();
 });

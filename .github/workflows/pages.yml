@@ -1,0 +1,52 @@
+name: Public support and privacy pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - notes/app-store/privacy-ja.md
+      - notes/app-store/privacy-en.md
+      - notes/app-store/support.md
+      - scripts/store-site.mjs
+      - scripts/build-store-site.mjs
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - mise.toml
+      - .github/workflows/pages.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+      - uses: actions/configure-pages@v5
+      - run: mise exec -- pnpm install --frozen-lockfile
+      - run: mise exec -- node scripts/build-store-site.mjs .local/public-site
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .local/public-site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

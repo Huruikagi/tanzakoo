@@ -119,6 +119,7 @@ async fn settings_persist_and_apply_before_new_and_resumed_turns() {
             conversation.id.clone(),
             "hello".into(),
             vec![],
+            tanzakoo_lib::language::Language::En,
             cancel,
             Arc::new(|_| {}),
         )
@@ -158,6 +159,70 @@ async fn settings_persist_and_apply_before_new_and_resumed_turns() {
 }
 
 #[tokio::test]
+async fn prompt_language_reaches_new_and_resumed_sessions_and_can_change_each_turn() {
+    use tanzakoo_lib::language::Language;
+
+    let (store, dir) = fixture(false);
+    let conversation = store.create_conversation("codex").unwrap();
+    let runtime = Arc::new(AgentRuntime::default());
+    let languages = [Language::En, Language::En, Language::Ja];
+    for language in languages {
+        store
+            .append_message(
+                &conversation.id,
+                "user",
+                "Let's explore a TODO app.".into(),
+                vec![],
+            )
+            .unwrap();
+        let (_guard, cancel) = runtime.begin().unwrap();
+        agent::run(
+            store.clone(),
+            runtime.clone(),
+            conversation.id.clone(),
+            "Let's explore a TODO app.".into(),
+            vec![],
+            language,
+            cancel,
+            Arc::new(|_| {}),
+        )
+        .await
+        .unwrap();
+    }
+    let requests = trace(&dir);
+    let prompts: Vec<_> = requests
+        .iter()
+        .filter(|r| r["method"] == "session/prompt")
+        .collect();
+    assert_eq!(prompts.len(), languages.len());
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|r| r["method"] == "session/load")
+            .count(),
+        2
+    );
+    for (index, (request, language)) in prompts.iter().zip(languages).enumerate() {
+        let text = request["params"]["prompt"][0]["text"].as_str().unwrap();
+        assert!(text.contains(language.choose(
+            "あなたはTanzakooの壁打ち相手です",
+            "You are Tanzakoo's brainstorming partner"
+        )));
+        assert!(!text.contains("以前の会話（参考情報"));
+        assert_eq!(
+            text.contains("Previous conversation (reference only"),
+            index == 0
+        );
+        assert_eq!(
+            text.contains("ユーザーが明示した言語を優先"),
+            language == Language::Ja
+        );
+        assert!(text.contains("Let's explore a TODO app."));
+        assert!(text.contains("PRIVATE_BOARD_CONTENT"));
+    }
+}
+
+#[tokio::test]
 async fn unsupported_settings_stop_the_turn_before_sending_a_prompt() {
     let (store, dir) = fixture(false);
     store
@@ -179,6 +244,7 @@ async fn unsupported_settings_stop_the_turn_before_sending_a_prompt() {
             conversation.id,
             "hello".into(),
             vec![],
+            tanzakoo_lib::language::Language::En,
             cancel,
             Arc::new(|_| {})
         )

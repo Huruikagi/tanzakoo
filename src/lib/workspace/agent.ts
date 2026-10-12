@@ -1,22 +1,8 @@
 import { t } from "@/lib/i18n";
-import { api } from "../api";
-import type { WorkspaceSlice, Workspace, Busy, Permission } from "./types";
-import type { Snapshot } from "@/bindings/Snapshot";
-import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
-import { serialized, snapshotUpdate } from "./snapshot";
+import { api, agentUnavailable } from "../api";
+import type { WorkspaceSlice, Busy, Permission } from "./types";
 const BROADEN_TOPICS_PROMPT =
   "話題を広げてください。既存カードとプロジェクトの前提を見て、新しい切り口の候補を3〜5枚ほど追加してください。既存カードやメモリの変更・移動は不要です。";
-export function launchKey(snapshot: Snapshot, agent: string) {
-  const config = snapshot.agents.find((a) => a.id === agent);
-  return JSON.stringify([config?.command, config?.args]);
-}
-export function connectionStatus(
-  state: Pick<Workspace, "snapshot" | "connections">,
-  agent: string,
-): ConnectionStatus | undefined {
-  const connection = state.connections[agent];
-  return connection?.launch === launchKey(state.snapshot, agent) ? connection.status : undefined;
-}
 /** Whether the chat for `conversation` (null: a new chat) is the one currently running. */
 export function chatRunning(busy: Busy | null, conversation: string | null) {
   return (
@@ -25,14 +11,9 @@ export function chatRunning(busy: Busy | null, conversation: string | null) {
 }
 
 export const createAgentSlice: WorkspaceSlice<
-  | "reviewAccess"
-  | "reviewError"
-  | "reviewConnect"
+  | "newChatAgent"
+  | "setNewChatAgent"
   | "chatError"
-  | "connections"
-  | "setConsent"
-  | "connect"
-  | "loadChatOptions"
   | "conversation"
   | "references"
   | "busy"
@@ -48,81 +29,19 @@ export const createAgentSlice: WorkspaceSlice<
   | "event"
   | "answer"
 > = (set, get) => ({
-  reviewAccess: null,
-  reviewError: null,
-  reviewConnect: async (action, code, consent = false) => {
-    if (get().busy || get().switching) return false;
-    set({
-      busy: { kind: "connecting", agent: "codex" },
-      reviewError: null,
-      activity: t("審査用接続を確認しています…"),
-    });
-    try {
-      const reviewAccess = await api.reviewConnection(
-        get().snapshot.project.id,
-        action,
-        code ?? null,
-        consent,
-      );
-      set({ reviewAccess, connections: {}, chatError: null });
-      if (action !== "check") set({ conversation: null, references: [], stream: "" });
-      return true;
-    } catch (error) {
-      set({ reviewError: String(error) });
-      return false;
-    } finally {
-      set({ busy: null, activity: "" });
-    }
+  newChatAgent: "codex",
+  setNewChatAgent: (agent) => {
+    if (!get().busy && !agentUnavailable(get().snapshot, agent))
+      set({ newChatAgent: agent, chatError: null });
   },
   chatError: null,
-  connections: {},
-  setConsent: async (agent, granted) =>
-    serialized(async () => {
-      try {
-        const snapshot = await api.setConsent(agent, granted);
-        set((state) => ({ ...snapshotUpdate(state, snapshot), chatError: null }));
-      } catch (error) {
-        set({ chatError: String(error) });
-      }
-    }),
-  connect: async (agent, action) => {
-    if (get().busy || get().switching) return;
-    if (agent !== "codex") return;
-    const launch = launchKey(get().snapshot, agent);
-    set({
-      busy: { kind: "connecting", agent },
-      chatError: null,
-      activity:
-        action === "login"
-          ? t("ブラウザでサインインを完了してください…")
-          : t("接続を確認しています…"),
-    });
-    try {
-      const status = await api.connection(get().snapshot.project.id, agent, action);
-      set((s) => ({ connections: { ...s.connections, [agent]: { status, launch } } }));
-    } catch (error) {
-      set({ chatError: String(error) });
-    } finally {
-      set({ busy: null, activity: "" });
-    }
-  },
-  loadChatOptions: async (model) => {
-    if (get().busy || get().switching) throw new Error(t("処理が終わってから設定してください。"));
-    const projectId = get().snapshot.project.id;
-    set({ busy: { kind: "settings" }, activity: t("モデルの選択肢を確認しています…") });
-    try {
-      return await api.chatOptions(projectId, model);
-    } finally {
-      set({ busy: null, activity: "" });
-    }
-  },
   conversation: null,
   references: [],
   busy: null,
   stream: "",
   activity: "",
   permissions: [],
-  selectConversation: (conversation) => set({ conversation, references: [] }),
+  selectConversation: (conversation) => set({ conversation, references: [], chatError: null }),
   newConversation: async (agent) => {
     const snapshot = await get().act({ type: "newConversation", agent });
     const id = snapshot?.conversations.at(-1)?.id ?? null;
@@ -151,18 +70,26 @@ export const createAgentSlice: WorkspaceSlice<
   broadenTopics: () => {
     if (get().busy || get().switching) return Promise.resolve(false);
     get().setChatOpen(true);
-    return get().send(t(BROADEN_TOPICS_PROMPT), "codex", { useReferences: false });
+    return get().send(t(BROADEN_TOPICS_PROMPT), get().newChatAgent, { useReferences: false });
   },
   send: async (text, agent, { useReferences = true, questionAnswers } = {}) => {
     if (get().busy || get().switching || !text.trim()) return false;
     const activeAgent =
       get().snapshot.conversations.find((c) => c.id === get().conversation)?.agent ?? agent;
-    if (activeAgent !== "codex") {
+    if (agentUnavailable(get().snapshot, activeAgent)) {
       set({ chatError: t("この会話は閲覧のみです。新しい会話をCodexで始めてください。") });
+      return false;
+    }
+    if (activeAgent !== "codex" && get().reviewAccess) {
+      set({ chatError: t("先に審査用接続を解除してください。") });
       return false;
     }
     if (!get().reviewAccess && !get().snapshot.consents.includes(activeAgent)) {
       set({ chatError: t("AIへの送信に同意してください。") });
+      return false;
+    }
+    if (activeAgent === "codex" && !get().reviewAccess && !get().planStatus?.active?.signedIn) {
+      set({ chatError: t("接続状況からChatGPTでサインインしてください。") });
       return false;
     }
     if (get().reviewAccess && get().reviewAccess!.expiresAt <= Date.now()) {

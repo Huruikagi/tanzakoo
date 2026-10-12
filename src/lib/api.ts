@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { externalAgent } from "./external-agents";
 import { currentLocale } from "./i18n";
 import type { Snapshot } from "@/bindings/Snapshot";
 import type { BoardAction } from "@/bindings/BoardAction";
@@ -10,6 +11,12 @@ import type { ExportResult } from "@/bindings/ExportResult";
 import type { DeleteProjectResult } from "@/bindings/DeleteProjectResult";
 import type { QuestionAnswer } from "@/bindings/QuestionAnswer";
 import type { ReviewStatus } from "@/bindings/ReviewStatus";
+import type { PlanStatus } from "@/bindings/PlanStatus";
+import type { NotificationMode } from "@/bindings/NotificationMode";
+import type { NotificationSettings } from "@/bindings/NotificationSettings";
+import type { NotificationPermission } from "@/bindings/NotificationPermission";
+import type { NotificationTarget } from "@/bindings/NotificationTarget";
+export type PlanAction = "list" | "restore" | "login" | "select" | "logout" | "usage";
 
 export type AgentEvent = {
   conversationId: string;
@@ -20,12 +27,20 @@ export type AgentEvent = {
 export const native = isTauri();
 /** Matches `agent_setup::CLAUDE_UNAVAILABLE`: this build offers no Claude connection. */
 export const CLAUDE_UNAVAILABLE = "@tanzakoo/claude-unavailable";
-/** Display name for an agent id. New conversations use Codex, so it is the default. */
-export const agentLabel = (agent?: string) => (agent === "claude" ? "Claude" : "Codex");
+/** Keep the stored engine id while showing the user's connection in the UI. */
+export const agentLabel = (agent?: string) =>
+  agent === "claude"
+    ? "Claude"
+    : agent === "cursor"
+      ? "Cursor CLI"
+      : agent === "gemini"
+        ? "Gemini CLI"
+        : (externalAgent(agent ?? "")?.name ?? "ChatGPT");
 export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
-  agent !== "codex" ||
+  (agent !== "codex" && !(snapshot.externalAgentsAvailable && externalAgent(agent))) ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);
 export const emptySnapshot: Snapshot = {
+  externalAgentsAvailable: false,
   materials: [],
   project: { id: "", name: "マイプロジェクト", memory: "", revision: 1 },
   projects: [],
@@ -41,6 +56,17 @@ export const emptySnapshot: Snapshot = {
   consents: [],
 };
 export const api = {
+  notificationSettings: () => invoke<NotificationSettings>("notification_settings"),
+  configureNotifications: (mode: NotificationMode) =>
+    invoke<NotificationSettings>("configure_notifications", { mode }),
+  testNotification: () =>
+    invoke<NotificationPermission>("test_notification", { uiLanguage: currentLocale() }),
+  subscribeNotifications: (handler: (target: NotificationTarget) => void) =>
+    native
+      ? listen<NotificationTarget>("notification-activated", (e) => handler(e.payload))
+      : Promise.resolve(() => {}),
+  planConnection: (projectId: string, action: PlanAction, accountId: string | null = null) =>
+    invoke<PlanStatus>("plan_connection", { projectId, action, accountId }),
   reviewStatus: () =>
     native ? invoke<ReviewStatus | null>("get_review_status") : Promise.resolve(null),
   reviewConnection: (

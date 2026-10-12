@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@agentclientprotocol/codex-acp@1.13.1': 2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a
+
 importers:
 
   .:
@@ -193,6 +196,9 @@ importers:
       '@tauri-apps/api':
         specifier: 2.11.1
         version: 2.11.1
+      '@tauri-apps/plugin-opener':
+        specifier: 2.5.5
+        version: 2.5.5
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -247,7 +253,7 @@ importers:
         version: 0.77.0(@anthropic-ai/sdk@0.125.0(zod@3.25.76))(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))
       '@agentclientprotocol/codex-acp':
         specifier: 1.13.1
-        version: 1.13.1
+        version: 1.13.1(patch_hash=2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a)
       '@shadcn/lint':
         specifier: 0.1.0
         version: 0.1.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
@@ -304,7 +310,13 @@ importers:
     dependencies:
       '@agentclientprotocol/codex-acp':
         specifier: 1.13.1
-        version: 1.13.1
+        version: 1.13.1(patch_hash=2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a)
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
+      open:
+        specifier: 11.0.4
+        version: 11.0.4
 
   packages/review-relay:
     dependencies:
@@ -2224,6 +2236,9 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
+  '@tauri-apps/plugin-opener@2.5.5':
+    resolution: {integrity: sha512-xvzGai5aQds8j8R8RsUK/lW6pGG50YgOYIPLzvkqmkwAj7dfySOD7sGtejRzvVdMmv1EQfKVEFh1MvmDp8QR0g==}
+
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
     engines: {node: '>=18'}
@@ -3783,6 +3798,10 @@ packages:
     resolution: {integrity: sha512-b3souUgU0VaAvMmzA4+9cRgrOgMdE0vc9H9VhQ0FYnjjcyZ8R/f9DiwMU9V8rl+vjf05On9UJhbgb06fsTs87Q==}
     engines: {node: '>=20'}
 
+  open@11.0.4:
+    resolution: {integrity: sha512-++Zlftm0kVLPmzC06t6epuWmcRMDbI4z5P3NNX979WA/k23+NtSOynEGzsVfZwguKw2mi5umVgnBlJQMwRz4Pg==}
+    engines: {node: '>=20'}
+
   open@8.4.2:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
@@ -4714,7 +4733,7 @@ snapshots:
       - '@anthropic-ai/sdk'
       - '@modelcontextprotocol/sdk'
 
-  '@agentclientprotocol/codex-acp@1.13.1':
+  '@agentclientprotocol/codex-acp@1.13.1(patch_hash=2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a)':
     dependencies:
       '@agentclientprotocol/sdk': 1.5.0(zod@4.6.5)
       '@openai/codex': 0.156.1
@@ -6495,6 +6514,10 @@ snapshots:
       '@tauri-apps/cli-win32-ia32-msvc': 2.11.4
       '@tauri-apps/cli-win32-x64-msvc': 2.11.4
 
+  '@tauri-apps/plugin-opener@2.5.5':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
   '@testing-library/dom@10.4.2':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -8143,6 +8166,15 @@ snapshots:
       mimic-function: 5.0.1
 
   open@11.0.3:
+    dependencies:
+      default-browser: 5.5.1
+      define-lazy-prop: 3.0.0
+      is-in-ssh: 1.0.0
+      is-inside-container: 1.0.0
+      powershell-utils: 0.2.1
+      wsl-utils: 1.0.0
+
+  open@11.0.4:
     dependencies:
       default-browser: 5.5.1
       define-lazy-prop: 3.0.0

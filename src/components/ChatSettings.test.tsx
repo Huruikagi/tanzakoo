@@ -49,6 +49,13 @@ beforeEach(() => {
     switching: false,
     activity: "",
     error: null,
+    reviewAccess: null,
+    planStatus: {
+      available: true,
+      active: { id: "account-a", label: "Account A", signedIn: true },
+      accounts: [],
+      warning: null,
+    },
   });
   vi.mocked(api.chatOptions).mockImplementation(async (_, model) => choices(model ?? undefined));
   vi.mocked(api.action).mockImplementation(async (action) => ({
@@ -103,6 +110,41 @@ it("blocks sending and project switching during discovery and recovers after a f
   expect(screen.queryByRole("button", { name: "チャット設定を保存" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "既定のモデルで再取得" }));
   expect(await screen.findByRole("combobox", { name: "モデル" })).toHaveTextContent("Model A");
+});
+
+it("saves a supported plan effort and shows it in the current settings", async () => {
+  const user = await open();
+  await user.click(screen.getByRole("button", { name: "選択肢を取得" }));
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "推論強度" }), { key: "ArrowDown" });
+  await user.click(await screen.findByRole("option", { name: "高" }));
+  await user.click(screen.getByRole("button", { name: "チャット設定を保存" }));
+  expect(api.action).toHaveBeenCalledWith(
+    { type: "configureChat", settings: { model: "model-a", reasoningEffort: "high" } },
+    "project-a",
+  );
+  expect(await screen.findByText("現在の設定: model-a · 高")).toBeVisible();
+});
+
+it("clears a previous effort when the selected model has no advertised choices", async () => {
+  useWorkspace.setState((s) => ({
+    snapshot: { ...s.snapshot, chatSettings: { model: "model-a", reasoningEffort: "high" } },
+  }));
+  vi.mocked(api.chatOptions).mockImplementation(async (_, model) =>
+    model === "model-b" ? choices(model).filter((o) => o.id === "model") : choices(),
+  );
+  const user = await open();
+  await user.click(screen.getByRole("button", { name: "選択肢を取得" }));
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "モデル" }), { key: "ArrowDown" });
+  await user.click(await screen.findByRole("option", { name: "Model B" }));
+  expect(
+    await screen.findByText("この接続では推論強度の選択肢を確認できないため、既定値を使います。"),
+  ).toBeVisible();
+  expect(screen.queryByRole("combobox", { name: "推論強度" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "チャット設定を保存" }));
+  expect(api.action).toHaveBeenCalledWith(
+    { type: "configureChat", settings: { model: "model-b", reasoningEffort: null } },
+    "project-a",
+  );
 });
 
 it("keeps saved values on save failure and disables entry during a response", async () => {

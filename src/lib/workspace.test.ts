@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Card } from "@/bindings/Card";
 import { api, emptySnapshot } from "./api";
 import { connectionStatus, moveCard, useWorkspace } from "./workspace";
-vi.mock("./api", () => ({
+vi.mock("./api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./api")>()),
   emptySnapshot: {
     project: { id: "a", name: "A", memory: "", revision: 1 },
     projects: [],
@@ -44,6 +45,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   useWorkspace.setState({
+    newChatAgent: "codex",
     snapshot: { ...emptySnapshot, cards: [card], consents: ["codex", "claude"] },
     loaded: true,
     switching: false,
@@ -58,10 +60,32 @@ beforeEach(() => {
     error: null,
     chatError: null,
     connections: {},
+    reviewAccess: null,
+    planStatus: {
+      available: true,
+      accounts: [],
+      active: { id: "account-a", label: "Account A", signedIn: true },
+      warning: null,
+    },
     archivePending: false,
     archiveNotice: null,
   });
 });
+it.each([null, { id: "account-a", label: "Account A", signedIn: false }])(
+  "blocks sending without a signed-in ChatGPT account before creating a conversation",
+  async (active) => {
+    useWorkspace.setState({
+      planStatus: { available: true, accounts: [], active, warning: null },
+      references: [{ cardId: card.id, title: card.title, revision: 1, quote: "" }],
+    });
+    expect(await useWorkspace.getState().send("保存したい下書き", "codex")).toBe(false);
+    expect(api.action).not.toHaveBeenCalled();
+    expect(api.send).not.toHaveBeenCalled();
+    expect(api.connection).not.toHaveBeenCalled();
+    expect(useWorkspace.getState().references).toHaveLength(1);
+    expect(useWorkspace.getState().chatError).toBe("接続状況からChatGPTでサインインしてください。");
+  },
+);
 it("rechecks unsaved edits when a queued batch starts", async () => {
   const proposal = {
     id: "p",
@@ -274,15 +298,27 @@ describe("chat lifecycle", () => {
     expect(useWorkspace.getState().references).toEqual(references);
     expect(useWorkspace.getState().busy).toBeNull();
   });
-  it("clears references on every conversation selection without losing content drafts", () => {
+  it("clears references and previous errors on conversation selection without losing drafts", () => {
     useWorkspace.getState().draft(card.id, { title: card.title, body: "編集中", revision: 1 });
     for (const id of ["history", null]) {
+      useWorkspace.setState({ chatError: "Response stopped." });
       useWorkspace.getState().attach(card);
       useWorkspace.getState().selectConversation(id);
       expect(useWorkspace.getState().conversation).toBe(id);
       expect(useWorkspace.getState().references).toEqual([]);
+      expect(useWorkspace.getState().chatError).toBeNull();
       expect(useWorkspace.getState().drafts[card.id].body).toBe("編集中");
     }
+  });
+  it("clears a previous connection error when choosing another external CLI", () => {
+    useWorkspace.setState({
+      snapshot: { ...emptySnapshot, externalAgentsAvailable: true },
+      newChatAgent: "devin",
+      chatError: "Response stopped.",
+    });
+    useWorkspace.getState().setNewChatAgent("copilot");
+    expect(useWorkspace.getState().newChatAgent).toBe("copilot");
+    expect(useWorkspace.getState().chatError).toBeNull();
   });
   it("creates one conversation on double submit and sends explicit references", async () => {
     const conversation = { id: "c1", title: "new", agent: "codex", sessionId: null, createdAt: 1 };
@@ -501,4 +537,38 @@ it("moves into empty columns and between cards without changing other cards", ()
     revision: 1,
   });
   expect(cards[0].status).toBe("idea");
+});
+
+it("sends an external conversation without requiring a ChatGPT account and keeps its agent", async () => {
+  const c = { id: "ext", title: "External", agent: "copilot", sessionId: null, createdAt: 1 };
+  const snapshot = {
+    ...emptySnapshot,
+    externalAgentsAvailable: true,
+    conversations: [c],
+    consents: ["copilot"],
+  };
+  useWorkspace.setState({ snapshot, conversation: c.id, planStatus: null });
+  vi.mocked(api.snapshot).mockResolvedValue(snapshot);
+  vi.mocked(api.send).mockResolvedValue();
+  expect(await useWorkspace.getState().send("hello", "codex")).toBe(true);
+  expect(api.send).toHaveBeenCalledWith("ext", "hello", [], "a");
+  expect(api.action).not.toHaveBeenCalled();
+});
+
+it("blocks saved external conversations on the Mac Store distribution before sending", async () => {
+  useWorkspace.setState({
+    snapshot: {
+      ...emptySnapshot,
+      externalAgentsAvailable: false,
+      consents: ["copilot"],
+      conversations: [
+        { id: "ext", title: "External", agent: "copilot", sessionId: null, createdAt: 1 },
+      ],
+    },
+    conversation: "ext",
+  });
+  expect(await useWorkspace.getState().send("hello", "copilot")).toBe(false);
+  expect(api.send).not.toHaveBeenCalled();
+  await useWorkspace.getState().connect("copilot", "check");
+  expect(api.connection).not.toHaveBeenCalled();
 });

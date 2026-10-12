@@ -1,10 +1,41 @@
 # Mac実機の撮影スクリプト
 
-MacにCodexを入れる必要はない。**インストール済みのTanzakoo、Python 3、macOS標準のコマンドだけ**で撮影できる。Node・Rust・Playwright、アプリの再ビルドは不要。Python 3の有無は `python3 --version` で確認する。見つからない場合は、Gitを使うためのCommand Line Toolsに含まれるPythonが利用できるか確認する。
+MacにCodexを入れる必要はない。**起動中のTanzakoo、Python 3、macOS標準のコマンド**で撮影できる。インストールした.appと、クローン先から `pnpm tauri dev` で起動したネイティブアプリの両方に対応する。撮影処理にNode・Rust・Playwrightは不要だが、ローカルビルドで起動する場合は通常の開発環境が必要。Python 3の有無は `python3 --version` で確認する。
 
 スクリプトはウィンドウの大きさ・位置の調整、アプリを前面にする操作、撮影、サイズ検査、記録保存を行う。**言語変更、カードや変更提案の準備、撮る画面を開く操作は手動**。画面ごとにTerminalでEnterを押すと撮影する。DBを書き込んだり、AIの返答を注入したりしない。
 
 ## 実行
+
+### クローンしてローカル起動したアプリを撮る
+
+通常の開発環境を用意したMacで、クローン先のルートから起動する。既に起動中なら、もう一度起動する必要はない。
+
+```sh
+# Terminal 1: ネイティブアプリを起動したままにする
+mise exec -- pnpm tauri dev
+```
+
+別のTerminalで、同じクローン先から撮影する。
+
+```sh
+# Terminal 2: まず日本語ボード1枚
+python3 scripts/capture-macos-store.py --running --languages ja --scenes board
+
+# 日英の全画面を順に撮る場合
+python3 scripts/capture-macos-store.py --running
+```
+
+`--running` は、撮影スクリプトを置いたリポジトリの `src-tauri/target/debug/tanzakoo` と実行ファイルのパスが一致するプロセスだけを選ぶ。インストール済み.appを起動し直さず、ローカルアプリの保存先や起動環境も引き継いだまま撮影する。標準と異なるビルド先なら、次のように実行ファイルを明示する。
+
+```sh
+python3 scripts/capture-macos-store.py --running ./src-tauri/target/release/tanzakoo --languages ja
+```
+
+同じ実行ファイルから複数のアプリが動いている場合は、撮影対象を1つにする。撮影中はコードの変更・再ビルドを止める。実行ファイルが更新された場合やPIDが変わった場合は撮影を中止し、スクリプトを再実行する。フロントエンドだけのホットリロードはPIDで検知できないため、撮影中は編集しない。`pnpm dev` のブラウザープレビューは対象外。
+
+ローカル画像には `-local.jpg` を付け、記録には `kind: local-native-capture`、実行ファイルのSHA-256、撮影開始時のチェックアウトのコミットと未コミット変更の有無を残す。このコミットが実行ファイルのビルド元と一致する保証はなく、Storeの版・ビルド番号も推測しない。**提出前に最終提出ビルドと表示・機能が一致することを確認する。**
+
+### インストールした.appを撮る
 
 このスクリプトを含むリビジョンのリポジトリをMacに取得し、そのディレクトリで実行する。既に取得済みなら、そのリビジョンまで更新する。撮影キットZIPでも同じ構成で動く。
 
@@ -20,6 +51,24 @@ python3 scripts/capture-macos-store.py --app "/Applications/Tanzakoo.app" --lang
 4. 完了するとFinderで保存先が開く。画像と `manifest.json` を確認する。自動アップロードは行わない。
 
 撮影中は全画面表示を解除し、メインウィンドウを1枚だけ表示する。別のコピーの同じアプリが動いている場合は停止する。ファイル選択等のネイティブダイアログは閉じる。スクリプトはアプリを終了したり、元のウィンドウ配置に戻したりはしない。
+
+## Macの権限設定
+
+許可する対象は `.py` や `.js` ファイルではなく、コマンドを実行する **Terminal（ターミナル）**。iTermやVS Codeの内蔵ターミナルを使う場合は、そのアプリを許可する。
+
+「システム設定 → プライバシーとセキュリティ」で次を設定する。
+
+1. **画面収録とシステムオーディオ録音**: Terminalの画面収録をオンにする。表示されなければ「＋」で `/System/Applications/Utilities/Terminal.app` を追加する。
+2. **アクセシビリティ**: Terminalをオンにする。表示されなければ「＋」で同じアプリを追加する。ウィンドウの位置・大きさの調整に使う。
+3. **オートメーション**: 実行時にSystem Eventsの操作許可が表示されたら許可する。既に拒否した場合は、この設定内のTerminal → System Eventsをオンにする。要求前は一覧に表示されないことがある。
+
+Terminalの終了・再起動を求められたら従い、撮影コマンドを再実行する。ローカル開発アプリも終了した場合は、先に `mise exec -- pnpm tauri dev` で起動し直す。`python3` で実行するため、スクリプトへの `chmod +x` は不要。
+
+`CGPreflightScreenCaptureAccess is undefined` は権限拒否とは異なり、JXAがC関数を公開していない場合に起きる。修正版では関数を明示的にバインドする。古いスクリプトで出る場合は更新する。権限を許可するだけではこのエラーは解消しない。
+
+`windows.filter is not a function` は、CoreGraphicsから返されたCFArrayRefがJavaScript配列に変換されていない場合に起きる。修正版ではObjective-Cオブジェクトへの変換を挟む。権限の追加設定ではなく、撮影スクリプトを更新して再実行する。
+
+参照: Appleの[画面収録の許可](https://support.apple.com/ja-jp/guide/mac-help/mchld6aa7d23/mac)、[アクセシビリティの許可](https://support.apple.com/ja-jp/guide/mac-help/mh43185/mac)。
 
 ## ほかの撮り方
 
@@ -37,7 +86,7 @@ python3 scripts/capture-macos-store.py --app "/Applications/Tanzakoo.app" --size
 python3 scripts/capture-macos-store.py --app "/Applications/Tanzakoo Sandbox.app" --languages ja --scenes board
 ```
 
-ビルド番号の指定は任意。上記の `2` は既存のアップロード済みビルドの例で、最終提出ビルドが変わったら置き換える。Sandbox版の撮影成功はStoreビルドの確認を意味しない。
+ビルド番号の指定は.app用の任意指定で、`--running` とは併用できない。上記の `2` は既存のアップロード済みビルドの例で、最終提出ビルドが変わったら置き換える。Sandbox版の撮影成功はStoreビルドの確認を意味しない。
 
 ## サイズと保存先
 
@@ -71,6 +120,8 @@ AIを使う場合も、CodexアプリをMacに別途インストールする必�
 
 ## 検証範囲
 
-Windowsで、誤ったアプリ・複数ウィンドウ・画面サイズ不足・アルファ付き画像・指定外寸法の拒否、既存画像の保持、失敗画像の分離、撮影記録を単体検証した。macOS上の権限ダイアログ、JXA/AppleScript、実ウィンドウ撮影はまだ未検証。最初は1枚で確認する。
+Windowsで、誤ったアプリ・複数ウィンドウ・画面サイズ不足・アルファ付き画像・指定外寸法の拒否、既存画像の保持、失敗画像の分離、撮影記録を単体検証した。ローカル対象のパス照合、複数候補の拒否、再起動・再ビルドの拒否もテストしている。2026-10-01に利用者からMac実機での日英撮影成功の報告と [6枚の原本・manifest](native/README.md) を受領した。権限ダイアログ自体は直接確認していない。別環境では最初に1枚で確認する。
+
+ウィンドウ一覧の変換にはCFArrayRefを模した回帰テストを追加した。同じテストファイルをmacOSで実行すると、権限要求や撮影をせず、実際のJXAとCoreFoundationでCFArrayRef・NSArrayの両方を検証する。Windowsではこのネイティブテストだけスキップする。撮影全体の実機確認とは別の検証。
 
 参照: [AppleのMac自動化ガイド](https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/HowMacScriptingWorks.html)、[App Store画像仕様](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)。

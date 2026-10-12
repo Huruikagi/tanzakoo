@@ -3,6 +3,7 @@ FROM node:24.21.0-bookworm-slim AS build
 RUN npm install --global pnpm@12.4.2
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ ./patches/
 COPY packages/agent-runtime/package.json ./packages/agent-runtime/package.json
 COPY packages/review-relay/package.json ./packages/review-relay/package.json
 COPY packages/review-relay/src ./packages/review-relay/src
@@ -15,6 +16,7 @@ ENV NODE_ENV=production \
     PORT=8787
 WORKDIR /app
 COPY --from=build /out/ ./
+COPY LICENSE ./TANZAKOO-LICENSE.txt
 # Railway mounts its volume as root. Only the private ledger belongs in /data.
 # Create the mount point, not a database: Railway must attach the volume at runtime.
 RUN mkdir -p /data && chmod 700 /data

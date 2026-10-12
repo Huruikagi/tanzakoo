@@ -1,3 +1,5 @@
+mod preferences;
+
 use crate::{
     model::*,
     store::{Result, Store, StoreError},
@@ -94,37 +96,8 @@ impl Projects {
                 name: p.name,
             });
         }
-        let mut query = db.prepare(
-            "SELECT substr(key,9) FROM preferences WHERE key LIKE 'consent:%' ORDER BY key",
-        )?;
-        for row in query.query_map([], |r| r.get::<_, String>(0))? {
-            snapshot.consents.push(row?);
-        }
+        snapshot.consents.extend(self.consented_agents(&db)?);
         Ok(snapshot)
-    }
-    pub fn consented(&self, agent: &str) -> Result<bool> {
-        Ok(self
-            .catalog()?
-            .query_row(
-                "SELECT 1 FROM preferences WHERE key=?1",
-                [format!("consent:{agent}")],
-                |_| Ok(()),
-            )
-            .optional()?
-            .is_some())
-    }
-    pub fn set_consent(&self, agent: &str, granted: bool) -> Result<()> {
-        let key = format!("consent:{agent}");
-        let db = self.catalog()?;
-        if granted {
-            db.execute(
-                "INSERT OR REPLACE INTO preferences(key,value) VALUES (?1,'1')",
-                [key],
-            )?;
-        } else {
-            db.execute("DELETE FROM preferences WHERE key=?1", [key])?;
-        }
-        Ok(())
     }
     pub fn switch(&mut self, id: &str) -> Result<()> {
         self.store(id)?;
@@ -303,6 +276,31 @@ fn is_link(metadata: &std::fs::Metadata) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selected_plan_account_survives_restart_and_project_changes() {
+        let (root, mut projects) = deletion_fixture("plan-account");
+        assert_eq!(projects.last_plan_account().unwrap(), None);
+        projects.set_last_plan_account("registration-a").unwrap();
+        projects
+            .create("Another project".into(), "".into())
+            .unwrap();
+        assert_eq!(
+            projects.last_plan_account().unwrap().as_deref(),
+            Some("registration-a")
+        );
+        drop(projects);
+        let projects = Projects::open(root).unwrap();
+        assert_eq!(
+            projects.last_plan_account().unwrap().as_deref(),
+            Some("registration-a")
+        );
+        projects.set_last_plan_account("registration-b").unwrap();
+        assert_eq!(
+            projects.last_plan_account().unwrap().as_deref(),
+            Some("registration-b")
+        );
+    }
 
     fn deletion_fixture(name: &str) -> (PathBuf, Projects) {
         let nonce = std::time::SystemTime::now()

@@ -36,11 +36,14 @@ jobs:
       - name: Store provisioning validation and script syntax (no credentials)
         run: |
           python3 -m unittest discover -s scripts -p 'test_macos_*.py'
+          mise exec -- node --test scripts/macos-capture-window.test.mjs
           bash -n scripts/package-macos-store.sh
       - name: Reference runtime policy (offline)
         run: mise exec -- pnpm test:runtime
       - name: Test on Apple Silicon
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --target aarch64-apple-darwin
+      - name: ChatGPT plan authentication (offline)
+        run: mise exec -- pnpm test:plan
       - name: Review relay and real ACP/MCP (offline, not App Sandbox)
         run: mise exec -- pnpm test:review
       - name: Rust lint
@@ -58,12 +61,16 @@ jobs:
         run: mise exec -- pnpm install --frozen-lockfile
       - name: Frontend checks
         run: mise exec -- pnpm check
+      - name: Windows packaging checks (no Store credentials)
+        run: python -m unittest discover -s scripts -p test_windows_store.py
       - name: Reference runtime policy (offline)
         run: mise exec -- pnpm test:runtime
       - name: Rust format
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Rust tests and generated types
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: ChatGPT plan authentication (offline)
+        run: mise exec -- pnpm test:plan
       - name: Review relay and real ACP/MCP (offline)
         run: mise exec -- pnpm test:review
       - name: Check generated types are current

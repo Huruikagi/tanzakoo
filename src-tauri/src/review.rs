@@ -253,6 +253,68 @@ mod tests {
         assert!(session.ensure_usable().unwrap_err().contains("有効期限"));
     }
 
+    #[test]
+    fn selected_review_route_is_exclusive_and_rechecks_usability() {
+        use crate::agent::{AgentRuntime, connection::Connection};
+        let runtime = AgentRuntime::default();
+        *runtime.plan.lock().unwrap() = Some(crate::chatgpt_plan::PlanAccount {
+            id: "selected".into(),
+            label: "Account".into(),
+            signed_in: true,
+        });
+        *runtime.review.lock().unwrap() = Some(ReviewSession {
+            endpoint: "http://127.0.0.1:1".into(),
+            token: token(),
+            status: ReviewStatus {
+                model: "fixture-model".into(),
+                expires_at: now() + 60000.,
+                remaining_requests: 1,
+            },
+        });
+        let connection = Connection::select(&runtime, "codex").unwrap();
+        assert!(connection.plan.is_none());
+        assert!(connection.validate_session(None).is_ok());
+        assert!(
+            connection
+                .validate_session(Some("tanzakoo-review-v1:thread"))
+                .is_ok()
+        );
+        for session in ["tanzakoo-plan-v1:selected:thread", "tanzakoo-v1:thread"] {
+            assert!(connection.validate_session(Some(session)).is_err());
+        }
+        for agent in crate::external_agents::IDS {
+            assert!(Connection::select(&runtime, agent).is_err());
+        }
+        runtime
+            .review
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .status
+            .remaining_requests = 0;
+        assert!(
+            Connection::select(&runtime, "codex")
+                .unwrap()
+                .validate_session(None)
+                .unwrap_err()
+                .contains("利用上限")
+        );
+        {
+            let mut review = runtime.review.lock().unwrap();
+            let status = &mut review.as_mut().unwrap().status;
+            status.remaining_requests = 1;
+            status.expires_at = now() - 1.;
+        }
+        assert!(
+            Connection::select(&runtime, "codex")
+                .unwrap()
+                .validate_session(None)
+                .unwrap_err()
+                .contains("有効期限")
+        );
+    }
+
     #[tokio::test]
     async fn invalid_revoked_expired_exhausted_and_redirected_codes_fail_closed() {
         for (status, body, headers, message) in [
@@ -357,7 +419,84 @@ mod tests {
         }
         scan(&directory);
         drop(store);
-        std::fs::remove_dir_all(directory).unwrap();
+        remove_review_test_directory(&directory, Duration::from_secs(5))
+            .await
+            .unwrap();
+    }
+
+    async fn remove_review_test_directory(
+        directory: &std::path::Path,
+        grace: Duration,
+    ) -> std::io::Result<()> {
+        // Only remove this test's direct child of the temporary directory.
+        let root = std::env::temp_dir().canonicalize()?;
+        let directory = directory.canonicalize()?;
+        assert_eq!(directory.parent(), Some(root.as_path()));
+        assert!(
+            directory
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("tanzakoo-review-")
+        );
+        // ACP shutdown may terminate the child without waiting for Windows to
+        // release every file handle. Retry only ERROR_SHARING_VIOLATION; keep
+        // persistent locks and all other failures visible instead of ignoring
+        // cleanup errors or sleeping unconditionally after every test.
+        let deadline = tokio::time::Instant::now() + grace;
+        loop {
+            match std::fs::remove_dir_all(&directory) {
+                Ok(()) => return Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+                Err(error)
+                    if cfg!(windows)
+                        && error.raw_os_error() == Some(32)
+                        && tokio::time::Instant::now() < deadline =>
+                {
+                    tokio::time::sleep_until(
+                        (tokio::time::Instant::now() + Duration::from_millis(50)).min(deadline),
+                    )
+                    .await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn review_cleanup_waits_for_a_windows_file_lock_and_reports_persistent_locks() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let directory = std::env::temp_dir().join(format!(
+            "tanzakoo-review-cleanup-{}-{}",
+            std::process::id(),
+            now()
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        let path = directory.join("locked.txt");
+        std::fs::write(&path, "fixture").unwrap();
+        let held_file = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1) // FILE_SHARE_READ, deliberately excluding FILE_SHARE_DELETE.
+            .open(&path)
+            .unwrap();
+        let persistent = remove_review_test_directory(&directory, Duration::from_millis(100))
+            .await
+            .unwrap_err();
+        assert_eq!(persistent.raw_os_error(), Some(32));
+        assert!(path.exists());
+
+        let release = async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            drop(held_file);
+        };
+        let (removed, ()) = tokio::join!(
+            remove_review_test_directory(&directory, Duration::from_secs(5)),
+            release,
+        );
+        removed.unwrap();
+        assert!(!directory.exists());
     }
 
     #[test]

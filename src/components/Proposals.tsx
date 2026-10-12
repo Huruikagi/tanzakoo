@@ -1,17 +1,25 @@
 import { t } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { Check, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextDiff } from "./TextDiff";
 
 /** Pending AI proposals for one target. Renders nothing when there are none. */
-export function Proposals({ count, children }: { count: number; children: ReactNode }) {
+export function Proposals({
+  count,
+  children,
+  ref,
+}: {
+  count: number;
+  children: ReactNode;
+  ref?: Ref<HTMLElement>;
+}) {
   useTranslation();
   if (count === 0) return null;
   return (
-    <section className="proposals">
+    <section className="proposals" ref={ref}>
       <div className="section-label">
         <Sparkles size={14} />
         <h3>{t("AIの変更提案")}</h3>

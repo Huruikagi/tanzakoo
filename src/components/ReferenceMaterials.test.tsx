@@ -28,7 +28,7 @@ it("registers picker results for the active project and removes only the grant",
   const user = userEvent.setup();
   render(<ReferenceMaterials />);
   await user.click(screen.getByRole("button", { name: "参照資料" }));
-  expect(screen.getByText(/OpenAIへ送信されます/)).toBeVisible();
+  expect(screen.getByText(/選択したAI接続先へ送信されます/)).toBeVisible();
   const saved = { ...useWorkspace.getState().snapshot, materials: [material] };
   vi.mocked(api.addMaterials).mockResolvedValue(saved);
   await user.click(screen.getByRole("button", { name: "フォルダーを追加" }));
