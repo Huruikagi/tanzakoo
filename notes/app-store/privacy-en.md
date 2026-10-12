@@ -2,7 +2,7 @@
 
 Effective date: October 1, 2026
 
-This policy explains how Huruikagi, the developer of Tanzakoo, handles information in the app, its review connection, and this website. Contact: **huruikagi@gmail.com**.
+This policy explains how Huruikagi, the developer of Tanzakoo, handles information in the app, its review connection, and this website. See [Support](support.md) for general inquiries. Private contact: **huruikagi@gmail.com**.
 
 ## Information on your device
 
@@ -22,7 +22,13 @@ Infrastructure providers may process operational information such as IP addresse
 
 ## Visiting this website
 
-These product, support, and privacy pages are hosted on GitHub Pages. The developer has not added analytics, advertising, or contact forms to this website. GitHub processes and stores visitor IP addresses and other information to deliver and secure the site. See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+These product, support, and privacy pages are hosted on GitHub Pages. The developer has not added analytics, advertising, or submission forms within this website. Links to contact forms take you to GitHub. GitHub processes and stores visitor IP addresses and other information to deliver and secure the site. See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+
+## Contacting us through GitHub
+
+You can optionally submit general bug reports and questions through GitHub Issue Forms. Posting requires a GitHub account; your account name, posts, replies, and attachments are public. The developer uses them to answer questions, investigate bugs, and consider improvements. GitHub processing and retention are governed by its terms. Closing an issue does not delete it. Others can view and copy public content, and removal of every copy cannot be guaranteed.
+
+Use the private email below instead of a public issue for personal data, deletion requests, review access, or security reports. Email is also available without a GitHub account.
 
 ## Notifications
 
@@ -47,3 +53,7 @@ Support emails and attachments are kept for responding and necessary record keep
 Email **huruikagi@gmail.com**. Do not send access codes, API keys, passwords, or confidential reference materials. We will update this page when practices change and provide in-app notices or request consent when needed.
 
 References: [OpenAI Privacy Policy](https://openai.com/policies/privacy-policy/), [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data), [Railway logs](https://docs.railway.com/observability/logs). API documentation does not establish retention terms for regular ChatGPT access.
+
+## Optional connections to installed external CLIs
+
+Distributions other than the Mac App Store edition can connect to a CLI installed by the user. With consent, project information is passed to that CLI, which uses its configured AI providers or local models. Each service governs its destinations, retention, training use, charges, and deletion. The CLI may run its own tools or extensions, including additional processing or network requests. Tanzakoo does not automatically install external CLIs or copy or store their credentials. Launch commands and arguments are stored on your device; do not enter tokens or passwords there. Consent is shared across projects with identical launch settings and can be withdrawn in Settings. Use each CLI to sign out or delete its stored history.

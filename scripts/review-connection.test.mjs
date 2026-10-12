@@ -1,6 +1,14 @@
 // Uses the actual managed wrapper and pinned ACP/Codex against loopback fixtures.
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, existsSync, readdirSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  realpathSync,
+  rmSync,
+  existsSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,6 +22,19 @@ import { Ledger } from "../packages/review-relay/src/ledger.mjs";
 import { createRelay } from "../packages/review-relay/src/server.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Deliberately invalid inherited telemetry settings. The real Codex parser must
+// receive the managed overrides BEFORE app-server startup, not just thread/start.
+// Any missing startup override makes initialization fail rather than silently
+// retaining an enabled exporter. No real user's config is modified.
+const inheritedTelemetry = `
+[analytics]
+enabled = "must-be-overridden"
+[otel]
+exporter = "must-be-overridden"
+trace_exporter = "must-be-overridden"
+metrics_exporter = "must-be-overridden"
+log_user_prompt = "must-be-overridden"
+`;
 async function readAfterExit(path) {
   // Windows can briefly retain a child's file lock after taskkill has returned.
   // Retry the read, never skip the credential-persistence check.
@@ -54,6 +75,7 @@ for (const route of [
           ? "gpt-6-luna"
           : "gpt-6-astra";
       mkdirSync(home);
+      writeFileSync(join(home, "config.toml"), inheritedTelemetry);
       const requests = [];
       const failures = [];
       const ledger = new Ledger(":memory:");

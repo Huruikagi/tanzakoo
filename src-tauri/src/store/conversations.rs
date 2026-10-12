@@ -2,8 +2,11 @@ use super::*;
 
 impl Store {
     pub fn create_conversation(&self, agent: &str) -> Result<Conversation> {
-        if !["codex", "claude"].contains(&agent) {
+        if !["codex", "claude"].contains(&agent) && !crate::external_agents::is_external(agent) {
             return Err(invalid("エージェントが不正です。"));
+        }
+        if crate::external_agents::is_external(agent) {
+            crate::external_agents::ensure_available(agent).map_err(|e| invalid(&e))?;
         }
         let db = self.connect()?;
         let c = Conversation {

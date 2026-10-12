@@ -3,6 +3,7 @@ FROM node:24.21.0-bookworm-slim AS build
 RUN npm install --global pnpm@12.4.2
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ ./patches/
 COPY packages/agent-runtime/package.json ./packages/agent-runtime/package.json
 COPY packages/review-relay/package.json ./packages/review-relay/package.json
 COPY packages/review-relay/src ./packages/review-relay/src

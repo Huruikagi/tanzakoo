@@ -4,7 +4,7 @@ import type { WorkspaceSlice } from "./types";
 import type { Card } from "@/bindings/Card";
 import { proposalBlockReason } from "../proposals";
 import { serialized, snapshotUpdate } from "./snapshot";
-import { launchKey } from "./agent";
+import { launchKey } from "./connections";
 
 export const createBoardSlice: WorkspaceSlice<
   | "selected"

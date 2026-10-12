@@ -87,6 +87,15 @@ jobs:
         run: git diff --ignore-space-at-eol --exit-code -- src/bindings
       - name: Stage bundled runtime
         run: mise exec -- pnpm runtime:stage
+      - name: Verify runtime policy and packaged connections with local fixtures
+        env:
+          TANZAKOO_TEST_RUNTIME_ENTRY: ${{ github.workspace }}/src-tauri/resources/agent-runtime/codex.mjs
+        run: |
+          mise exec -- pnpm test:runtime
+          mise exec -- pnpm test:plan
+          # The board routes need a native MCP binary; these routes verify the
+          # deployed ACP startup overrides, streaming and reconnect on macOS.
+          mise exec -- node --test --test-name-pattern='review (gateway|providers|gateway-luna|gateway-custom-model|plan-custom-model):' scripts/review-connection.test.mjs
       - name: Build Store application without validation fixtures
         env:
           TANZAKOO_REVIEW_URL: ${{ inputs.review_access && 'https://review-relay-production-4f29.up.railway.app' || '' }}

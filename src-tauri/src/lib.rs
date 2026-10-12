@@ -4,6 +4,7 @@ pub mod chat_settings;
 pub mod chatgpt_plan;
 pub mod desktop_notifications;
 pub mod export;
+pub mod external_agents;
 pub mod language;
 pub mod materials;
 pub mod mcp;

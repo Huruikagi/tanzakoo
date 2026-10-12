@@ -156,11 +156,12 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 - `test:review` は審査用仲介の境界と、実Codex・ACP・MCPを使う候補作成・変更提案・会話復元をローカル模擬APIで検証します。Rustで現在の本体をビルドします。実APIの費用は発生しません。公開仲介に接続するアプリは `TANZAKOO_REVIEW_URL` を指定してビルドします。詳細は [審査用仲介の手順と制限](packages/review-relay/README.md) を参照してください。
 - 実ChatGPT接続の確認はアプリで行います。手順と確認済み項目は [ChatGPTプラン接続](notes/chatgpt-plan-preview.md) を参照してください。`scripts/agent-smoke.ps1` は旧認証を使う内部エンジンの診断用で、現在の通常接続の検証には使いません。
 
-Claudeのアダプターと検証コードは将来の調査用に残していますが、現在の画面からは利用しません。通常の開発で実接続の検証は不要です。調査を再開する場合、未ログイン時の確認には、空のフォルダーを `CLAUDE_CONFIG_DIR` に指定し、`ANTHROPIC_API_KEY` を設定しない状態で次を実行できます。
+Claudeは外部CLIの「Claude API」として、利用者が導入したアダプターとAPIキーで接続します（[外部ACP CLI接続](notes/external-acp-connections.md)）。旧Claude接続のコードは保存済み会話の閲覧と調査用に残しています。通常の開発で実接続の検証は不要です。実アダプターの未ログイン時の確認には、空のフォルダーを `CLAUDE_CONFIG_DIR` に指定し、`ANTHROPIC_API_KEY` を設定しない状態で次を実行できます。
 
 ```powershell
 $env:CLAUDE_CONFIG_DIR = (New-Item -ItemType Directory -Force .local/claude-empty-config).FullName
 mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test agent_connection -- --ignored real_claude
+mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test external_agents -- --ignored real_claude_api
 ```
 
 Mac・Windowsの掲載原稿、審査メモ、画像選定と提出資料の生成手順は [Mac掲載資料](notes/app-store/README.md) と [Windowsストア提出準備](notes/windows-store/README.md) にまとめています。
@@ -216,3 +217,17 @@ Skillは変更内容・互換性・最新コミットのCIを確認し、1件ず
 
 Tanzakoo自身のコードとドキュメントは [MIT License](LICENSE) で提供します。
 同梱する依存関係・フォントなどには、それぞれのライセンスが適用されます。Codexの告知は [同梱ランタイムのライセンス](packages/agent-runtime/licenses/README.md) を参照してください。
+
+## インストール済みの外部CLI
+
+Mac App Store版以外では、設定 → AI接続 → インストール済みの外部CLIから、Antigravity / GitHub Copilot CLI / OpenCode / Devin CLIを設定できます。各CLIは利用者が公式手順でインストールし、ターミナルでログインしてください。TanzakooはCLIを自動インストールせず、外部CLIの認証情報を取得・保存しません。既存のChatGPT接続も引き続き利用できます。
+
+実行コマンドを保存し「接続を確認」を押してください。GUIアプリからPATHが見えない場合は実行ファイルの絶対パスを指定します。起動引数は文字列のJSON配列です。認証トークンやパスワードは引数に入力しないでください。新しい会話の接続先でCLIを選び、送信する内容への同意後に会話を開始します。接続確認はセッション作成までで、利用枠や実際の応答を保証しません。モデルはCLI側の既定値を利用し、ChatGPT用のモデル設定は渡しません。
+
+送信先・利用料金・保存期間は各CLIとその接続先の設定・条件に従います。CLI自身のツールや拡張機能も動作する場合があります。起動設定を変えると送信同意とそのCLIの保存済みACPセッションを解除しますが、会話履歴は残します。Microsoft Store版はMSIXでの実動作と審査を別途確認します。
+
+Antigravityは通常の対話CLIではなく、Google公式ACPサーバーへ接続します。[ACPレジストリの配布情報](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json)でOS・CPUに対応するGoogle配布のアーカイブを選び、同梱ファイル一式を同じ場所へ展開してください。Windowsは`agy_acp_server.exe`、Macは`agy_acp_server.par`の絶対パスを設定し、引数は`[]`とします。Tanzakooは自動取得・更新・再配布しません。[公式CLIの手順](https://www.antigravity.google/docs/cli/install/)に従い、同じOSユーザーで`agy`を起動してログインします。公式拡張機能・CLI・デスクトップ間の共通認証を利用し、Tanzakooから認証情報は読み取りません。未認証・期限切れ時も公式側でログインし直してから「接続を確認」してください。
+
+Gemini CLIとCursorは接続候補から除外しています。保存済みの会話は閲覧でき、別の接続への自動移行・送信は行いません。
+
+実CLIの確認結果と未確認範囲は [外部ACP接続の検証記録](notes/external-acp-connections.md) を参照してください。

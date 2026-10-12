@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@agentclientprotocol/codex-acp@1.13.1': 2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a
+
 importers:
 
   .:
@@ -250,7 +253,7 @@ importers:
         version: 0.77.0(@anthropic-ai/sdk@0.125.0(zod@3.25.76))(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))
       '@agentclientprotocol/codex-acp':
         specifier: 1.13.1
-        version: 1.13.1
+        version: 1.13.1(patch_hash=2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a)
       '@shadcn/lint':
         specifier: 0.1.0
         version: 0.1.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
@@ -307,7 +310,7 @@ importers:
     dependencies:
       '@agentclientprotocol/codex-acp':
         specifier: 1.13.1
-        version: 1.13.1
+        version: 1.13.1(patch_hash=2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a)
       jose:
         specifier: 6.2.12
         version: 6.2.12
@@ -4730,7 +4733,7 @@ snapshots:
       - '@anthropic-ai/sdk'
       - '@modelcontextprotocol/sdk'
 
-  '@agentclientprotocol/codex-acp@1.13.1':
+  '@agentclientprotocol/codex-acp@1.13.1(patch_hash=2876dca4fa6d042be30fdbb4afe58caee360372352b09747e35f92d39a87975a)':
     dependencies:
       '@agentclientprotocol/sdk': 1.5.0(zod@4.6.5)
       '@openai/codex': 0.156.1

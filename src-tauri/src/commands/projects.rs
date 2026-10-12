@@ -64,7 +64,7 @@ pub(crate) async fn set_consent(
     granted: bool,
     state: State<'_, AppState>,
 ) -> Result<Snapshot, String> {
-    if agent != "codex" && granted {
+    if agent != "codex" && granted && crate::external_agents::ensure_available(&agent).is_err() {
         return Err("この接続先には送信できません。".into());
     }
     let runtime = state.runtime.clone();
