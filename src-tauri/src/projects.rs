@@ -1,3 +1,5 @@
+mod preferences;
+
 use crate::{
     model::*,
     store::{Result, Store, StoreError},
@@ -94,78 +96,8 @@ impl Projects {
                 name: p.name,
             });
         }
-        let mut query = db.prepare(
-            "SELECT substr(key,9) FROM preferences WHERE key LIKE 'consent:%' ORDER BY key",
-        )?;
-        for row in query.query_map([], |r| r.get::<_, String>(0))? {
-            snapshot.consents.push(row?);
-        }
+        snapshot.consents.extend(self.consented_agents(&db)?);
         Ok(snapshot)
-    }
-    pub fn consented(&self, agent: &str) -> Result<bool> {
-        Ok(self
-            .catalog()?
-            .query_row(
-                "SELECT 1 FROM preferences WHERE key=?1",
-                [format!("consent:{agent}")],
-                |_| Ok(()),
-            )
-            .optional()?
-            .is_some())
-    }
-    /// Only the registration ID is stored here; credentials stay in the plan helper.
-    pub fn last_plan_account(&self) -> Result<Option<String>> {
-        Ok(self
-            .catalog()?
-            .query_row(
-                "SELECT value FROM preferences WHERE key='chatgpt-plan-account'",
-                [],
-                |r| r.get(0),
-            )
-            .optional()?)
-    }
-    pub fn set_last_plan_account(&self, id: &str) -> Result<()> {
-        self.catalog()?.execute(
-            "INSERT OR REPLACE INTO preferences(key,value) VALUES ('chatgpt-plan-account',?1)",
-            [id],
-        )?;
-        Ok(())
-    }
-    pub fn notification_mode(&self) -> Result<crate::desktop_notifications::NotificationMode> {
-        let value: Option<String> = self
-            .catalog()?
-            .query_row(
-                "SELECT value FROM preferences WHERE key='notification-mode'",
-                [],
-                |r| r.get(0),
-            )
-            .optional()?;
-        Ok(value
-            .and_then(|v| serde_json::from_str(&v).ok())
-            .unwrap_or_default())
-    }
-    pub fn set_notification_mode(
-        &self,
-        mode: crate::desktop_notifications::NotificationMode,
-    ) -> Result<()> {
-        self.catalog()?.execute(
-            "INSERT OR REPLACE INTO preferences(key,value) VALUES ('notification-mode',?1)",
-            [serde_json::to_string(&mode)?],
-        )?;
-        Ok(())
-    }
-    pub fn set_consent(&self, agent: &str, granted: bool) -> Result<()> {
-        let key = format!("consent:{agent}");
-        let db = self.catalog()?;
-        if granted {
-            db.execute(
-                "INSERT OR REPLACE INTO preferences(key,value) VALUES (?1,'1')",
-                [key],
-            )?;
-        } else {
-            db.execute("DELETE FROM preferences WHERE key=?1", [key])?;
-        }
-        Ok(())
     }
     pub fn switch(&mut self, id: &str) -> Result<()> {
         self.store(id)?;

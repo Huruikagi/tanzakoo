@@ -1,5 +1,12 @@
 {
   "cli_auth_credentials_store": "file",
+  "analytics": { "enabled": false },
+  "otel": {
+    "exporter": "none",
+    "trace_exporter": "none",
+    "metrics_exporter": "none",
+    "log_user_prompt": false
+  },
   "agents": { "max_threads": 1 },
   "tools": { "view_image": false },
   "features": {

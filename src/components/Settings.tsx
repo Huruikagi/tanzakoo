@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ExternalConnections } from "./ExternalConnection";
 import { AgentConnection } from "./AgentConnection";
 import { NotificationSettings } from "./NotificationSettings";
 import { SupportLinks } from "./SupportLinks";
@@ -36,7 +37,7 @@ export function Settings() {
         <DialogHeader>
           <DialogTitle>{t("設定")}</DialogTitle>
           <DialogDescription className="sr-only">
-            {t("表示言語・通知と、ChatGPTの接続を設定します。")}
+            {t("表示言語・通知と、AIの接続を設定します。")}
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="general">
@@ -67,6 +68,7 @@ export function Settings() {
           <TabsContent value="connection">
             <div className="settings-section settings-scroll">
               <AgentConnection agent="codex" />
+              <ExternalConnections />
             </div>
           </TabsContent>
         </Tabs>

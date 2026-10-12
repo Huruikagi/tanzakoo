@@ -1,6 +1,8 @@
 # Microsoft Store 提出準備
 
-2026-10-01、利用者がPartner Centerで製品名を予約し、正式なPackage identityを提示した。掲載原稿とx64 MSIXの作成手順を用意した。ストアへのアップロード・公開はしていない。
+最新状態（2026-10-03）: MSIX **1.0.2.0** を認定へ送信し、Partner Centerの「認定中」・前処理中を確認した。無料、フランス以外の239市場、認定合格後すぐに公開する設定。認定結果・公開完了は未確認。[送信記録](build-1.0.2.0.md)を参照。以下の未提出記述は登録準備時点の履歴。
+
+2026-10-01、利用者がPartner Centerで製品名を予約し、正式なPackage identityを提示した。2026-10-02時点で日英の掲載原稿・各3枚の画像をPartner Centerに保存済み。審査提出・公開はまだ行っていない。
 
 ## 予約済みの製品情報
 
@@ -16,7 +18,7 @@
 
 Windowsの `PackageFamilyNameFromId` でnameとpublisherから算出したPFNも画面と一致した。別の製品を作る場合は `identity.example.json` をコピーし、その製品のProduct identityの値で明示的に置き換える。MacのBundle IDや任意の名前で代用しない。
 
-正式identityのローカル候補は `.local/windows-store-candidate-20261001/Tanzakoo-1.0.0.0-x64.msix`。MakeAppxの検査、manifestのidentityと全1,434ファイルのハッシュ照合が成功した。未署名であり、Storeや信頼済みのテスト署名によるインストール確認、WACK、最終掲載資料の確定は残る。
+Partner Centerに登録済みの正式identityの候補は `.local/windows-store-candidate-20261002-dpi/Tanzakoo-1.0.2.0-x64.msix`。公開ポリシー・サポートへの設定画面のリンクと、EXEのDPI宣言を含む。2026-10-03に旧版から差し替えて保存し、受領時の `Validated` を確認した。新版のWACK全検査はDPI判定のCOM例外等により総合WARNINGだが、Windows APIでは実行中のPer-Monitor V2を確認した。この区別を審査メモにも保存済み。認定への送信・公開は未実施。[1.0.1.0の基本動作検証記録](build-1.0.1.0.md)と[1.0.2.0の作成・検証・登録記録](build-1.0.2.0.md)を参照。
 
 MicrosoftはMSIXを推奨し、Store配信時の署名を行う。独自サイトでMSI/EXEをホストする経路より、既存Windows SDKのMakeAppxを使う経路を提出候補にした。新しいnpm依存は不要。[公開の概要](https://learn.microsoft.com/en-us/windows/apps/publish/get-started)、[MSIX署名](https://learn.microsoft.com/en-us/windows/msix/package/sign-msix-package-guide)
 
@@ -47,12 +49,16 @@ python scripts/package-windows-store.py --identity notes/windows-store/identity.
 
 - `metadata.json`: 日英の説明・特徴・検索語の原稿。AIの外部サービス依存を説明する。
 - `review-notes.txt`: 英語の審査手順と `runFullTrust` の用途。バージョン、私的な審査コード、有効期限は提出時に入力する。
-- 共通プライバシー・サポート原稿は `../app-store/`。GitHub PagesのURLは `metadata.json` に設定済み。[公開・更新手順](../../site/README.md)を参照。設定画面のリンクを含むMSIXへの更新が必要。
-- `mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit` で両ストアの原稿、Macで選定した6枚、公開ページのローカルプレビューをまとめる。出力先は未作成のフォルダを指定する。
+- 共通プライバシー・サポート原稿は `../app-store/`。GitHub PagesのURLは `metadata.json` に設定済み。[公開・更新手順](../../site/README.md)を参照。設定画面のリンクはMSIX 1.0.1.0に収録済み。
+- `mise exec -- node scripts/prepare-store-listing.mjs .local/store-submission-kit` で両ストアの原稿、Mac・Windows各6枚の選定画像、公開ページのローカルプレビューをまとめる。出力先は未作成のフォルダを指定する。
 
 Windowsのストア画像にはWindows実機の画面を使う。Desktop画像はPNG、1366×768以上、1枚50MB以下。少なくとも1枚が必要で、日英それぞれの掲載ページに登録する。[Microsoftの画像仕様](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/screenshots-and-images)
 
 Macの撮影原本やブラウザー用モックをWindows実機画像として流用しない。
+
+Windowsの撮影には [実機撮影スクリプト](capture.md) を使える。起動中のTanzakooを実行ファイルのパスで照合し、日英のPNGと撮影記録を保存する。
+
+2026-10-02に[Windows実機の日英各3枚](screenshots/native/20261002/README.md)を用意し、全画像の目視・サイズ・形式・ハッシュを確認した。差し替え後の最終MSIXとの表示一致は別途確認する。
 
 ## 提出前に残る検証
 
@@ -61,7 +67,7 @@ Macの撮影原本やブラウザー用モックをWindows実機画像として�
 - インストール済みパッケージでChatGPT接続、審査接続、カード作成・変更案承認、ファイルとフォルダ参照、再起動後の参照、Markdown書き出しを実施する。
 - 通知の表示・クリックからの復帰、登録資料の権限、通常版とのデータ領域の違いを確認する。
 - Windows App Certification Kitで対象パッケージを検査する。MakeAppx成功やpayloadからの起動は、この検査やStore審査の代わりにはならない。
-- Windowsネイティブの日本語・英語スクリーンショットを撮影し、現在のPartner Centerの画像条件と一致させる。
+- Partner Centerへ登録済みのWindows日英スクリーンショットを、最終MSIXのインストール後の画面と比較する。
 - 公開プライバシーURLとアプリ内導線、年齢レーティング、配信地域、価格、第三者サービスと完全信頼権限の説明を確定する。
 
 `runFullTrust` は同梱Node/Codexの子プロセス、ユーザーが登録した資料、Markdown保存などのデスクトップ機能に必要。通常利用に管理者昇格や常駐Windowsサービスは使わない。[権限の説明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/app-capability-declarations)

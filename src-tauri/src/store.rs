@@ -138,6 +138,7 @@ impl Store {
         let mut db = self.connect()?;
         let tx = db.transaction()?;
         let snapshot = Snapshot {
+            external_agents_available: crate::external_agents::available(),
             project: get(&tx, "project", "current")?,
             materials: list(&tx, "material")?,
             projects: vec![],
@@ -156,10 +157,34 @@ impl Store {
         Ok(snapshot)
     }
     pub fn set_agent(&self, config: AgentConfig) -> Result<()> {
-        if !["codex", "claude"].contains(&config.id.as_str()) || config.command.trim().is_empty() {
+        if !["codex", "claude"].contains(&config.id.as_str())
+            && !crate::external_agents::is_external(&config.id)
+            || config.command.trim().is_empty()
+        {
             return Err(invalid("起動設定が不正です。"));
         }
-        put(&self.connect()?, "agent", &config.id, &config)
+        let mut db = self.connect()?;
+        let tx = db.transaction()?;
+        if crate::external_agents::is_external(&config.id) {
+            crate::external_agents::validate(&config).map_err(|e| invalid(&e))?;
+            let previous = list::<AgentConfig>(&tx, "agent")?
+                .into_iter()
+                .find(|a| a.id == config.id);
+            if previous
+                .as_ref()
+                .is_none_or(|a| a.command != config.command || a.args != config.args)
+            {
+                for mut conversation in list::<Conversation>(&tx, "conversation")? {
+                    if conversation.agent == config.id {
+                        conversation.session_id = None;
+                        put(&tx, "conversation", &conversation.id, &conversation)?;
+                    }
+                }
+            }
+        }
+        put(&tx, "agent", &config.id, &config)?;
+        tx.commit()?;
+        Ok(())
     }
     pub fn set_chat_settings(&self, settings: ChatSettings) -> Result<()> {
         if [&settings.model, &settings.reasoning_effort]

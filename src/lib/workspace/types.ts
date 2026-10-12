@@ -30,6 +30,8 @@ type Connection = { status: ConnectionStatus; launch: string };
 export type ProjectDraft = { name: string; memory: string; revision: number };
 export type QuestionDraft = { mode: "option" | "text"; optionIndex: number | null; text: string };
 export type Workspace = {
+  newChatAgent: string;
+  setNewChatAgent: (agent: string) => void;
   planStatus: PlanStatus | null;
   planError: string | null;
   planConnect: (action: PlanAction, accountId?: string | null) => Promise<boolean>;

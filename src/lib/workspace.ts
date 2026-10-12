@@ -5,10 +5,12 @@ import { serialized, snapshotUpdate, restoredView } from "./workspace/snapshot";
 import { createProjectsSlice } from "./workspace/projects";
 import { createBoardSlice } from "./workspace/board";
 import { createAgentSlice } from "./workspace/agent";
+import { createConnectionSlice } from "./workspace/connections";
 import { createPlanSlice } from "./workspace/plan";
 
 export type { Permission, Busy, ProjectDraft } from "./workspace/types";
-export { connectionStatus, chatRunning } from "./workspace/agent";
+export { chatRunning } from "./workspace/agent";
+export { connectionStatus } from "./workspace/connections";
 export { moveCard } from "./workspace/board";
 
 export const columns = [
@@ -25,6 +27,7 @@ export const useWorkspace = create<Workspace>((...args) => {
     ...createProjectsSlice(...args),
     ...createBoardSlice(...args),
     ...createAgentSlice(...args),
+    ...createConnectionSlice(...args),
     ...createPlanSlice(...args),
     chatOpen: (() => {
       try {

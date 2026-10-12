@@ -1,0 +1,14 @@
+Subject: Data handling for Sign in with ChatGPT plan usage in an open-source desktop app
+
+We are preparing Tanzakoo, a free open-source macOS desktop app, for App Store privacy disclosures. Optional AI uses Sign in with ChatGPT with a user's Plus/Pro plan. The app sends text prompts, board context and user-selected reference excerpts to the eligible Responses endpoint through a bundled Codex/ACP runtime. A separate developer-funded review connection uses the ordinary OpenAI API; we are evaluating those two paths separately.
+
+Could you point us to the applicable policy or documentation for the ChatGPT-plan path and clarify:
+
+1. Which retention rules and user data controls apply to prompts and responses? Can they be used for model training or other product improvement, and under which settings?
+2. Are account/host identifiers, request metadata or usage records from this path used or shared for advertising, advertising measurement or data-broker purposes? We need to distinguish Apple's tracking definition from ordinary account association and service analytics.
+3. Does this path derive or retain approximate location from IP addresses? Which diagnostic and device data are retained beyond real-time request processing?
+4. Our pinned ACP 1.13.1 starts Codex 0.156.1 as `app-server` without `--analytics-default-enabled`; analytics and otel are not explicitly configured. The tagged source documents app-server metrics as disabled by default, separately from the analytics event client. With OAuth supplied through ACP's custom gateway headers, what additional diagnostic/event reporting (if any) is sent or retained, and how is it linked to identifiers? A path-specific data inventory would help.
+
+We have reviewed the Sign in with ChatGPT integration documentation (including Models and inference and Preview limitations), Accounts and sessions, the general Privacy Policy, Codex Advanced Configuration, and the pinned app-server metrics initialization. Requests use `store:false` and `stream:true`. We are not assuming either zero retention or that ordinary API data-handling terms also apply to ChatGPT plan usage. Please distinguish the policy for this specific plan-usage route from general ChatGPT website or API-key usage.
+
+No credentials, review codes or user conversation data are attached.

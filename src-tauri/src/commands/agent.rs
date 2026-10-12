@@ -27,22 +27,20 @@ pub(crate) async fn send_prompt(
         let conversation = store
             .conversation(&conversation_id)
             .map_err(|e| e.system_message())?;
-        let review = state.runtime.review_session()?;
-        let plan = if review.is_none() {
-            state.runtime.plan_account()?
-        } else {
-            None
-        };
-        if review.is_none() {
-            chatgpt_plan::require_account(plan.as_ref())?;
+        let external = crate::external_agents::is_external(&conversation.agent);
+        if conversation.agent != "codex" && !external {
+            return Err("この接続先には送信できません。".into());
         }
-        chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan.as_ref())?;
-        review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
-        if let Some(access) = &review {
-            access.ensure_usable()?;
-        } else if !projects
-            .consented(&conversation.agent)
-            .map_err(|e| e.system_message())?
+        let connection =
+            agent::connection::Connection::select(&state.runtime, &conversation.agent)?;
+        if connection.review.is_none() && !external {
+            chatgpt_plan::require_account(connection.plan.as_ref())?;
+        }
+        connection.validate_session(conversation.session_id.as_deref())?;
+        if connection.review.is_none()
+            && !projects
+                .consented(&conversation.agent)
+                .map_err(|e| e.system_message())?
         {
             return Err("AIへの送信に同意してください。".into());
         }
@@ -148,6 +146,13 @@ pub(crate) async fn agent_connection(
                 .unwrap_or_else(|e| e),
             can_login: false,
         });
+    }
+    if crate::external_agents::is_external(&agent) {
+        crate::external_agents::ensure_available(&agent)?;
+        if action != "check" {
+            return Err("外部CLIへのログインは、そのCLIで行ってください。".into());
+        }
+        return Ok(crate::agent_setup::probe(store, agent, action, cancel).await);
     }
     if let Some(account) = state.runtime.plan_account()? {
         if agent != "codex" || action != "check" {

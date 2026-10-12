@@ -22,7 +22,7 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 pulldown-cmark = { version = "0.13.4", default-features = false }
-rusqlite = { version = "0.38", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 tokio = { version = "1", features = [
   "rt-multi-thread",
   "process",
@@ -33,7 +33,7 @@ tokio = { version = "1", features = [
   "macros",
 ] }
 agent-client-protocol = "=2.1.0"
-rmcp = { version = "=3.3.0", features = ["transport-io"] }
+rmcp = { version = "=3.5.1", features = ["transport-io"] }
 thiserror = "2"
 tracing = "0.1"
 ts-rs = { version = "12", features = ["serde-compat"] }
@@ -41,7 +41,7 @@ tauri-plugin-dialog = "2"
 cap-std = "4.0.3"
 cap-fs-ext = "4.0.3"
 reqwest = { version = "=0.13.5", default-features = false, features = ["native-tls"] }
-tauri-plugin-opener = "=2.5.3"
+tauri-plugin-opener = "=2.5.5"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6.2"
@@ -76,5 +76,7 @@ windows = { version = "0.62", features = [
   "UI_Notifications",
   "Win32_Storage_Packaging_Appx",
   "Win32_System_Registry",
+  "Win32_System_JobObjects",
+  "Win32_System_Threading",
   "Win32_Security",
 ] }

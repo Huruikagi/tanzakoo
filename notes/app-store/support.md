@@ -6,7 +6,17 @@ Tanzakooは、アイデアをカードにし、ボードで整理するアプリ
 
 ## お問い合わせ
 
-[huruikagi@gmail.com](mailto:huruikagi@gmail.com) へ、アプリのバージョン、OSのバージョン、行った操作、表示されたエラーをお知らせください。画像を添付する場合は、カード本文やファイルパスなどの個人情報を確認してください。認証コード・APIキー・パスワードは送らないでください。
+通常のお問い合わせは **GitHub Issue Forms** で受け付けます。日本語・英語どちらでも書けます。
+
+- [不具合を報告する](https://github.com/Huruikagi/tanzakoo/issues/new?template=bug-report.yml)
+- [使い方を相談する・改善を提案する](https://github.com/Huruikagi/tanzakoo/issues/new?template=question-request.yml)
+- [既存の報告・回答を見る](https://github.com/Huruikagi/tanzakoo/issues)
+
+投稿にはGitHubアカウントが必要です。**投稿内容・添付画像・返信は公開されます。** メールアドレス、認証コード、APIキー、パスワード、私的なカードや参照資料、未加工のログを投稿しないでください。画像やエラーの抜粋からも、本文・ファイルパス・認証情報を伏せてください。
+
+### 非公開で連絡したいとき
+
+個人情報に関する相談・削除依頼、審査用コード、セキュリティの問題は、公開Issueではなく [huruikagi@gmail.com](mailto:huruikagi@gmail.com) へご連絡ください。GitHubアカウントをお持ちでない場合もメールを利用できます。メールでも認証コード・APIキー・パスワードは送らないでください。
 
 ## よくある質問
 
@@ -40,7 +50,19 @@ Tanzakooは、アイデアをカードにし、ボードで整理するアプリ
 
 Tanzakoo helps you explore ideas with cards and a board. The Mac version requires Apple Silicon and macOS 26 or later. Mac App Store and Microsoft Store releases are in preparation.
 
-Contact [huruikagi@gmail.com](mailto:huruikagi@gmail.com) with your app version, OS version, steps, and error message. Remove private card text and file paths from screenshots. Never send access codes, API keys, or passwords.
+Use **GitHub Issue Forms** for general support. Japanese and English are welcome.
+
+- [Report a bug](https://github.com/Huruikagi/tanzakoo/issues/new?template=bug-report.yml)
+- [Ask a question or suggest an improvement](https://github.com/Huruikagi/tanzakoo/issues/new?template=question-request.yml)
+- [Browse existing reports and answers](https://github.com/Huruikagi/tanzakoo/issues)
+
+A GitHub account is required to post. **Posts, attachments, and replies are public.** Do not post email addresses, access codes, API keys, passwords, private cards or reference materials, or unredacted logs. Remove private content, file paths, and credentials from images and error excerpts.
+
+### Private contact
+
+For personal data, deletion requests, review access, or security reports, email [huruikagi@gmail.com](mailto:huruikagi@gmail.com) instead of opening a public issue. Email is also available if you do not have a GitHub account. Never email access codes, API keys, or passwords.
+
+### Frequently asked questions
 
 **Do I need an AI account?** Manual board editing, project memory, and Markdown export work without an account. Regular AI access requires your own eligible ChatGPT plan and permission through Continue with ChatGPT and is subject to that service's plan and limits.
 

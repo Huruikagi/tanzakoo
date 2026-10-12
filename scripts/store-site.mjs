@@ -67,6 +67,6 @@ ${preview ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <nav aria-label="${page.lang === "en" ? "Site navigation" : "サイト内の案内"}"><a href="support.html">サポート / Support</a><a href="privacy-ja.html" lang="ja">プライバシー</a><a href="privacy-en.html" lang="en">Privacy</a></nav></header>
 ${preview ? "<aside>確認用プレビュー / Local preview</aside>" : ""}
 <main id="content">${body}</main>
-<footer>Tanzakoo · Huruikagi<br><a href="mailto:huruikagi@gmail.com">huruikagi@gmail.com</a></footer>
+<footer>Tanzakoo · Huruikagi<br><a href="support.html">${page.lang === "en" ? "Contact and support" : "お問い合わせ・サポート"}</a></footer>
 </body></html>\n`;
 }

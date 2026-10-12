@@ -17,6 +17,13 @@ fn snapshot(projects: &crate::projects::Projects) -> Result<Snapshot, String> {
             s.agents.push(crate::agent::default_config(id));
         }
     }
+    if crate::external_agents::available() {
+        for id in crate::external_agents::IDS {
+            if !s.agents.iter().any(|a| a.id == *id) {
+                s.agents.push(crate::external_agents::default_config(id));
+            }
+        }
+    }
     Ok(s)
 }
 

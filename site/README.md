@@ -15,7 +15,7 @@
 - サポート: `notes/app-store/support.md`
 - 見た目: `site/style.css`、共通レンダラー: `scripts/store-site.mjs`
 
-この4ページ、CSS、`.nojekyll`だけを生成する。内部の申告検討、審査メモ、審査コード、スクリーンショット原本はサイトの生成対象にしない。アクセス解析・外部フォント・フォーム・ブラウザー内のスクリプトは使用しない。GitHub自身のアクセスログはポリシーに記載する。
+この4ページ、CSS、`.nojekyll`だけを生成する。内部の申告検討、審査メモ、審査コード、スクリーンショット原本はサイトの生成対象にしない。アクセス解析・外部フォント・サイト内の送信フォーム・ブラウザー内のスクリプトは使用しない。通常のお問い合わせはGitHub Issue Formsへリンクし、個人情報や削除依頼等の非公開連絡先はメールで残す。GitHub自身のアクセスログはポリシーに記載する。
 
 ```powershell
 mise exec -- node scripts/build-store-site.mjs .local/public-site
@@ -31,3 +31,9 @@ GitHubのSettings → PagesのSourceを **GitHub Actions** に設定する。`.g
 2026-10-01、PagesをActions方式・HTTPS有効で設定。利用者が審査用利用記録の必要期間のみの保持と不要後の手動削除を承認した。外部サービスの保持期間や削除を独自に保証しない。ストア申告の未確認項目は `notes/app-store/privacy-assessment.md` に残す。
 
 アプリ内の設定から、現在の表示言語のポリシーと日英サポートを標準ブラウザーで開く。Tauri公式opener（MIT OR Apache-2.0）を使用し、capabilityで3つの固定HTTPS URLだけを許可する。既存Tauri 2.11を維持するためRust側はopener 2.5.3、JS側は2.5.5を使う。ネイティブのリンク動作は、次の署名済みMac・Windowsパッケージで確認する。
+
+## 問い合わせフォーム
+
+`.github/ISSUE_TEMPLATE/bug-report.yml` と `question-request.yml` に日英のフォームを管理する。既定ブランチへpushするとGitHubのIssue作成画面に反映される。フォーム送信は公開Issueになるため、投稿前の注意を表示し、個人情報・秘密情報を除いたことを確認する。メールアドレスや認証コードを入力する項目は設けない。
+
+`config.yml` は空白Issueへの導線を隠し、FAQと非公開連絡先があるサポートページを案内する。これは投稿内容の検査や非公開化を保証する仕組みではない。サポートページのURLは維持するので、アプリ側のURL変更は不要。GitHub上の表示確認ではフォームの表示までとし、確認用のIssueは投稿しない。

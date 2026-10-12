@@ -20,7 +20,7 @@ pub(super) async fn prepare(
     store: &Store,
     conversation: &Conversation,
     workspace: PathBuf,
-    mcp: McpServer,
+    mcp: Vec<McpServer>,
     replaying: &AtomicBool,
     review: Option<&crate::review::ReviewSession>,
     plan: Option<(
@@ -62,14 +62,14 @@ pub(super) async fn prepare(
         saved_session.filter(|_| initialized.agent_capabilities.load_session)
     {
         replaying.store(true, Ordering::SeqCst);
-        cx.send_request(LoadSessionRequest::new(saved.clone(), workspace).mcp_servers(vec![mcp]))
+        cx.send_request(LoadSessionRequest::new(saved.clone(), workspace).mcp_servers(mcp))
             .block_task()
             .await?;
         replaying.store(false, Ordering::SeqCst);
         SessionId::new(saved)
     } else {
         let response = cx
-            .send_request(NewSessionRequest::new(workspace).mcp_servers(vec![mcp]))
+            .send_request(NewSessionRequest::new(workspace).mcp_servers(mcp))
             .block_task()
             .await?;
         store

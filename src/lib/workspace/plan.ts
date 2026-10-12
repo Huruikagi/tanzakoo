@@ -22,7 +22,13 @@ export const createPlanSlice: WorkspaceSlice<"planStatus" | "planError" | "planC
       const planStatus = await api.planConnection(get().snapshot.project.id, action, accountId);
       set({ planStatus });
       if (action !== "list" && action !== "usage" && action !== "restore")
-        set({ connections: {}, chatError: null, conversation: null, stream: "" });
+        set({
+          newChatAgent: "codex",
+          connections: {},
+          chatError: null,
+          conversation: null,
+          stream: "",
+        });
       return true;
     } catch (error) {
       set({ planError: String(error) });
