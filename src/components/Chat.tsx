@@ -85,7 +85,9 @@ export function Chat() {
       <div className="chat-selector">
         {active ? (
           <>
-            <span className="agent-avatar">{active.agent === "claude" ? "✳" : "◎"}</span>
+            <span className="agent-avatar">
+              {active.agent === "claude" || active.agent === "claude-api" ? "✳" : "◎"}
+            </span>
             <Select
               value={conversation!}
               disabled={!!busy}

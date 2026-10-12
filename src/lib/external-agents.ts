@@ -9,6 +9,13 @@ export const externalAgents = [
     loginUrl: "https://www.antigravity.google/docs/cli/install/",
   },
   {
+    id: "claude-api",
+    name: "Claude API",
+    url: "https://github.com/agentclientprotocol/claude-agent-acp",
+    login: "claude auth login --console",
+    authUrl: "https://code.claude.com/docs/en/authentication",
+  },
+  {
     id: "copilot",
     name: "GitHub Copilot CLI",
     url: "https://docs.github.com/en/copilot/get-started/cli-quickstart",
