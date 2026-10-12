@@ -4,6 +4,7 @@ import type { WorkspaceSlice, Workspace } from "./types";
 import type { Snapshot } from "@/bindings/Snapshot";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 import { serialized, snapshotUpdate } from "./snapshot";
+import { externalAgent } from "../external-agents";
 
 export function launchKey(snapshot: Snapshot, agent: string) {
   const config = snapshot.agents.find((a) => a.id === agent);
@@ -13,8 +14,18 @@ export function connectionStatus(
   state: Pick<Workspace, "snapshot" | "connections">,
   agent: string,
 ): ConnectionStatus | undefined {
+  if (externalAgent(agent)) return externalConnectionCheck(state, agent)?.status;
   const connection = state.connections[agent];
   return connection?.launch === launchKey(state.snapshot, agent) ? connection.status : undefined;
+}
+
+export function externalConnectionCheck(state: Pick<Workspace, "snapshot">, agent: string) {
+  if (!state.snapshot.externalAgentsAvailable) return undefined;
+  const check = state.snapshot.externalConnectionChecks[agent];
+  return check &&
+    JSON.stringify([check.config.command, check.config.args]) === launchKey(state.snapshot, agent)
+    ? check
+    : undefined;
 }
 export const createConnectionSlice: WorkspaceSlice<
   | "reviewAccess"
@@ -76,7 +87,13 @@ export const createConnectionSlice: WorkspaceSlice<
     });
     try {
       const status = await api.connection(get().snapshot.project.id, agent, action);
-      set((s) => ({ connections: { ...s.connections, [agent]: { status, launch } } }));
+      if (externalAgent(agent)) {
+        await get().refresh();
+        if (status.state !== "ready" && connectionStatus(get(), agent)?.message !== status.message)
+          set({ chatError: status.message });
+      } else {
+        set((s) => ({ connections: { ...s.connections, [agent]: { status, launch } } }));
+      }
     } catch (error) {
       set({ chatError: String(error) });
     } finally {

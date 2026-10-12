@@ -16,6 +16,7 @@ vi.mock("./api", async (importOriginal) => ({
     questions: [],
     agents: [],
     consents: [],
+    externalConnectionChecks: {},
   },
   api: {
     action: vi.fn(),
@@ -358,6 +359,40 @@ describe("chat lifecycle", () => {
 describe("connection status", () => {
   const codex = { id: "codex", command: "@tanzakoo/managed", args: [] };
   const ready = { state: "ready", message: "接続できました。", canLogin: true };
+  it("restores external checks from storage, isolates projects, and invalidates changed launches", async () => {
+    const config = { id: "copilot", command: "copilot", args: ["--acp"] };
+    const saved = {
+      ...emptySnapshot,
+      externalAgentsAvailable: true,
+      agents: [config],
+      externalConnectionChecks: { copilot: { config, status: ready, checkedAt: 123 } },
+    };
+    vi.mocked(api.snapshot).mockResolvedValue(saved);
+    await useWorkspace.getState().refresh();
+    expect(connectionStatus(useWorkspace.getState(), "copilot")).toEqual(ready);
+    useWorkspace.setState({ snapshot: { ...saved, externalConnectionChecks: {} } });
+    expect(connectionStatus(useWorkspace.getState(), "copilot")).toBeUndefined();
+    useWorkspace.setState({ snapshot: { ...saved, agents: [{ ...config, args: ["--other"] }] } });
+    expect(connectionStatus(useWorkspace.getState(), "copilot")).toBeUndefined();
+    useWorkspace.setState({ snapshot: saved });
+    const failure = { ...ready, state: "error", message: "connection failed" };
+    vi.mocked(api.connection).mockResolvedValue(failure);
+    vi.mocked(api.snapshot).mockResolvedValue({
+      ...saved,
+      externalConnectionChecks: { copilot: { config, status: failure, checkedAt: 456 } },
+    });
+    await useWorkspace.getState().connect("copilot", "check");
+    expect(connectionStatus(useWorkspace.getState(), "copilot")).toEqual(failure);
+    vi.mocked(api.action).mockResolvedValue({
+      ...saved,
+      externalConnectionChecks: {},
+      agents: [{ ...config, command: "other" }],
+    });
+    await useWorkspace
+      .getState()
+      .act({ type: "configureAgent", config: { ...config, command: "other" } });
+    expect(connectionStatus(useWorkspace.getState(), "copilot")).toBeUndefined();
+  });
   it("is shared across projects only while they launch the agent the same way", async () => {
     useWorkspace.setState((s) => ({ snapshot: { ...s.snapshot, agents: [codex] } }));
     vi.mocked(api.connection).mockResolvedValue(ready);

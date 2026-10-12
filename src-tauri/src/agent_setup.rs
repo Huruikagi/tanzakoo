@@ -171,7 +171,7 @@ pub async fn probe(
     store: Store,
     agent: String,
     action: String,
-    mut cancel: oneshot::Receiver<()>,
+    cancel: oneshot::Receiver<()>,
 ) -> ConnectionStatus {
     let result = |state: &str, message: &str, can_login: bool| ConnectionStatus {
         state: state.into(),
@@ -205,6 +205,25 @@ pub async fn probe(
         .into_iter()
         .find(|c| c.id == agent)
         .unwrap_or_else(|| crate::agent::default_config(&agent));
+    let status = probe_launch(store.clone(), config.clone(), action, cancel).await;
+    if let Err(error) = store.save_external_connection_check(&config, status.clone()) {
+        return result("error", &error.system_message(), false);
+    }
+    status
+}
+
+async fn probe_launch(
+    store: Store,
+    config: AgentConfig,
+    action: String,
+    mut cancel: oneshot::Receiver<()>,
+) -> ConnectionStatus {
+    let result = |state: &str, message: &str, can_login: bool| ConnectionStatus {
+        state: state.into(),
+        message: message.into(),
+        can_login,
+    };
+    let agent = config.id.clone();
     if config.command == CLAUDE_UNAVAILABLE {
         return result("unsupported", CLAUDE_UNAVAILABLE_MESSAGE, false);
     }

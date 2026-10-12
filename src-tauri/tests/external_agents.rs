@@ -149,6 +149,14 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
             );
         };
         run("--connection-check");
+        let checked = Store::open(dir.join("check.db"))
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        assert_eq!(
+            checked.external_connection_checks[agent].status.state,
+            "ready"
+        );
         let initial = std::fs::read_to_string(&trace).unwrap();
         assert!(!initial.contains("PRIVATE_BOARD_CONTENT"));
         assert!(!initial.contains("session/prompt"));
@@ -161,6 +169,17 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
         assert!(full.contains("session/load"));
         assert!(full.contains("tanzakoo"));
         let snapshot = store.snapshot().unwrap();
+        assert_eq!(
+            snapshot.external_connection_checks[agent].status.state,
+            "ready"
+        );
+        assert!(
+            !snapshot.external_connection_checks[agent]
+                .config
+                .args
+                .iter()
+                .any(|a| a.contains("--additional-mcp-config"))
+        );
         assert_eq!(snapshot.conversations.len(), 1);
         let launches: Vec<serde_json::Value> = full
             .lines()
@@ -374,6 +393,10 @@ fn external_model_and_effort_follow_the_cli_pickers() {
 
     // Settings belong to one CLI and are dropped when its launch changes.
     let snapshot = store.snapshot().unwrap();
+    assert_eq!(
+        snapshot.external_connection_checks["devin"].status.state,
+        "ready"
+    );
     assert_eq!(snapshot.chat_settings, ChatSettings::default());
     assert_eq!(snapshot.external_chat_settings.len(), 1);
     assert!(
@@ -441,9 +464,100 @@ fn claude_api_accepts_only_non_subscription_credentials() {
         let text = status["message"].as_str().unwrap();
         assert!(text.contains(message), "{kind}: {text}");
         assert!(!text.contains("example.com"));
+        let saved = Store::open(data.join("check.db"))
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        assert_eq!(
+            saved.external_connection_checks["claude-api"].status.state,
+            state
+        );
+        assert!(
+            !serde_json::to_string(&saved.external_connection_checks)
+                .unwrap()
+                .contains("example.com")
+        );
         let trace = std::fs::read_to_string(dir.join(format!("{kind}.jsonl"))).unwrap();
         assert!(!trace.contains("\"method\":\"authenticate\""));
         assert!(!trace.contains("session/prompt"));
+    }
+}
+
+#[cfg(not(feature = "app-sandbox"))]
+#[test]
+fn external_turn_failure_replaces_ready_but_cancellation_preserves_it() {
+    for flag in ["--fail-prompt", "--fail-config", "--wait-prompt"] {
+        let dir = directory();
+        let store = Store::open(dir.join("smoke.db")).unwrap();
+        let config = AgentConfig {
+            id: "devin".into(),
+            command: std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into()),
+            args: vec![
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/external-agent.mjs")
+                    .to_string_lossy()
+                    .into(),
+                dir.join("trace.jsonl").to_string_lossy().into(),
+                flag.into(),
+                "--config-options".into(),
+            ],
+        };
+        store.set_agent(config.clone()).unwrap();
+        if flag == "--fail-config" {
+            store
+                .set_chat_settings(
+                    "devin",
+                    ChatSettings {
+                        model: Some("sonnet".into()),
+                        reasoning_effort: None,
+                    },
+                )
+                .unwrap();
+        }
+        let check_store = Store::open(dir.join("check.db")).unwrap();
+        check_store.set_agent(config.clone()).unwrap();
+        let run = |mode: &str| {
+            Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+                .args([mode, "devin", dir.to_str().unwrap(), "hello"])
+                .output()
+                .unwrap()
+        };
+        assert!(run("--connection-check").status.success());
+        let checked = check_store
+            .snapshot()
+            .unwrap()
+            .external_connection_checks
+            .remove("devin")
+            .unwrap();
+        assert_eq!(checked.status.state, "ready");
+        store
+            .save_external_connection_check(&config, checked.status)
+            .unwrap();
+        let before = store.snapshot().unwrap().external_connection_checks["devin"].checked_at;
+        let result = run(if flag == "--wait-prompt" {
+            "--smoke-cancel"
+        } else {
+            "--smoke"
+        });
+        assert_eq!(
+            result.status.success(),
+            flag == "--wait-prompt",
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let saved = Store::open(store.path()).unwrap().snapshot().unwrap();
+        let check = &saved.external_connection_checks["devin"];
+        assert_eq!(
+            check.status.state,
+            if flag == "--wait-prompt" {
+                "ready"
+            } else {
+                "error"
+            }
+        );
+        if flag == "--wait-prompt" {
+            assert_eq!(check.checked_at, before);
+        }
     }
 }
 

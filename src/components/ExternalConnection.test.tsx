@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { Settings } from "./Settings";
 import { Chat } from "./Chat";
 import { emptySnapshot } from "@/lib/api";
-import { launchKey } from "@/lib/workspace/connections";
 import { useWorkspace } from "@/lib/workspace";
 
 vi.mock("@/lib/api", async (original) => ({
@@ -54,10 +53,14 @@ beforeEach(() => {
 it("lists every external CLI by name with its connection state", async () => {
   const user = userEvent.setup();
   useWorkspace.setState({
-    connections: {
-      copilot: {
-        status: { state: "ready", message: "ok", canLogin: false },
-        launch: launchKey(snapshot, "copilot"),
+    snapshot: {
+      ...snapshot,
+      externalConnectionChecks: {
+        copilot: {
+          status: { state: "ready", message: "ok", canLogin: false },
+          config: snapshot.agents[0],
+          checkedAt: 1_792_000_000_000,
+        },
       },
     },
   });
@@ -76,6 +79,7 @@ it("lists every external CLI by name with its connection state", async () => {
   expect(within(rows[2]).getByText("接続を確認済み")).toBeInTheDocument();
   expect(within(rows[1]).getByText("未確認")).toBeInTheDocument();
   expect(screen.queryByLabelText("CLIの実行ファイルまたはコマンド名")).not.toBeInTheDocument();
+  expect(screen.queryByText(/確認日時:/)).not.toBeInTheDocument();
 
   await user.click(within(rows[1]).getByRole("button", { name: "Claude APIを設定" }));
   expect(screen.getByLabelText("CLIの実行ファイルまたはコマンド名")).toHaveValue(
@@ -84,6 +88,7 @@ it("lists every external CLI by name with its connection state", async () => {
   await user.click(within(rows[2]).getByRole("button", { name: "GitHub Copilot CLIを設定" }));
   expect(screen.getAllByLabelText("CLIの実行ファイルまたはコマンド名")).toHaveLength(1);
   expect(screen.getByLabelText("CLIの実行ファイルまたはコマンド名")).toHaveValue("copilot");
+  expect(screen.getByText(/確認日時:/)).toBeVisible();
 });
 
 it("hides the external list in builds without external CLIs", async () => {

@@ -207,6 +207,15 @@ pub struct ConnectionStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/bindings/")]
+pub struct ExternalConnectionCheck {
+    pub config: AgentConfig,
+    pub status: ConnectionStatus,
+    pub checked_at: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
 pub struct Project {
     pub id: String,
     pub name: String,
@@ -257,6 +266,8 @@ pub struct Snapshot {
     /// Model and effort chosen for each external CLI, keyed by agent id.
     #[serde(default)]
     pub external_chat_settings: std::collections::BTreeMap<String, ChatSettings>,
+    #[serde(default)]
+    pub external_connection_checks: std::collections::BTreeMap<String, ExternalConnectionCheck>,
     /// Agents the user has agreed to send project content to. App-wide, not per project.
     pub consents: Vec<String>,
 }

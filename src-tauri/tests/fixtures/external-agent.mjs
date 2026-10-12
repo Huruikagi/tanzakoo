@@ -81,6 +81,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       result = { configOptions: configOptions() };
       break;
     case "session/set_config_option": {
+      if (process.argv.includes("--fail-config")) {
+        send({ id: request.id, error: { code: -32603, message: "Mock connection failure" } });
+        return;
+      }
       const { configId, value } = request.params;
       const option = configOptions()?.find((o) => o.id === configId);
       if (!option?.options.some((o) => o.value === value)) {
@@ -95,6 +99,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       break;
     }
     case "session/prompt":
+      if (process.argv.includes("--fail-prompt")) {
+        send({ id: request.id, error: { code: -32603, message: "Mock connection failure" } });
+        return;
+      }
       send({
         method: "session/update",
         params: {
@@ -105,6 +113,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
           },
         },
       });
+      if (process.argv.includes("--wait-prompt")) return;
       result = { stopReason: "end_turn" };
       break;
     default:

@@ -1,4 +1,6 @@
 mod cards;
+#[cfg(not(feature = "app-sandbox"))]
+mod connections;
 mod discussion;
 mod project;
 mod proposals;

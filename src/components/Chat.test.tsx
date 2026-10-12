@@ -22,6 +22,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
     questions: [],
     agents: [],
     consents: [],
+    externalConnectionChecks: {},
   },
   api: {
     action: vi.fn(),

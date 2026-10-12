@@ -5,6 +5,7 @@ import type { Card } from "@/bindings/Card";
 import { proposalBlockReason } from "../proposals";
 import { serialized, snapshotUpdate } from "./snapshot";
 import { launchKey } from "./connections";
+import { externalAgent } from "../external-agents";
 
 export const createBoardSlice: WorkspaceSlice<
   | "selected"
@@ -95,7 +96,7 @@ export const createBoardSlice: WorkspaceSlice<
           ...snapshotUpdate(state, snapshot),
           error: null,
         }));
-        if (action.type === "configureAgent") {
+        if (action.type === "configureAgent" && !externalAgent(action.config.id)) {
           const agent = action.config.id;
           set((s) => ({
             connections: {

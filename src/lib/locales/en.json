@@ -404,6 +404,7 @@
   "未確認": "Not checked",
   "接続を確認済み": "Connection checked",
   "要対応": "Needs attention",
+  "確認日時: {{date}}": "Checked at: {{date}}",
   "{{name}}を設定": "Set up {{name}}",
   "{{name}}の設定を閉じる": "Close {{name}} settings",
   "接続先を設定…": "Manage connections…",

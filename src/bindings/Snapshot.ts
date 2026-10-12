@@ -5,6 +5,7 @@ import type { ChatSettings } from "./ChatSettings";
 import type { ChoiceQuestion } from "./ChoiceQuestion";
 import type { Conversation } from "./Conversation";
 import type { Discussion } from "./Discussion";
+import type { ExternalConnectionCheck } from "./ExternalConnectionCheck";
 import type { MemoryProposal } from "./MemoryProposal";
 import type { Message } from "./Message";
 import type { Project } from "./Project";
@@ -16,7 +17,7 @@ export type Snapshot = { externalAgentsAvailable: boolean, project: Project, mat
 /**
  * Model and effort chosen for each external CLI, keyed by agent id.
  */
-externalChatSettings: { [key in string]: ChatSettings }, 
+externalChatSettings: { [key in string]: ChatSettings }, externalConnectionChecks: { [key in string]: ExternalConnectionCheck }, 
 /**
  * Agents the user has agreed to send project content to. App-wide, not per project.
  */

@@ -131,5 +131,7 @@
   "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。": "Could not send using review access. In Connection status, check the code's expiry, usage limit, and server connection.",
   "応答が10分以内に完了しませんでした。": "The response did not finish within 10 minutes.",
   "「決めたこと」にカードがありません。決定した話題を移してから出力してください。": "There are no cards in Decided. Move a decided topic there before exporting.",
-  "出力先の名前を確保できません。": "Could not allocate an export folder name."
+  "出力先の名前を確保できません。": "Could not allocate an export folder name.",
+  "接続を確認しました。": "Connection verified.",
+  "エージェント接続に失敗しました。接続を確認してください。": "The agent connection failed. Check the connection."
 }

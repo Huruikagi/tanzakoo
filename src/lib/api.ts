@@ -54,6 +54,7 @@ export const emptySnapshot: Snapshot = {
   agents: [],
   chatSettings: { model: null, reasoningEffort: null },
   externalChatSettings: {},
+  externalConnectionChecks: {},
   consents: [],
 };
 export const api = {

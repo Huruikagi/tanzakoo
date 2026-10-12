@@ -1,5 +1,6 @@
 use crate::model::*;
 mod cards;
+mod connections;
 mod conversations;
 mod discussion;
 mod materials;
@@ -168,6 +169,7 @@ impl Store {
                 .into_iter()
                 .filter(|(id, _)| crate::external_agents::is_external(id))
                 .collect(),
+            external_connection_checks: self.external_connection_checks(&tx)?,
             consents: vec![],
         };
         tx.commit()?;
@@ -200,6 +202,10 @@ impl Store {
                 // Another CLI may name its models differently.
                 tx.execute(
                     "DELETE FROM records WHERE kind='chatSettings' AND id=?1",
+                    [&config.id],
+                )?;
+                tx.execute(
+                    "DELETE FROM records WHERE kind='connectionCheck' AND id=?1",
                     [&config.id],
                 )?;
             }

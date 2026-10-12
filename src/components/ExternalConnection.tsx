@@ -2,16 +2,17 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { t, systemMessage } from "@/lib/i18n";
+import { t, systemMessage, currentLocale } from "@/lib/i18n";
 import { native } from "@/lib/api";
 import { connectionStatus, useWorkspace } from "@/lib/workspace";
+import { externalConnectionCheck } from "@/lib/workspace/connections";
 import { externalAgent, externalAgents, externalConsent } from "@/lib/external-agents";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import type { ConnectionStatus } from "@/bindings/ConnectionStatus";
 
-/** A launch check is kept per project; before it runs the CLI is only "not checked". */
+/** Saved checks belong to the project's current CLI launch settings. */
 export function externalState(status: ConnectionStatus | undefined) {
   if (!status) return { label: t("未確認"), ready: false };
   return status.state === "ready"
@@ -83,6 +84,7 @@ export function ExternalConnection({ agent }: { agent: string }) {
   const available = useWorkspace((s) => s.snapshot.externalAgentsAvailable);
   const disabled = useWorkspace((s) => !!s.busy || s.switching || !!s.reviewAccess) || !native;
   const status = useWorkspace((s) => connectionStatus(s, agent));
+  const checkedAt = useWorkspace((s) => externalConnectionCheck(s, agent)?.checkedAt);
   const consented = useWorkspace((s) => s.snapshot.consents.includes(agent));
   const [command, setCommand] = useState(config?.command ?? "");
   const [args, setArgs] = useState(JSON.stringify(config?.args ?? []));
@@ -208,6 +210,11 @@ export function ExternalConnection({ agent }: { agent: string }) {
         )}
       </p>
       {status && <output>{systemMessage(status.message)}</output>}
+      {checkedAt !== undefined && (
+        <p className="hint muted">
+          {t("確認日時: {{date}}", { date: new Date(checkedAt).toLocaleString(currentLocale()) })}
+        </p>
+      )}
       {error && <p role="alert">{systemMessage(error)}</p>}
       <details>
         <summary>{t("送信する内容と同意")}</summary>

@@ -196,6 +196,7 @@ pub async fn run(
         .find(|a| a.id == conversation.agent)
         .cloned()
         .unwrap_or_else(|| default_config(&conversation.agent));
+    let checked_config = config.clone();
     let workspace = store
         .path()
         .parent()
@@ -232,7 +233,11 @@ pub async fn run(
             config,
             &store,
             review.as_ref().map(|access| access.status.model.as_str()),
-        )?
+        )
+        .inspect_err(|_| {
+            // The original error remains available to the caller.
+            let _ = record_connection_result(&store, &checked_config, false);
+        })?
     };
     let session_store = store.clone();
     let is_review = review.is_some();
@@ -243,6 +248,9 @@ pub async fn run(
         .get(&conversation.agent)
         .filter(|_| crate::external_agents::is_external(&conversation.agent))
         .cloned();
+    // A rejected model/effort setting does not mean the connection failed.
+    let settings_rejected = Arc::new(AtomicBool::new(false));
+    let session_settings_rejected = settings_rejected.clone();
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
@@ -309,7 +317,11 @@ pub async fn run(
                         settings,
                         prepared.config_options,
                     )
-                    .await?;
+                    .await
+                    .inspect_err(|error| {
+                        session_settings_rejected
+                            .store(error.code == ErrorCode::InvalidParams, Ordering::SeqCst);
+                    })?;
                 }
                 let response = cx
                     .send_request(PromptRequest::new(
@@ -321,6 +333,7 @@ pub async fn run(
                 Ok(response.stop_reason)
             },
         );
+    let mut interrupted = false;
     let result = tokio::select! {
         result = tokio::time::timeout(Duration::from_secs(600), job) => match result {
             Ok(result) => result.map_err(|e| if is_review {
@@ -339,7 +352,10 @@ pub async fn run(
             ) }),
             Err(_) => Err("応答が10分以内に完了しませんでした。".into()),
         },
-        _ = &mut cancel => Err("応答を停止しました。".into()),
+        _ = &mut cancel => {
+            interrupted = true;
+            Err("応答を停止しました。".into())
+        },
     };
     let full = notifications.text();
     if result.is_err() || matches!(result, Ok(StopReason::Cancelled)) {
@@ -353,7 +369,35 @@ pub async fn run(
             .append_message(&conversation_id, "assistant", full, vec![])
             .map_err(|e| e.system_message())?;
     }
+    if !interrupted
+        && !matches!(result, Ok(StopReason::Cancelled))
+        && !settings_rejected.load(Ordering::SeqCst)
+    {
+        record_connection_result(&store, &checked_config, result.is_ok())?;
+    }
     result
+}
+
+fn record_connection_result(
+    store: &Store,
+    config: &AgentConfig,
+    ready: bool,
+) -> Result<(), String> {
+    store
+        .save_external_connection_check(
+            config,
+            ConnectionStatus {
+                state: if ready { "ready" } else { "error" }.into(),
+                message: if ready {
+                    "接続を確認しました。"
+                } else {
+                    "エージェント接続に失敗しました。接続を確認してください。"
+                }
+                .into(),
+                can_login: false,
+            },
+        )
+        .map_err(|e| e.system_message())
 }
 
 #[cfg(test)]
