@@ -14,6 +14,7 @@ it("allows every official setup link through the native opener capability", () =
       expect(permission.allow).toContainEqual({ url: agent.serverUrl });
       expect(permission.allow).toContainEqual({ url: agent.loginUrl });
     }
+    if ("authUrl" in agent) expect(permission.allow).toContainEqual({ url: agent.authUrl });
   }
 });
 
@@ -28,6 +29,17 @@ it("keeps excluded Gemini history labelled and unavailable despite saved consent
   expect(agentUnavailable(snapshot, "gemini")).toBe(true);
   expect(agentUnavailable(snapshot, "antigravity")).toBe(false);
   expect(agentUnavailable({ ...snapshot, externalAgentsAvailable: false }, "antigravity")).toBe(
+    true,
+  );
+});
+
+it("labels the Claude API connection without reusing legacy Claude history", () => {
+  const snapshot = { ...emptySnapshot, externalAgentsAvailable: true };
+  expect(agentLabel("claude-api")).toBe("Claude API");
+  expect(agentLabel("claude")).toBe("Claude");
+  expect(agentUnavailable(snapshot, "claude-api")).toBe(false);
+  expect(agentUnavailable(snapshot, "claude")).toBe(true);
+  expect(agentUnavailable({ ...snapshot, externalAgentsAvailable: false }, "claude-api")).toBe(
     true,
   );
 });

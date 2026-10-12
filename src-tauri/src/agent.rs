@@ -237,6 +237,7 @@ pub async fn run(
     let session_store = store.clone();
     let is_review = review.is_some();
     let is_plan = plan_account.is_some();
+    let is_claude_api = conversation.agent == "claude-api";
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
@@ -313,6 +314,11 @@ pub async fn run(
                 "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。".into()
             } else if is_plan {
                 "ChatGPTプランで送信できませんでした。接続設定で再サインインするか、ChatGPTの利用量設定を確認してください。".into()
+            } else if let Some(message) = is_claude_api
+                .then(|| crate::external_agents::claude_api_auth_error(&e))
+                .flatten()
+            {
+                message.into()
             } else { crate::system_message::detail(
                 crate::system_message::Code::AgentConnection,
                 &e.to_string(),

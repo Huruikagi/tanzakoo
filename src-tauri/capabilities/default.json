@@ -16,6 +16,8 @@
           "url": "https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json"
         },
         { "url": "https://www.antigravity.google/docs/cli/install/" },
+        { "url": "https://github.com/agentclientprotocol/claude-agent-acp" },
+        { "url": "https://code.claude.com/docs/en/authentication" },
         { "url": "https://docs.github.com/en/copilot/get-started/cli-quickstart" },
         { "url": "https://opencode.ai/docs/" },
         { "url": "https://docs.devin.ai/" }

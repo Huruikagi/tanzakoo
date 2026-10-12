@@ -1,6 +1,6 @@
 # インストール済み外部ACP CLIへの接続
 
-2026-10-11実装。Mac App Store版以外（Microsoft Store候補を含む）で、利用者が導入・ログイン済みのCLIを選んで会話する。Mac App Store版はChatGPTサインインのみ。同日の利用者判断でGemini CLI・Cursorは接続候補から除外し、Antigravityを追加した。除外した接続の既存会話は閲覧だけを維持する。
+2026-10-11実装。Mac App Store版以外（Microsoft Store候補を含む）で、利用者が導入・ログイン済みのCLIを選んで会話する。Mac App Store版はChatGPTサインインのみ。同日の利用者判断でGemini CLI・Cursorは接続候補から除外し、Antigravityと、APIキー方式に限ったClaude APIを追加した。除外した接続の既存会話は閲覧だけを維持する。
 
 ## 接続の境界
 
@@ -79,6 +79,23 @@ UIテストでは接続先の選択と下書き保持、ChatGPT未ログイン�
 - 権限は上記3つのMCPツールだけをaskとし、検証クライアントは対象ツールにallow_onceのみを返す。シェル・ファイル・ブラウザー操作などは許可しない。この設定は3ツールの検証用で、質問・参照資料など全機能を許可した利用設定ではない。
 - 初回のボード読み取り・カード作成・応答完了は約245秒、復元後のボード読み取り・提案作成・応答完了は約61秒。初回は会話タイトルなどの内部処理にも推論時間がかかる。復元後はモデルoptionsに`reasoningEffort: none`を指定したが、処理内容・キャッシュが異なるため、所要時間差をこの設定だけの効果とはしない。CPUの生成速度はOllamaログで約14〜16トークン/秒だった。
 - 記録は`.local/acp-probes/opencode-qwen4b*-result.json`。Tanzakoo本体の`--connection-check`でも同じランチャーを使いreadyを確認した。さらに本体の`--smoke`で`LOCAL_QWEN4B_OK`の応答と保存に約35秒で成功した（合成DBは`.local/opencode-qwen4b/native`）。実GUIでの提案適用・選択質問・停止や配布物の検証は今回の範囲に含めない。
+
+### Claude API（APIキー方式、2026-10-11）
+
+利用者の合意（APIキー方式に限る・アプリ内でキーを扱わない・Mac App Store版はChatGPTのみ）に基づき、外部CLIの候補に`claude-api`（表示名「Claude API」）を追加した。旧`claude`の保存済み会話は閲覧のみのままで、新しい接続へ移行しない。新たな依存関係・同梱物は追加しない。
+
+- 利用者が[`@agentclientprotocol/claude-agent-acp`](https://github.com/agentclientprotocol/claude-agent-acp)（Apache-2.0）を導入する。既定のコマンドは`claude-agent-acp`、引数は`--hide-claude-auth`。アダプターはAgent SDK同梱の公式バイナリを起動する。これらは利用者の環境にあり、Tanzakooは同梱・再配布しない。
+- 認証は`ANTHROPIC_API_KEY`、またはClaude Codeの`claude auth login --console`。Macでは環境変数がGUIアプリに渡らないため、Consoleログインを案内する。Tanzakooはキーの入力・保存・読み取りをせず、外部CLIと同じく起動時の環境をそのまま引き継ぐ。
+- `--hide-claude-auth`下のアダプターは、サブスクリプション課金になる場合にセッション作成と毎回の送信を`authRequired`（`reason: claude_subscription_not_supported`）で拒否する。0.77.0のソースで確認し、2026-10-11時点の最新0.89.1にも同じフラグと理由が残ることを確認した。
+- 起動引数は編集可能なため、Tanzakoo側でも`claude-api`の保存・起動時にこのフラグを必須とする。接続確認と会話送信の`authRequired`は、サブスクリプション拒否と未認証を区別して案内する。接続確認では`_auth/status_update`の種類を表示し、メールアドレスは表示・保存しない。
+- ボード操作の自動許可は旧Claudeと同じ`mcp__tanzakoo__*`の名前一致で判定する。それ以外のツール要求は利用者に確認する。
+
+検証：
+
+- `pnpm check`（Vitest 145件・lint・整形・型・ビルド）成功。`cargo test --locked`は133件成功・実Claude接続1件ignored。Clippy・`cargo fmt --check`成功。
+- 偽CLIで、APIキーは接続可、サブスクリプションと未認証は区別した`authRequired`、メールアドレス非表示、`authenticate`・プロンプト未送信、フラグなしの設定保存拒否を確認した。
+- 実アダプター0.77.0を空の`CLAUDE_CONFIG_DIR`・APIキーなしで起動し、`--connection-check`がプロンプト送信前に未認証の`authRequired`となることを確認した（`--ignored real_claude_api`）。
+- 実APIキーでの会話・カード作成・提案承認、利用者のサブスクリプションログイン状態での拒否、Windowsの`.cmd`ラッパー経由の起動、Mac実機は未確認。
 
 ### 残る確認
 

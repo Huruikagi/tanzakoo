@@ -390,5 +390,12 @@
   "会話・ボード・メモリと、AIが読む参照資料を、選択したCLIとその接続先へ渡します。送信先・料金・モデルはCLI側の設定に従います。CLI自身のツールや拡張機能も動作する場合があります。同意は同じ起動設定のプロジェクト間で共通で、設定から取り消せます。": "Your conversation, board, memory, and reference excerpts read by AI are passed to the selected CLI and its providers. Destinations, costs, and models follow the CLI configuration. Its own tools and extensions may also run. Consent is shared across projects with identical launch settings and can be withdrawn in Settings.",
   "CLIが見つかりません。公式手順でインストールし、実行ファイルの絶対パスを指定してください。": "CLI not found. Follow its official installation instructions and specify the absolute path to its executable.",
   "外部CLIへのログインは、そのCLIで行ってください。": "Sign in to the external CLI from that CLI.",
-  "先に審査用接続を解除してください。": "Disconnect review access first."
+  "先に審査用接続を解除してください。": "Disconnect review access first.",
+  "公式の認証手順": "Official authentication guide",
+  "ACPアダプター（@agentclientprotocol/claude-agent-acp）を導入し、Anthropic APIキーを環境変数ANTHROPIC_API_KEYで設定するか、Claude CodeのConsoleログインを使ってください。Macでは環境変数がアプリに渡らないため、Consoleログインを推奨します。Claudeのサブスクリプションでは利用できません。利用料はAnthropicから直接請求されます。": "Install the ACP adapter (@agentclientprotocol/claude-agent-acp), then set an Anthropic API key in the ANTHROPIC_API_KEY environment variable or sign in with a Console account in Claude Code. On Mac, environment variables do not reach the app, so the Console sign-in is recommended. Claude subscriptions cannot be used. Anthropic bills usage directly.",
+  "Claude APIの起動引数から--hide-claude-authを外すことはできません。": "--hide-claude-auth cannot be removed from the Claude API launch arguments.",
+  "Claudeのサブスクリプションでは利用できません。Anthropic APIキーを設定するか、Consoleアカウントでログインしてください。": "Claude subscriptions cannot be used. Set an Anthropic API key or sign in with a Console account.",
+  "Claudeの認証が見つかりません。Anthropic APIキーを設定するか、Consoleアカウントでログインしてください。": "No Claude credentials found. Set an Anthropic API key or sign in with a Console account.",
+  "接続を確認しました（Anthropic APIキー）。利用料はAnthropicから直接請求されます。": "Connection checked (Anthropic API key). Anthropic bills usage directly.",
+  "接続を確認しました。認証の種類は確認できませんでした。送信時に認証が確認されます。": "Connection checked. The credential type could not be determined; it will be checked when you send."
 }
