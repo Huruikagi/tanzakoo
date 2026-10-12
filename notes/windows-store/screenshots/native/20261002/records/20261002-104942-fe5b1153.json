@@ -1,0 +1,30 @@
+{
+  "kind": "windows-native-capture",
+  "status": "captured-awaiting-visual-review",
+  "executable": "G:\\tanzakoo\\.local\\windows-store-candidate-20261001\\payload\\tanzakoo.exe",
+  "executableSHA256": "753a8983410464e16fe31767b06a92cb86923e1327387260be6204e11c9e00a7",
+  "pid": 13912,
+  "processStartedAt": "2026-10-02T01:33:43.5925549Z",
+  "windows": "Microsoft Windows NT 10.0.26300.0",
+  "checkoutAtStart": {
+    "isBuildProvenance": false,
+    "dirty": true,
+    "commit": "9b757a907774e2187648eee6c801cd6229eb5a8b"
+  },
+  "contentReview": "pending",
+  "submissionBuildMatch": "not-verified",
+  "note": "Real Windows application. No mock rendering, AI injection, pixel resampling or automatic upload. Visible DWM frame only. Verify final submission build separately.",
+  "captures": [
+    {
+      "language": "en",
+      "capturedAt": "2026-10-02T01:49:43.3468553Z",
+      "pixels": [
+        2142,
+        1341
+      ],
+      "file": "en-01-board-windows.png",
+      "sha256": "642a36cbb8f00ebfdc020920d6dff1035f248378ad31e3be0b6ec02bde595e08",
+      "scene": "board"
+    }
+  ]
+}

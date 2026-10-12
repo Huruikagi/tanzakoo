@@ -10,7 +10,17 @@
       "allow": [
         { "url": "https://huruikagi.github.io/tanzakoo/privacy-ja.html" },
         { "url": "https://huruikagi.github.io/tanzakoo/privacy-en.html" },
-        { "url": "https://huruikagi.github.io/tanzakoo/support.html" }
+        { "url": "https://huruikagi.github.io/tanzakoo/support.html" },
+        { "url": "https://www.antigravity.google/docs/ide/extensions/zed" },
+        {
+          "url": "https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json"
+        },
+        { "url": "https://www.antigravity.google/docs/cli/install/" },
+        { "url": "https://github.com/agentclientprotocol/claude-agent-acp" },
+        { "url": "https://code.claude.com/docs/en/authentication" },
+        { "url": "https://docs.github.com/en/copilot/get-started/cli-quickstart" },
+        { "url": "https://opencode.ai/docs/" },
+        { "url": "https://docs.devin.ai/" }
       ]
     }
   ]

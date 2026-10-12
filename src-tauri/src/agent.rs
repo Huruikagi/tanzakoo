@@ -1,3 +1,4 @@
+pub(crate) mod connection;
 mod notifications;
 mod permissions;
 mod prompt;
@@ -103,6 +104,9 @@ impl AgentRuntime {
 }
 
 pub fn default_config(id: &str) -> AgentConfig {
+    if crate::external_agents::is_external(id) {
+        return crate::external_agents::default_config(id);
+    }
     if id == "codex" {
         return crate::agent_setup::managed_config();
     }
@@ -152,16 +156,13 @@ pub async fn run(
     let conversation = store
         .conversation(&conversation_id)
         .map_err(|e| e.system_message())?;
-    let mut review = runtime.review_session()?;
-    let plan_account = if review.is_none() {
-        runtime.plan_account()?
-    } else {
-        None
-    };
-    crate::chatgpt_plan::ensure_route(conversation.session_id.as_deref(), plan_account.as_ref())?;
-    crate::review::ensure_conversation_route(conversation.session_id.as_deref(), review.is_some())?;
+    let connection = connection::Connection::select(&runtime, &conversation.agent)?;
+    connection.validate_session(conversation.session_id.as_deref())?;
+    let connection::Connection {
+        mut review,
+        plan: plan_account,
+    } = connection;
     if let Some(access) = &mut review {
-        access.ensure_usable()?;
         access.status = tokio::select! {
             result = access.check() => result?,
             _ = &mut cancel => return Err("応答を停止しました。".into()),
@@ -189,7 +190,7 @@ pub async fn run(
         .ok_or("現在のユーザー発言が見つかりません。")?
         .id
         .clone();
-    let config = snapshot
+    let mut config = snapshot
         .agents
         .iter()
         .find(|a| a.id == conversation.agent)
@@ -201,7 +202,8 @@ pub async fn run(
         .ok_or("保存先が不正です。")?
         .join("agent-workspace");
     std::fs::create_dir_all(&workspace).map_err(|e| e.to_string())?;
-    let mcp = McpServer::Stdio(
+    let mcp = crate::external_agents::session_mcp(
+        &mut config,
         McpServerStdio::new("tanzakoo", crate::agent_setup::mcp_binary()?).args(vec![
             "--mcp".into(),
             store.path().to_string_lossy().into(),
@@ -235,6 +237,7 @@ pub async fn run(
     let session_store = store.clone();
     let is_review = review.is_some();
     let is_plan = plan_account.is_some();
+    let is_claude_api = conversation.agent == "claude-api";
     let job = agent_client_protocol::Client
         .builder()
         .on_receive_notification(
@@ -311,6 +314,11 @@ pub async fn run(
                 "審査用接続で送信できませんでした。接続状況からコードの期限・利用上限とサーバーへの接続を確認してください。".into()
             } else if is_plan {
                 "ChatGPTプランで送信できませんでした。接続設定で再サインインするか、ChatGPTの利用量設定を確認してください。".into()
+            } else if let Some(message) = is_claude_api
+                .then(|| crate::external_agents::claude_api_auth_error(&e))
+                .flatten()
+            {
+                message.into()
             } else { crate::system_message::detail(
                 crate::system_message::Code::AgentConnection,
                 &e.to_string(),

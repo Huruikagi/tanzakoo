@@ -1,0 +1,7 @@
+Thank you for the clarification on Case 16386634. We are narrowing the remaining question to the purpose of processing, rather than requesting an exhaustive event-by-event inventory.
+
+For Tanzakoo's next build we are explicitly disabling bundled Codex analytics and OpenTelemetry exports, including at app-server startup. We understand this does not disable OpenAI's server-side request/security processing or change the user's training controls.
+
+For third-party apps using Sign in with ChatGPT identity and separately authorized Plus/Pro plan inference: does OpenAI use or share the data received from this integration (content, account/install identifiers, request metadata or usage records) to link it with data from other companies' apps/websites for targeted advertising or advertising measurement, or share it with a data broker? That is the distinction relevant to Apple's tracking disclosure, separate from account association, security, service analytics and model improvement.
+
+Could the SIWC/privacy team confirm the applicable policy for this route, including whether the answer depends on user settings, plan or region? A path-specific policy statement or documented exclusion would suffice; we do not need exact log fields or per-event retention periods. If this cannot be confirmed by frontline support, please route this single question to that team. No credentials or user content are attached.

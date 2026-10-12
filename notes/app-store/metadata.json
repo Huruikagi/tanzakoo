@@ -1,6 +1,6 @@
 {
-  "build": null,
-  "sourceCommit": "6c929b76907a017acc8bfcfdfdad49a22145954f",
+  "build": "4",
+  "sourceCommit": "83949a21b4f46c81be5c975a7aa97c106f04c337",
   "categorySuggestion": "Productivity",
   "localizations": {
     "ja": {
@@ -22,7 +22,7 @@
       "supportUrl": "https://huruikagi.github.io/tanzakoo/support.html"
     }
   },
-  "status": "draft-for-next-store-build",
+  "status": "draft-for-build-4-pending-verification",
   "requiredBeforeSubmission": [
     "Match the final signed build",
     "Provide current private review access"

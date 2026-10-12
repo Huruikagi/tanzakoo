@@ -1,3 +1,4 @@
+import { externalAgents } from "@/lib/external-agents";
 import { t, systemMessage } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -30,12 +31,14 @@ export function Chat() {
       chatError: s.chatError,
     })),
   );
-  const agent = "codex";
+  const chosenAgent = useWorkspace((s) => s.newChatAgent);
+  const agent = agentUnavailable(snapshot, chosenAgent) ? "codex" : chosenAgent;
   const { text, setText, sendDraft } = useChatDraft(snapshot.project.id, conversation);
   const active = snapshot.conversations.find((c) => c.id === conversation);
   const selectedAgent = active?.agent ?? agent;
   const reviewAccess = useWorkspace((s) => s.reviewAccess);
-  const consented = !!reviewAccess || snapshot.consents.includes(selectedAgent);
+  const consented =
+    (selectedAgent === "codex" && !!reviewAccess) || snapshot.consents.includes(selectedAgent);
   const unavailable = agentUnavailable(snapshot, selectedAgent);
   const messages = snapshot.messages.filter((m) => m.conversationId === conversation);
   const isThisBusy = chatRunning(busy, conversation);
@@ -46,15 +49,18 @@ export function Chat() {
   const questionTurn = activeQuestions[0]?.messageId;
   function submit() {
     if (!text.trim() || busy || !native || unavailable || !consented) return;
-    sendDraft(agent);
+    sendDraft(selectedAgent);
   }
   return (
     <section className="chat-pane" data-answering={!!questionTurn}>
       <div className="pane-heading">
         <MessageCircle size={16} />
         <h2>{t("壁打ち")}</h2>
-        {selectedAgent === "codex" && (
-          <AgentConnectionDialog key={snapshot.project.id} agent={selectedAgent} />
+        {!unavailable && (
+          <AgentConnectionDialog
+            key={`${snapshot.project.id}:${selectedAgent}`}
+            agent={selectedAgent}
+          />
         )}
         <Button
           size="icon-sm"
@@ -79,7 +85,9 @@ export function Chat() {
       <div className="chat-selector">
         {active ? (
           <>
-            <span className="agent-avatar">{active.agent === "claude" ? "✳" : "◎"}</span>
+            <span className="agent-avatar">
+              {active.agent === "claude" || active.agent === "claude-api" ? "✳" : "◎"}
+            </span>
             <Select
               value={conversation!}
               disabled={!!busy}
@@ -100,7 +108,27 @@ export function Chat() {
         ) : (
           <>
             <span className="agent-avatar">◎</span>
-            <span>ChatGPT</span>
+            {snapshot.externalAgentsAvailable && !reviewAccess ? (
+              <Select
+                value={agent}
+                disabled={!!busy}
+                onValueChange={(id) => useWorkspace.getState().setNewChatAgent(id)}
+              >
+                <SelectTrigger size="sm" aria-label={t("会話の接続先")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="codex">ChatGPT</SelectItem>
+                  {externalAgents.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span>ChatGPT</span>
+            )}
             {snapshot.conversations.length > 0 && (
               <Button
                 size="sm"

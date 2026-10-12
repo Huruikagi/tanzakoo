@@ -111,6 +111,20 @@ pub fn launch_with_review(
     store: &Store,
     review_model: Option<&str>,
 ) -> Result<AcpAgentConfig, String> {
+    if crate::external_agents::is_external(&config.id) {
+        crate::external_agents::validate(&config)?;
+        if review_model.is_some() {
+            return Err("先に審査用接続を解除してください。".into());
+        }
+        // Preserve the CLI's own environment/home. Never inject app-owned credentials.
+        return crate::external_agents::launch(config, store);
+    }
+    if !["codex", "claude"].contains(&config.id.as_str()) {
+        return Err(crate::external_agents::DISABLED.into());
+    }
+    if cfg!(feature = "app-sandbox") && config.command != MANAGED && review_model.is_none() {
+        return Err(crate::external_agents::DISABLED.into());
+    }
     let review = review_model.is_some();
     // Only the pinned, app-owned runtime may receive review credentials.
     let config = if review { managed_config() } else { config };
@@ -165,16 +179,20 @@ pub async fn probe(
         can_login,
     };
     if !["check", "login", "logout"].contains(&action.as_str())
-        || !["codex", "claude"].contains(&agent.as_str())
+        || (!["codex", "claude"].contains(&agent.as_str())
+            && !crate::external_agents::is_external(&agent))
     {
         return result("error", "接続操作が不正です。", false);
     }
-    // Claude sign-in and sign-out stay with the user's own Claude Code; Tanzakoo
-    // neither starts them nor advertises terminal auth to the adapter.
+    // External CLI authentication stays with the user's installation.
     if action != "check" && agent != "codex" {
         return result(
             "unsupported",
-            "TanzakooはClaudeのサインイン・サインアウトを提供していません。提供条件を確認中です。",
+            if crate::external_agents::is_external(&agent) {
+                "ログイン・ログアウトはCLIの公式手順で行ってください。"
+            } else {
+                "TanzakooはClaudeのサインイン・サインアウトを提供していません。提供条件を確認中です。"
+            },
             false,
         );
     }
@@ -257,13 +275,25 @@ pub async fn probe(
                     .send_request(NewSessionRequest::new(check_dir))
                     .block_task()
                     .await;
-                if session.is_ok() && agent == "claude" {
+                if session.is_ok() && (agent == "claude" || agent == "claude-api") {
                     // The adapter reads the CLI's auth state in the background.
                     if auth.lock().unwrap().is_none() {
                         let _ = tokio::time::timeout(Duration::from_secs(6), auth_seen.notified())
                             .await;
                     }
-                    *output.lock().unwrap() = claude_status(auth.lock().unwrap().as_ref());
+                    let auth = auth.lock().unwrap();
+                    *output.lock().unwrap() = if agent == "claude" {
+                        claude_status(auth.as_ref())
+                    } else {
+                        crate::external_agents::claude_api_status(auth.as_ref())
+                    };
+                    return Ok(());
+                }
+                if agent == "claude-api"
+                    && let Err(e) = &session
+                    && let Some(message) = crate::external_agents::claude_api_auth_error(e)
+                {
+                    *output.lock().unwrap() = result("authRequired", message, false);
                     return Ok(());
                 }
                 *output.lock().unwrap() = match session {

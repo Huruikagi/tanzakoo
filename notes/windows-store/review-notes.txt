@@ -1,11 +1,13 @@
-Tanzakoo [ENTER FINAL VERSION AND BUILD] is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI connects using Continue with ChatGPT and uses the user's eligible ChatGPT plan, subject to the external service's terms and limits. Tanzakoo does not sell AI credits or subscriptions.
+Tanzakoo 0.1.0 (Windows MSIX 1.0.2.0, x64) is a free, local idea board. Manual project creation, card editing, project memory, and Markdown export work without sign-in. Optional AI connects using Continue with ChatGPT and uses the user's eligible ChatGPT plan, subject to the external service's terms and limits. Tanzakoo does not sell AI credits or subscriptions.
 
 For review, we provide developer-funded AI access so you do not need a personal ChatGPT account or API key. It uses the same local board, tools, and approval flow as regular AI access. The differences are relay routing, an assigned model, and expiry/usage limits. This is a visible option in Settings, not a hidden review mode.
 
-PRIVATE REVIEW ACCESS — replace the two placeholders before submitting:
-Code: [ENTER CURRENT CODE ONLY IN PARTNER CENTER]
-Valid until: [ENTER EXPIRY WITH TIME ZONE]
-Support: huruikagi@gmail.com
+PRIVATE REVIEW ACCESS:
+Code: See the separate Credentials entry named "Tanzakoo review access code (Windows)" on this Additional Testing Info page. Paste its value into the app's review-code field; no username or password is needed.
+Valid until: November 1, 2026, 09:06:23 UTC (18:06:23 Japan Standard Time).
+Assigned model: gpt-6-luna. Access has a cumulative API-attempt limit; one chat turn can use multiple attempts. Contact us if additional access is needed.
+Support: https://huruikagi.github.io/tanzakoo/support.html
+Private review-access assistance: huruikagi@gmail.com (do not post review codes in public issues).
 
 1. Open the gear button (Settings). If needed, set Display language to English.
 2. Open the AI connection tab. Select Use review access, enter the code, read the disclosure, select I agree to send data through the relay server to OpenAI, then Agree and connect.
@@ -21,3 +23,6 @@ AI is optional and requires explicit consent before sharing. Requests include co
 Windows x64 package. Requires Microsoft Edge WebView2 Runtime. This is a full-trust desktop app; runFullTrust is needed to launch its bundled local AI runtime and board-tool subprocesses, read user-selected reference files, and export Markdown. The package does not install a service or require administrator rights during normal use. The app supports English and Japanese. There are no ads or in-app purchases.
 
 Notifications are optional and can be configured under Settings > General. Manual editing and export do not require notification permission.
+
+DPI AND LOCAL CERTIFICATION RESULTS:
+MSIX 1.0.2.0 explicitly declares PerMonitorV2 in the executable manifest. On Windows 11 build 26300, we verified that the installed executable's running process uses Per-Monitor V2 through GetDpiAwarenessContextForProcess and AreDpiAwarenessContextsEqual. WACK 10.0.26100.7705 completed all tests with an overall WARNING: 22 PASS, one optional Blocked executables FAIL, and one DPIAwarenessValidation WARNING. The DPI diagnostic log records a COM E_FAIL exception in BinaryInfoClass.IsPerMonitorV2DPIAwarenessSet() while inspecting the manifest, followed by "Failed to process the binary." We have not resolved that WACK exception and do not claim a clean WACK pass. The optional executable-reference findings concern the bundled desktop runtime and subprocess APIs described above. Diagnostic details can be provided on request. Mixed-DPI display transitions have not been manually verified.

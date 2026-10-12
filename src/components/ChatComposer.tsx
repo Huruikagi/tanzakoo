@@ -1,3 +1,4 @@
+import { externalConsent } from "@/lib/external-agents";
 import { memo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -26,7 +27,9 @@ export const ChatComposer = memo(function ChatComposer({
 }) {
   useTranslation();
   const composing = useRef(false);
-  const usingPlan = useWorkspace((s) => !!s.planStatus?.active && !s.reviewAccess);
+  const usingPlan = useWorkspace(
+    (s) => selectedAgent === "codex" && !!s.planStatus?.active && !s.reviewAccess,
+  );
   const planSignedIn = useWorkspace((s) => s.planStatus?.active?.signedIn);
   const { references, busy, activity, isThisBusy } = useWorkspace(
     useShallow((s) => ({
@@ -58,7 +61,9 @@ export const ChatComposer = memo(function ChatComposer({
         <div className="ai-consent">
           <p>
             {t(
-              "話しかけると、そのプロジェクトのボード・メモリ・会話と、登録した参照資料のうちAIが読む箇所がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。",
+              selectedAgent === "codex"
+                ? "話しかけると、そのプロジェクトのボード・メモリ・会話と、登録した参照資料のうちAIが読む箇所がOpenAIへ送信されます。同意は全プロジェクト共通で、設定から取り消せます。"
+                : externalConsent,
             )}
           </p>
           <Button

@@ -13,6 +13,9 @@ import {
 import { useWorkspace } from "@/lib/workspace";
 import { ReviewAccess } from "./ReviewAccess";
 import { PlanAccess } from "./PlanAccess";
+import { ExternalConnection } from "./ExternalConnection";
+import { externalAgent } from "@/lib/external-agents";
+import { connectionStatus } from "@/lib/workspace";
 import { native } from "@/lib/api";
 
 export function AgentConnectionDialog({ agent }: { agent: string }) {
@@ -20,7 +23,8 @@ export function AgentConnectionDialog({ agent }: { agent: string }) {
   const review = useWorkspace((s) => s.reviewAccess);
   const account = useWorkspace((s) => s.planStatus?.active);
   const connecting = useWorkspace((s) => s.busy?.kind === "connecting" && s.busy.agent === agent);
-  const ready = !!review || account?.signedIn;
+  const status = useWorkspace((s) => connectionStatus(s, agent));
+  const ready = agent === "codex" ? !!review || account?.signedIn : status?.state === "ready";
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -30,13 +34,15 @@ export function AgentConnectionDialog({ agent }: { agent: string }) {
           variant="ghost"
           aria-label={t("接続状況")}
           title={
-            connecting
-              ? t("接続処理中")
-              : review
-                ? t("審査用接続")
-                : ready
-                  ? t("ChatGPTプランを使用中")
-                  : t("接続状況からChatGPTでサインインしてください。")
+            agent !== "codex"
+              ? t("接続状況")
+              : connecting
+                ? t("接続処理中")
+                : review
+                  ? t("審査用接続")
+                  : ready
+                    ? t("ChatGPTプランを使用中")
+                    : t("接続状況からChatGPTでサインインしてください。")
           }
         >
           {connecting ? (
@@ -75,6 +81,7 @@ export function AgentConnection({
   const account = useWorkspace((s) => s.planStatus?.active);
   const consented = useWorkspace((s) => s.snapshot.consents.includes(agent));
   const disabled = useWorkspace((s) => !!s.busy || s.switching) || !native;
+  if (externalAgent(agent)) return <ExternalConnection agent={agent} />;
   if (agent !== "codex")
     return (
       <div className="agent-connection">
