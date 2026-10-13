@@ -140,6 +140,8 @@ AIの応答完了時の通知は、設定の「一般」で選べます。初期
 
 ## 開発と検証
 
+Rustの最低対応版は1.90です。開発・通常の検証には `rust-toolchain.toml` で固定した1.97.1を使用します。
+
 ```powershell
 mise exec -- pnpm check
 mise exec -- pnpm test:runtime
