@@ -2,7 +2,7 @@ use crate::store::Store;
 use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{CallToolResult, ContentBlock, ServerCapabilities, ServerInfo},
+    model::{CallToolResult, ContentBlock, ServerCapabilities, ServerConfig},
     schemars, tool, tool_handler, tool_router,
 };
 use serde::Deserialize;
@@ -189,8 +189,8 @@ impl BoardTools {
 }
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for BoardTools {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_instructions("Tanzakoo board tools. Ideas can be created freely. report_discussion may move an actively discussed candidate to discuss; it never approves content. Existing card content changes require a proposal and user approval in Tanzakoo. Never treat an unapproved proposal as board truth.")
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions("Tanzakoo board tools. Ideas can be created freely. report_discussion may move an actively discussed candidate to discuss; it never approves content. Existing card content changes require a proposal and user approval in Tanzakoo. Never treat an unapproved proposal as board truth.")
     }
 }
 pub async fn serve(
