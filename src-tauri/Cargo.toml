@@ -7,6 +7,8 @@ rust-version = "1.90"
 default-run = "tanzakoo"
 
 [features]
+personal-claude = []
+public-distribution = []
 app-sandbox = []
 sandbox-validation = ["app-sandbox"]
 

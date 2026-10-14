@@ -153,6 +153,7 @@ impl Store {
             keyed(&tx, "chatSettings")?.into_iter().collect();
         let snapshot = Snapshot {
             external_agents_available: crate::external_agents::available(),
+            personal_claude_available: crate::external_agents::personal_available(),
             project: get(&tx, "project", "current")?,
             materials: list(&tx, "material")?,
             projects: vec![],

@@ -69,6 +69,14 @@ jobs:
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Rust tests and generated types
         run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Personal and public build boundaries (offline)
+        shell: bash
+        run: |
+          mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features personal-claude --lib --test external_agents --test agent_connection
+          mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features public-distribution --test external_agents
+          mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features app-sandbox --test external_agents
+          mise exec -- node scripts/check-build-boundaries.mjs
+          python -m unittest discover -s scripts -p test_public_build.py
       - name: ChatGPT plan authentication (offline)
         run: mise exec -- pnpm test:plan
       - name: Review relay and real ACP/MCP (offline)

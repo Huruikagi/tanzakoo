@@ -20,7 +20,7 @@ export function connectionStatus(
 }
 
 export function externalConnectionCheck(state: Pick<Workspace, "snapshot">, agent: string) {
-  if (!state.snapshot.externalAgentsAvailable) return undefined;
+  if (agentUnavailable(state.snapshot, agent)) return undefined;
   const check = state.snapshot.externalConnectionChecks[agent];
   return check &&
     JSON.stringify([check.config.command, check.config.args]) === launchKey(state.snapshot, agent)

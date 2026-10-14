@@ -58,7 +58,7 @@ jobs:
           REVIEW_ACCESS: ${{ inputs.review_access }}
         run: |
           if ($env:REVIEW_ACCESS -eq 'true') { $env:TANZAKOO_REVIEW_URL = 'https://review-relay-production-4f29.up.railway.app' }
-          mise exec -- pnpm tauri build --no-bundle --config src-tauri/tauri.runtime.conf.json -- --locked
+          mise exec -- pnpm tauri build --features public-distribution --no-bundle --config src-tauri/tauri.runtime.conf.json -- --locked
       - name: Create and verify unsigned MSIX
         env:
           VALIDATION_ONLY: ${{ inputs.validation_only }}

@@ -28,7 +28,7 @@ pub(super) fn is_board_tool(agent: &str, call: &serde_json::Value) -> bool {
             && call["rawInput"]["tool"]
                 .as_str()
                 .is_some_and(|name| names.contains(&name))
-    } else if agent == "claude" || agent == "claude-api" {
+    } else if matches!(agent, "claude" | "claude-api" | "claude-personal") {
         call["title"].as_str().is_some_and(|title| {
             names
                 .iter()

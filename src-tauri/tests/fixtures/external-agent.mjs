@@ -8,6 +8,7 @@ appendFileSync(
   JSON.stringify({
     cwd: process.cwd(),
     home: process.env.CODEX_HOME,
+    claudeExecutable: process.env.CLAUDE_CODE_EXECUTABLE,
     args: process.argv.slice(3),
   }) + "\n",
 );
@@ -20,7 +21,9 @@ if (process.argv.includes("--descendant")) {
 }
 // `--claude-auth=<kind>` mimics claude-agent-acp's auth report; with
 // `--hide-claude-auth` it refuses session creation unless an API credential pays.
-const claudeAuth = process.argv.find((a) => a.startsWith("--claude-auth="))?.split("=")[1];
+const claudeAuth =
+  process.argv.find((a) => a.startsWith("--claude-auth="))?.split("=")[1] ??
+  (process.env.TANZAKOO_TEST_PERSONAL === "1" ? "account" : undefined);
 const claudeRefusal =
   claudeAuth &&
   process.argv.includes("--hide-claude-auth") &&

@@ -122,20 +122,48 @@ fn claude_fixture(mode: &str) -> (Store, PathBuf) {
     (store, dir)
 }
 
+#[cfg(feature = "personal-claude")]
 #[tokio::test]
 async fn claude_check_reports_the_credential_without_sending_project_content() {
     for (mode, state, needle) in [
         ("none", "authRequired", "ログインしていません"),
-        ("account", "ready", "Claude Max"),
+        ("account", "ready", "ログイン済み"),
         ("api_key:late", "ready", "従量課金"),
         ("silent", "ready", "確認できませんでした"),
     ] {
         let (store, dir) = claude_fixture(mode);
-        let runtime = Arc::new(AgentRuntime::default());
-        let (guard, cancel) = runtime.begin().unwrap();
-        let status = probe(store.clone(), "claude".into(), "check".into(), cancel).await;
-        drop(guard);
-        assert!(runtime.ensure_idle().is_ok());
+        let mut config = store
+            .snapshot()
+            .unwrap()
+            .agents
+            .into_iter()
+            .find(|a| a.id == "claude")
+            .unwrap();
+        config.id = "claude-personal".into();
+        config.args.push(format!(
+            "--tanzakoo-claude-cli={}",
+            std::env::current_exe().unwrap().display()
+        ));
+        let store = Store::open(dir.join("check.db")).unwrap();
+        store.set_agent(config).unwrap();
+        store
+            .create_card(
+                "PRIVATE_BOARD_CONTENT".into(),
+                "must not be sent".into(),
+                "user",
+            )
+            .unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+            .args([
+                "--connection-check",
+                "claude-personal",
+                dir.to_str().unwrap(),
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let status: tanzakoo_lib::model::ConnectionStatus =
+            serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(status.state, state, "{mode}: {status:?}");
         assert!(status.message.contains(needle), "{mode}: {status:?}");
         assert!(!status.can_login);
@@ -181,6 +209,13 @@ async fn claude_sign_in_and_unbundled_default_never_start_a_process() {
     }
     assert!(!dir.join("claude-trace.jsonl").exists());
 
+    // Even an old saved custom executable must not reopen the removed connection.
+    let (guard, cancel) = runtime.begin().unwrap();
+    let status = probe(store.clone(), "claude".into(), "check".into(), cancel).await;
+    drop(guard);
+    assert_eq!(status.state, "unsupported");
+    assert!(!dir.join("claude-trace.jsonl").exists());
+
     store
         .set_agent(AgentConfig {
             id: "claude".into(),
@@ -200,6 +235,7 @@ async fn claude_sign_in_and_unbundled_default_never_start_a_process() {
 /// CLAUDE_CONFIG_DIR so no personal login is read, e.g.
 /// `CLAUDE_CONFIG_DIR=<empty dir> cargo test -- --ignored real_claude`.
 #[tokio::test]
+#[cfg(feature = "personal-claude")]
 #[ignore = "starts the real adapter and Claude Code binary"]
 async fn real_claude_adapter_reports_signed_out_without_content() {
     assert!(
@@ -207,14 +243,29 @@ async fn real_claude_adapter_reports_signed_out_without_content() {
             && std::env::var_os("ANTHROPIC_API_KEY").is_none(),
         "use an isolated CLAUDE_CONFIG_DIR and no API key"
     );
-    let (store, _) = fixture(false);
-    store
-        .set_agent(tanzakoo_lib::agent::default_config("claude"))
+    let (_, dir) = fixture(false);
+    let store = Store::open(dir.join("check.db")).unwrap();
+    let mut config = tanzakoo_lib::external_agents::default_config("claude-personal");
+    config.command = std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into());
+    config.args.insert(
+        0,
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js")
+            .to_string_lossy()
+            .into(),
+    );
+    store.set_agent(config).unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+        .args([
+            "--connection-check",
+            "claude-personal",
+            dir.to_str().unwrap(),
+        ])
+        .output()
         .unwrap();
-    let runtime = Arc::new(AgentRuntime::default());
-    let (guard, cancel) = runtime.begin().unwrap();
-    let status = probe(store.clone(), "claude".into(), "check".into(), cancel).await;
-    drop(guard);
+    assert!(output.status.success());
+    let status: tanzakoo_lib::model::ConnectionStatus =
+        serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(status.state, "authRequired", "{status:?}");
     // Mapped from the adapter's `_auth/status_update` push, not a session error.
     assert!(

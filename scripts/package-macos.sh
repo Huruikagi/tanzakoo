@@ -13,6 +13,7 @@ for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_KEY APPLE_API
 done
 root=$(cd "$(dirname "$0")/.." && pwd)
 app=$(cd "$1" && pwd)
+python3 "$root/scripts/check-public-build.py" "$app/Contents/MacOS/tanzakoo"
 mkdir -p "$2"
 output=$(cd "$2" && pwd)
 sandbox=${SANDBOX:-false}

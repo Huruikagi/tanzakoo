@@ -138,6 +138,7 @@ def build(args):
     executable = args.exe.resolve(strict=True)
     runtime = args.runtime.resolve(strict=True)
     require_x64(executable)
+    subprocess.run([sys.executable, str(ROOT / "scripts/check-public-build.py"), str(executable)], check=True)
     metadata = safe_runtime(runtime)
     makeappx = find_makeappx()
     output = args.output.resolve()

@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import { CheckCircle2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { t, systemMessage, currentLocale } from "@/lib/i18n";
-import { native } from "@/lib/api";
+import { native, agentUnavailable } from "@/lib/api";
 import { connectionStatus, useWorkspace } from "@/lib/workspace";
 import { externalConnectionCheck } from "@/lib/workspace/connections";
-import { externalAgent, externalAgents, externalConsent } from "@/lib/external-agents";
+import { externalAgent, availableExternalAgents, externalConsent } from "@/lib/external-agents";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -21,6 +21,7 @@ export function externalState(status: ConnectionStatus | undefined) {
 }
 
 export function ExternalConnections() {
+  const snapshot = useWorkspace((s) => s.snapshot);
   const available = useWorkspace((s) => s.snapshot.externalAgentsAvailable);
   useTranslation();
   if (!available) return null;
@@ -31,7 +32,7 @@ export function ExternalConnections() {
         {t("このPCにインストール・ログイン済みのCLIを使って、ChatGPT以外のAIと話せます。")}
       </p>
       <ul>
-        {externalAgents.map((a) => (
+        {availableExternalAgents(snapshot).map((a) => (
           <ExternalAgentRow key={a.id} agent={a.id} name={a.name} />
         ))}
       </ul>
@@ -81,7 +82,7 @@ function ExternalAgentRow({ agent, name }: { agent: string; name: string }) {
 export function ExternalConnection({ agent }: { agent: string }) {
   useTranslation();
   const config = useWorkspace((s) => s.snapshot.agents.find((a) => a.id === agent));
-  const available = useWorkspace((s) => s.snapshot.externalAgentsAvailable);
+  const available = useWorkspace((s) => !agentUnavailable(s.snapshot, agent));
   const disabled = useWorkspace((s) => !!s.busy || s.switching || !!s.reviewAccess) || !native;
   const status = useWorkspace((s) => connectionStatus(s, agent));
   const checkedAt = useWorkspace((s) => externalConnectionCheck(s, agent)?.checkedAt);
@@ -112,6 +113,13 @@ export function ExternalConnection({ agent }: { agent: string }) {
   }
   return (
     <div className="connection-stack">
+      {agent === "claude-personal" && (
+        <p className="hint">
+          {t(
+            "個人用ビルド限定です。ログイン済みの公式Claude CLIを使います。引数の--tanzakoo-claude-cli=claudeは、CLIの絶対パスにも変更できます。認証・料金はCLI側の設定に従います。",
+          )}
+        </p>
+      )}
       <p className="hint">
         {t(
           "CLIのインストールとログインは、公式手順に従って行ってください。Tanzakooは自動インストールせず、認証情報をコピー・保存しません。",

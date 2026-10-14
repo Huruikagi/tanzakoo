@@ -158,11 +158,11 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 - `test:review` は審査用仲介の境界と、実Codex・ACP・MCPを使う候補作成・変更提案・会話復元をローカル模擬APIで検証します。Rustで現在の本体をビルドします。実APIの費用は発生しません。公開仲介に接続するアプリは `TANZAKOO_REVIEW_URL` を指定してビルドします。詳細は [審査用仲介の手順と制限](packages/review-relay/README.md) を参照してください。
 - 実ChatGPT接続の確認はアプリで行います。手順と確認済み項目は [ChatGPTプラン接続](notes/chatgpt-plan-preview.md) を参照してください。`scripts/agent-smoke.ps1` は旧認証を使う内部エンジンの診断用で、現在の通常接続の検証には使いません。
 
-Claudeは外部CLIの「Claude API」として、利用者が導入したアダプターとAPIキーで接続します（[外部ACP CLI接続](notes/external-acp-connections.md)）。旧Claude接続のコードは保存済み会話の閲覧と調査用に残しています。通常の開発で実接続の検証は不要です。実アダプターの未ログイン時の確認には、空のフォルダーを `CLAUDE_CONFIG_DIR` に指定し、`ANTHROPIC_API_KEY` を設定しない状態で次を実行できます。
+公開版のClaudeは外部CLIの「Claude API」として、利用者が導入したアダプターとAPIキーで接続します（[外部ACP CLI接続](notes/external-acp-connections.md)）。本人専用のログイン済みCLI接続は `mise.exe exec -- pnpm dev:personal` で起動する[個人用ビルド](notes/personal-claude.md)だけで有効です。通常・ストア・直接配布の公開版には含めません。旧Claude接続は保存済み会話の閲覧のみです。通常の開発で実接続の検証は不要です。実アダプターの未ログイン時の確認には、空のフォルダーを `CLAUDE_CONFIG_DIR` に指定し、`ANTHROPIC_API_KEY` を設定しない状態で次を実行できます。
 
 ```powershell
 $env:CLAUDE_CONFIG_DIR = (New-Item -ItemType Directory -Force .local/claude-empty-config).FullName
-mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test agent_connection -- --ignored real_claude
+mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --features personal-claude --test agent_connection -- --ignored real_claude
 mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --locked --test external_agents -- --ignored real_claude_api
 ```
 

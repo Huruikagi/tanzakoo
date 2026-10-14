@@ -111,6 +111,9 @@ pub fn launch_with_review(
     store: &Store,
     review_model: Option<&str>,
 ) -> Result<AcpAgentConfig, String> {
+    if config.id == "claude" {
+        return Err(CLAUDE_UNAVAILABLE_MESSAGE.into());
+    }
     if crate::external_agents::is_external(&config.id) {
         crate::external_agents::validate(&config)?;
         if review_model.is_some() {
@@ -224,7 +227,7 @@ async fn probe_launch(
         can_login,
     };
     let agent = config.id.clone();
-    if config.command == CLAUDE_UNAVAILABLE {
+    if config.id == "claude" || config.command == CLAUDE_UNAVAILABLE {
         return result("unsupported", CLAUDE_UNAVAILABLE_MESSAGE, false);
     }
     let launch = match launch(config, &store) {
@@ -294,14 +297,22 @@ async fn probe_launch(
                     .send_request(NewSessionRequest::new(check_dir))
                     .block_task()
                     .await;
-                if session.is_ok() && (agent == "claude" || agent == "claude-api") {
+                if session.is_ok()
+                    && matches!(agent.as_str(), "claude" | "claude-api" | "claude-personal")
+                {
                     // The adapter reads the CLI's auth state in the background.
                     if auth.lock().unwrap().is_none() {
                         let _ = tokio::time::timeout(Duration::from_secs(6), auth_seen.notified())
                             .await;
                     }
                     let auth = auth.lock().unwrap();
-                    *output.lock().unwrap() = if agent == "claude" {
+                    #[cfg(feature = "personal-claude")]
+                    if agent == "claude-personal" {
+                        *output.lock().unwrap() =
+                            crate::external_agents::personal_status(auth.as_ref());
+                        return Ok(());
+                    }
+                    *output.lock().unwrap() = if agent != "claude-api" {
                         claude_status(auth.as_ref())
                     } else {
                         crate::external_agents::claude_api_status(auth.as_ref())

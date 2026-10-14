@@ -467,6 +467,10 @@ mod tests {
                 "claude",
                 &serde_json::json!({"title":format!("mcp__tanzakoo__{tool}")})
             ));
+            assert!(is_board_tool(
+                "claude-personal",
+                &serde_json::json!({"title":format!("mcp__tanzakoo__{tool}")})
+            ));
         }
         assert!(!is_board_tool(
             "claude",

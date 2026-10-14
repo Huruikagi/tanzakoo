@@ -100,7 +100,7 @@ jobs:
         env:
           TANZAKOO_REVIEW_URL: ${{ inputs.review_access && 'https://review-relay-production-4f29.up.railway.app' || '' }}
         run: |
-          mise exec -- pnpm tauri build --ci --no-sign --target aarch64-apple-darwin --bundles app \
+          mise exec -- pnpm tauri build --features public-distribution --ci --no-sign --target aarch64-apple-darwin --bundles app \
             --config src-tauri/tauri.runtime.conf.json --config src-tauri/tauri.appstore.conf.json \
             --config .local/store-build.json -- --locked
       # Save only unsigned build outputs, before signing touches the bundle.

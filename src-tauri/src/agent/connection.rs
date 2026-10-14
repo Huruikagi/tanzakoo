@@ -9,6 +9,12 @@ pub(crate) struct Connection {
 
 impl Connection {
     pub fn select(runtime: &AgentRuntime, agent: &str) -> Result<Self, String> {
+        if agent == "claude" {
+            return Err(external_agents::DISABLED.into());
+        }
+        if agent == "claude-personal" {
+            external_agents::ensure_available(agent)?;
+        }
         let external = external_agents::is_external(agent);
         if external {
             external_agents::ensure_available(agent)?;
@@ -39,6 +45,16 @@ impl Connection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saved_personal_and_legacy_routes_cannot_inherit_chatgpt() {
+        let runtime = AgentRuntime::default();
+        assert!(Connection::select(&runtime, "claude").is_err());
+        assert_eq!(
+            Connection::select(&runtime, "claude-personal").is_ok(),
+            external_agents::personal_available()
+        );
+    }
 
     #[test]
     fn plan_conversations_stay_with_the_selected_account() {

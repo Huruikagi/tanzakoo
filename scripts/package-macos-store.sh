@@ -11,6 +11,7 @@ for name in MAS_APP_CERTIFICATE MAS_APP_CERTIFICATE_PASSWORD MAS_INSTALLER_CERTI
 done
 root=$(cd "$(dirname "$0")/.." && pwd)
 app=$(cd "$1" && pwd)
+python3 "$root/scripts/check-public-build.py" "$app/Contents/MacOS/tanzakoo"
 [[ $app == */Tanzakoo.app ]] || { echo 'Expected Tanzakoo.app' >&2; exit 1; }
 plist="$app/Contents/Info.plist"
 bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")

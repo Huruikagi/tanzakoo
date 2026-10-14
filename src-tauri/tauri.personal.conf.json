@@ -1,0 +1,15 @@
+{
+  "productName": "Tanzakoo Personal",
+  "identifier": "dev.huruikagi.tanzakoo.personal",
+  "app": {
+    "windows": [
+      {
+        "title": "Tanzakoo Personal",
+        "width": 1500,
+        "height": 940,
+        "minWidth": 1000,
+        "minHeight": 680
+      }
+    ]
+  }
+}

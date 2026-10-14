@@ -249,6 +249,8 @@ pub struct MemoryProposal {
 pub struct Snapshot {
     #[serde(default)]
     pub external_agents_available: bool,
+    #[serde(default)]
+    pub personal_claude_available: bool,
     pub project: Project,
     #[serde(default)]
     pub materials: Vec<ReferenceMaterial>,

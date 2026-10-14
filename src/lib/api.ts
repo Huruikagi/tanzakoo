@@ -37,10 +37,12 @@ export const agentLabel = (agent?: string) =>
         ? "Gemini CLI"
         : (externalAgent(agent ?? "")?.name ?? "ChatGPT");
 export const agentUnavailable = (snapshot: Snapshot, agent: string) =>
+  (agent === "claude-personal" && !snapshot.personalClaudeAvailable) ||
   (agent !== "codex" && !(snapshot.externalAgentsAvailable && externalAgent(agent))) ||
   snapshot.agents.some((a) => a.id === agent && a.command === CLAUDE_UNAVAILABLE);
 export const emptySnapshot: Snapshot = {
   externalAgentsAvailable: false,
+  personalClaudeAvailable: false,
   materials: [],
   project: { id: "", name: "マイプロジェクト", memory: "", revision: 1 },
   projects: [],

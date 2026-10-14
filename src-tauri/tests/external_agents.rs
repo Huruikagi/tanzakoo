@@ -1,11 +1,7 @@
 use std::{path::PathBuf, process::Command};
+use tanzakoo_lib::{agent_setup, external_agents, model::AgentConfig, store::Store};
 #[cfg(not(feature = "app-sandbox"))]
-use tanzakoo_lib::projects::Projects;
-use tanzakoo_lib::{
-    agent_setup, external_agents,
-    model::{AgentConfig, ChatSettings},
-    store::Store,
-};
+use tanzakoo_lib::{model::ChatSettings, projects::Projects};
 
 fn directory() -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -107,11 +103,15 @@ fn consent_matches_launch_across_projects_and_reconfiguration_drops_sessions() {
 #[cfg(not(feature = "app-sandbox"))]
 #[test]
 fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() {
-    for agent in ["copilot", "antigravity"] {
+    #[cfg(not(feature = "personal-claude"))]
+    let agents = ["copilot", "antigravity"];
+    #[cfg(feature = "personal-claude")]
+    let agents = ["copilot", "antigravity", "claude-personal"];
+    for agent in agents {
         let dir = directory();
         let trace = dir.join("trace.jsonl");
         let node = std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into());
-        let config = AgentConfig {
+        let mut config = AgentConfig {
             id: agent.into(),
             command: node,
             args: vec![
@@ -122,6 +122,12 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
                 trace.to_string_lossy().into(),
             ],
         };
+        if agent == "claude-personal" {
+            config.args.push(format!(
+                "--tanzakoo-claude-cli={}",
+                std::env::current_exe().unwrap().display()
+            ));
+        }
         Store::open(dir.join("check.db"))
             .unwrap()
             .set_agent(config.clone())
@@ -140,6 +146,11 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
                     "Reply only EXTERNAL_ACP_OK",
                 ])
                 .env("CODEX_HOME", "user-cli-home-sentinel")
+                .env(
+                    "TANZAKOO_TEST_PERSONAL",
+                    if agent == "claude-personal" { "1" } else { "0" },
+                )
+                .env("CLAUDE_CODE_EXECUTABLE", "must-be-overridden-for-personal")
                 .output()
                 .unwrap();
             assert!(
@@ -187,6 +198,20 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
             .filter(|line| line.get("cwd").is_some())
             .collect();
         assert_eq!(launches.len(), 3);
+        if agent == "claude-personal" {
+            for launch in &launches {
+                assert_eq!(
+                    launch["claudeExecutable"],
+                    std::env::current_exe().unwrap().to_string_lossy().as_ref()
+                );
+            }
+            assert!(
+                !checked.external_connection_checks[agent]
+                    .status
+                    .message
+                    .contains("user@example.com")
+            );
+        }
         assert_eq!(launches[0]["args"], serde_json::json!([]));
         for (index, (launch, message)) in launches[1..]
             .iter()
@@ -220,7 +245,7 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
                 let servers = &requests[index + 1]["params"]["mcpServers"];
                 assert_eq!(servers.as_array().unwrap().len(), 1);
                 assert_eq!(servers[0]["name"], "tanzakoo");
-                assert_eq!(servers[0]["args"][2], "antigravity");
+                assert_eq!(servers[0]["args"][2], agent);
                 assert_eq!(servers[0]["args"][3], snapshot.conversations[0].id);
                 assert_eq!(servers[0]["args"][4], message.id);
             }
@@ -234,6 +259,106 @@ fn app_binary_probes_and_chats_without_copying_credentials_or_using_plan_auth() 
             2
         );
     }
+}
+
+#[test]
+fn personal_build_marker_and_public_entry_points() {
+    let executable = env!("CARGO_BIN_EXE_tanzakoo");
+    let policy = Command::new(executable)
+        .arg("--build-policy")
+        .output()
+        .unwrap();
+    assert!(policy.status.success());
+    assert_eq!(
+        String::from_utf8(policy.stdout).unwrap().trim(),
+        external_agents::BUILD_POLICY
+    );
+    if !external_agents::personal_available() {
+        let store = Store::open(directory().join("board.db")).unwrap();
+        let config = AgentConfig {
+            id: "claude-personal".into(),
+            command: executable.into(),
+            args: vec![],
+        };
+        assert!(store.set_agent(config.clone()).is_err());
+        assert!(store.create_conversation("claude-personal").is_err());
+        assert!(agent_setup::launch(config, &store).is_err());
+        let result = Command::new(executable)
+            .args(["--external-acp", "claude-personal"])
+            .output()
+            .unwrap();
+        assert!(!result.status.success());
+        let bytes = std::fs::read(executable).unwrap();
+        assert!(
+            !bytes
+                .windows(b"TANZAKOO_PERSONAL_BUILD_V1".len())
+                .any(|w| w == b"TANZAKOO_PERSONAL_BUILD_V1")
+        );
+    }
+}
+
+#[cfg(feature = "personal-claude")]
+#[test]
+fn missing_personal_cli_never_falls_back_to_the_adapter_cli() {
+    let dir = directory();
+    let result = Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+        .args([
+            "--external-acp",
+            "claude-personal",
+            dir.to_str().unwrap(),
+            env!("CARGO_BIN_EXE_tanzakoo"),
+            "--build-policy",
+            "--tanzakoo-claude-cli=tanzakoo-missing-claude-cli",
+        ])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(result.stdout.is_empty());
+}
+
+#[cfg(feature = "personal-claude")]
+#[test]
+#[ignore = "uses the explicitly selected, signed-in personal CLI; no prompt or project content"]
+fn real_personal_cli_authentication_without_prompt() {
+    let cli = std::env::var("TANZAKOO_PERSONAL_CLI")
+        .expect("set TANZAKOO_PERSONAL_CLI to your official CLI's absolute path");
+    assert!(std::path::Path::new(&cli).is_absolute());
+    let dir = directory();
+    let adapter = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js");
+    let store = Store::open(dir.join("check.db")).unwrap();
+    store
+        .set_agent(AgentConfig {
+            id: "claude-personal".into(),
+            command: std::env::var("TANZAKOO_NODE").unwrap_or_else(|_| "node".into()),
+            args: vec![
+                adapter.to_string_lossy().into(),
+                format!("--tanzakoo-claude-cli={cli}"),
+            ],
+        })
+        .unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_tanzakoo"))
+        .args([
+            "--connection-check",
+            "claude-personal",
+            dir.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(result.status.success());
+    let status: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(status["state"], "ready", "{}", status["message"]);
+    let message = status["message"].as_str().unwrap();
+    assert!(
+        message.contains("ログイン済み") || message.contains("APIキー"),
+        "{message}"
+    );
+    if std::env::var_os("TANZAKOO_EXPECT_CLAUDE_SUBSCRIPTION").is_some() {
+        assert!(message.contains("ログイン済み"), "{message}");
+    }
+    assert_eq!(status["canLogin"], false);
+    let snapshot = store.snapshot().unwrap();
+    assert!(snapshot.conversations.is_empty() && snapshot.messages.is_empty());
 }
 
 #[cfg(not(feature = "app-sandbox"))]

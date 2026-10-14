@@ -1,4 +1,12 @@
 {
+  "Claude CLIにログインしていません。CLIでログインしてください。": "The Claude CLI is signed out. Sign in through the CLI.",
+  "ログイン済みのClaude CLIに接続しました。利用枠はCLI側の契約に従います。": "Connected to your signed-in Claude CLI. Usage limits follow its plan.",
+  "Claude CLIはAPIキーを使用しています。サブスクリプションとは別の従量課金です。": "The Claude CLI is using an API key. Usage is billed separately from your subscription.",
+  "Claude CLIに接続しました。料金はCLI側の接続先の契約に従います。": "Connected to the Claude CLI. Billing follows its provider agreement.",
+  "CLIに接続しました。認証の種類は確認できませんでした。送信時に確認されます。": "Connected to the CLI. Authentication type is unknown and will be checked when sending.",
+  "個人用Claude CLIを--tanzakoo-claude-cli=で指定してください。": "Specify your personal Claude CLI with --tanzakoo-claude-cli=.",
+  "個人用Claude CLIは1件だけ指定してください。": "Specify only one personal Claude CLI.",
+  "個人用ビルド限定です。ログイン済みの公式Claude CLIを使います。引数の--tanzakoo-claude-cli=claudeは、CLIの絶対パスにも変更できます。認証・料金はCLI側の設定に従います。": "Available only in personal builds. Uses your signed-in official Claude CLI. You can replace claude in --tanzakoo-claude-cli=claude with its absolute path. Authentication and billing follow the CLI settings.",
   "設定の種類": "Settings category",
   "一般": "General",
   "AI接続": "AI connection",

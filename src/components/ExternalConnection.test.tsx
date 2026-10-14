@@ -100,6 +100,16 @@ it("hides the external list in builds without external CLIs", async () => {
   expect(screen.queryByRole("region", { name: "その他のAI" })).not.toBeInTheDocument();
 });
 
+it("shows the personal connection only when the native build enables it", async () => {
+  const user = userEvent.setup();
+  useWorkspace.setState({ snapshot: { ...snapshot, personalClaudeAvailable: true } });
+  render(<Settings />);
+  await user.click(screen.getByRole("button", { name: "設定" }));
+  await user.click(screen.getByRole("tab", { name: "AI接続" }));
+  await user.click(screen.getByRole("button", { name: "Claude (Personal)を設定" }));
+  expect(screen.getByText(/個人用ビルド限定です/)).toBeVisible();
+});
+
 it("opens the selected CLI's settings from a new chat", async () => {
   const user = userEvent.setup();
   useWorkspace.setState({ newChatAgent: "claude-api" });

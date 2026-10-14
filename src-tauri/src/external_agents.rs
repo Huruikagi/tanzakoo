@@ -3,7 +3,73 @@ use crate::model::AgentConfig;
 use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
 use std::path::{Path, PathBuf};
 
-pub const IDS: &[&str] = &["antigravity", "claude-api", "copilot", "opencode", "devin"];
+pub const IDS: &[&str] = &[
+    "antigravity",
+    "claude-api",
+    "copilot",
+    "opencode",
+    "devin",
+    #[cfg(feature = "personal-claude")]
+    "claude-personal",
+];
+// Referenced by main so the marker is retained in the shipped executable.
+#[cfg(feature = "personal-claude")]
+pub const BUILD_POLICY: &str = "TANZAKOO_PERSONAL_BUILD_V1";
+#[cfg(not(feature = "personal-claude"))]
+pub const BUILD_POLICY: &str = "TANZAKOO_PUBLIC_BUILD_V1";
+
+pub fn personal_available() -> bool {
+    cfg!(feature = "personal-claude") && available()
+}
+
+#[cfg(feature = "personal-claude")]
+pub fn personal_status(auth: Option<&serde_json::Value>) -> crate::model::ConnectionStatus {
+    let (state, message) = match auth.and_then(|a| a["kind"].as_str()) {
+        Some("none") => (
+            "authRequired",
+            "Claude CLIにログインしていません。CLIでログインしてください。",
+        ),
+        Some("account") => (
+            "ready",
+            "ログイン済みのClaude CLIに接続しました。利用枠はCLI側の契約に従います。",
+        ),
+        Some("api_key") => (
+            "ready",
+            "Claude CLIはAPIキーを使用しています。サブスクリプションとは別の従量課金です。",
+        ),
+        Some("gateway" | "external") => (
+            "ready",
+            "Claude CLIに接続しました。料金はCLI側の接続先の契約に従います。",
+        ),
+        _ => (
+            "ready",
+            "CLIに接続しました。認証の種類は確認できませんでした。送信時に確認されます。",
+        ),
+    };
+    crate::model::ConnectionStatus {
+        state: state.into(),
+        message: message.into(),
+        can_login: false,
+    }
+}
+
+#[cfg(feature = "personal-claude")]
+const PERSONAL_CLI_ARG: &str = "--tanzakoo-claude-cli=";
+
+#[cfg(feature = "personal-claude")]
+fn personal_cli(args: &[String]) -> Result<&str, String> {
+    let mut paths = args
+        .iter()
+        .filter_map(|arg| arg.strip_prefix(PERSONAL_CLI_ARG));
+    let path = paths
+        .next()
+        .filter(|path| !path.trim().is_empty())
+        .ok_or("個人用Claude CLIを--tanzakoo-claude-cli=で指定してください。")?;
+    if paths.next().is_some() {
+        return Err("個人用Claude CLIは1件だけ指定してください。".into());
+    }
+    Ok(path)
+}
 pub const DISABLED: &str = "この配布版では外部CLI接続を利用できません。";
 /// claude-agent-acp refuses turns billed to a claude.ai subscription under this flag.
 /// Anthropic directs third-party Agent SDK products to API key authentication
@@ -35,6 +101,8 @@ pub fn default_config(id: &str) -> AgentConfig {
         "antigravity" if cfg!(target_os = "linux") => ("agy_acp_server.par", &["--uid="]),
         "antigravity" => ("agy_acp_server.par", &[]),
         "claude-api" => ("claude-agent-acp", &[CLAUDE_API_GUARD]),
+        #[cfg(feature = "personal-claude")]
+        "claude-personal" => ("claude-agent-acp", &["--tanzakoo-claude-cli=claude"]),
         "copilot" => ("copilot", &["--acp", "--stdio", "--disable-builtin-mcps"]),
         "opencode" => ("opencode", &["acp"]),
         "devin" => ("devin", &["acp"]),
@@ -63,6 +131,10 @@ pub fn validate(config: &AgentConfig) -> Result<(), String> {
     }
     if config.id == "claude-api" && !config.args.iter().any(|a| a == CLAUDE_API_GUARD) {
         return Err(CLAUDE_API_GUARD_MESSAGE.into());
+    }
+    #[cfg(feature = "personal-claude")]
+    if config.id == "claude-personal" {
+        personal_cli(&config.args)?;
     }
     Ok(())
 }
@@ -208,13 +280,30 @@ pub fn relay(args: &[String]) -> Result<i32, String> {
     ensure_available(id)?;
     let cwd = args.get(1).ok_or("Missing CLI working directory")?;
     let command = args.get(2).ok_or("Missing CLI executable")?;
+    validate(&AgentConfig {
+        id: id.clone(),
+        command: command.clone(),
+        args: args[3..].to_vec(),
+    })?;
     if !Path::new(cwd).is_absolute() || !Path::new(command).is_absolute() {
         return Err("CLI paths must be absolute".into());
     }
     #[cfg(windows)]
     contain_relay().map_err(|e| e.to_string())?;
     let mut child = std::process::Command::new(command);
-    child.args(&args[3..]).current_dir(cwd);
+    let child_args = &args[3..];
+    #[cfg(feature = "personal-claude")]
+    let child_args: Vec<_> = {
+        if id == "claude-personal" {
+            let cli = resolve_command(personal_cli(child_args)?)?;
+            child.env("CLAUDE_CODE_EXECUTABLE", cli);
+        }
+        child_args
+            .iter()
+            .filter(|arg| id != "claude-personal" || !arg.starts_with(PERSONAL_CLI_ARG))
+            .collect()
+    };
+    child.args(child_args).current_dir(cwd);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -259,6 +348,37 @@ fn contain_relay() -> windows::core::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn personal_route_is_compile_time_only() {
+        assert_eq!(is_external("claude-personal"), personal_available());
+        assert_eq!(
+            ensure_available("claude-personal").is_ok(),
+            personal_available()
+        );
+        if !personal_available() {
+            // Refuse before looking at cwd/executable, even with a forged saved config.
+            assert_eq!(relay(&["claude-personal".into()]).unwrap_err(), DISABLED);
+        }
+    }
+
+    #[cfg(feature = "personal-claude")]
+    #[test]
+    fn personal_cli_is_explicit_and_unambiguous() {
+        assert_eq!(
+            personal_cli(&default_config("claude-personal").args).unwrap(),
+            "claude"
+        );
+        for args in [
+            vec![],
+            vec!["--tanzakoo-claude-cli=".into()],
+            vec![
+                "--tanzakoo-claude-cli=a".into(),
+                "--tanzakoo-claude-cli=b".into(),
+            ],
+        ] {
+            assert!(personal_cli(&args).is_err());
+        }
+    }
     #[test]
     fn distribution_gate_and_known_agents() {
         for id in IDS {

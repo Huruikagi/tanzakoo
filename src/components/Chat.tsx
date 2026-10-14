@@ -1,4 +1,4 @@
-import { externalAgent, externalAgents } from "@/lib/external-agents";
+import { externalAgent, availableExternalAgents } from "@/lib/external-agents";
 import { t, systemMessage } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -133,7 +133,7 @@ export function Chat() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="codex">ChatGPT</SelectItem>
-                  {externalAgents.map((a) => (
+                  {availableExternalAgents(snapshot).map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name}
                     </SelectItem>
