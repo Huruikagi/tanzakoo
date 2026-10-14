@@ -251,6 +251,7 @@ fn external_model_and_effort_follow_the_cli_pickers() {
                 .into(),
             trace.to_string_lossy().into(),
             "--config-options".into(),
+            "--reject-current-model".into(),
         ],
     };
     Store::open(dir.join("check.db"))
@@ -272,6 +273,7 @@ fn external_model_and_effort_follow_the_cli_pickers() {
     // Discovery reports the pickers by role, whatever the CLI calls them.
     for (model, efforts) in [
         (None, Some(vec!["low", "medium", "high"])),
+        (Some("opus"), Some(vec!["low", "medium", "high"])),
         (Some("sonnet"), Some(vec!["low", "high"])),
         (Some("haiku"), None),
     ] {
@@ -316,6 +318,14 @@ fn external_model_and_effort_follow_the_cli_pickers() {
     assert!(!discovery.contains("PRIVATE_BOARD_CONTENT"));
     assert!(!discovery.contains("session/prompt"));
     assert!(!discovery.contains("\"name\":\"tanzakoo\""));
+    let selections: Vec<serde_json::Value> = discovery
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .filter(|request| request["method"] == "session/set_config_option")
+        .collect();
+    assert_eq!(selections.len(), 2);
+    assert_eq!(selections[0]["params"]["value"], "sonnet");
+    assert_eq!(selections[1]["params"]["value"], "haiku");
     assert!(
         !app(&["--chat-options", "devin", path, "unknown"])
             .status

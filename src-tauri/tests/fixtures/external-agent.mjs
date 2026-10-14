@@ -86,6 +86,17 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         return;
       }
       const { configId, value } = request.params;
+      if (
+        process.argv.includes("--reject-current-model") &&
+        configId === "model" &&
+        value === model
+      ) {
+        send({
+          id: request.id,
+          error: { code: -32002, message: "Model cannot be selected again" },
+        });
+        return;
+      }
       const option = configOptions()?.find((o) => o.id === configId);
       if (!option?.options.some((o) => o.value === value)) {
         send({ id: request.id, error: { code: -32602, message: "Unsupported selection" } });

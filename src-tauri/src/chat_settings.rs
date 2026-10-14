@@ -211,6 +211,7 @@ async fn discover_with_launch(
     let result = Arc::new(Mutex::new(Vec::new()));
     let output = result.clone();
     let is_plan = plan.is_some();
+    let is_external = crate::external_agents::is_external(agent);
     let job = agent_client_protocol::Client.builder().connect_with(
         AcpAgent::new(launch),
         |cx: ConnectionTo<Agent>| async move {
@@ -229,6 +230,14 @@ async fn discover_with_launch(
                 .block_task()
                 .await?;
             let available = session.config_options.unwrap_or_default();
+            // Some CLIs advertise a default model that cannot be selected again.
+            // Reading its options must not require reapplying that current value.
+            let model = model.filter(|model| {
+                !is_external
+                    || !options(available.clone())
+                        .iter()
+                        .any(|o| o.id == "model" && o.current_value == *model)
+            });
             let mut values = if let Some(model) = model {
                 let id = find(&available, "model")
                     .ok_or_else(agent_client_protocol::Error::invalid_params)?
