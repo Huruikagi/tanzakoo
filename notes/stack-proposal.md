@@ -6,7 +6,8 @@
 
 - React / Vite / Tailwind / shadcn/ui、Lucide、Resizable、dnd kit、Zustand、CodeMirror、react-markdownを導入した。
 - SQLite / rusqlite、ACP Rust SDK 2.1.0、rmcp 3.3.0、Tokio / Serde / thiserror / ts-rsを導入した。
-- ACPアダプターは `@agentclientprotocol/codex-acp` 1.13.1、`@agentclientprotocol/claude-agent-acp` 0.77.0。両方で起票・会話再開・変更提案・停止を実接続検証した。Codexは2026-09-27に1.11.0から更新し、Luna対応の同梱Codex 0.156.1で会話復元・カード提案・操作制限の回帰テストと公開仲介の実API応答を確認した。
+- Codex ACPは2026-10-15に `@agentclientprotocol/codex-acp` 2.2.2へ更新した。同アダプターが指定するCodex 0.160.1には `gpt-6.1-sol` のモデル定義があり、0.156.1で欠けていた推論強度とモデル情報に対応する。起動時のanalytics / OTel無効化パッチを移植し、LICENSE・NOTICEは更新先の原本と同一であることを確認した。実Codex・ACPとローカル模擬APIで、Solの新規会話・再開時にモデル情報の警告が出ないこと、推論強度の変更・カード作成・承認待ち提案・ファイル操作制限を検証した。ステージ済みWindowsランタイムでも会話経路を検証した。今回の更新では実ChatGPTアカウントやmacOS配布物の検証は行っていない。
+- 以前の実接続確認ではCodex・Claudeともに起票・会話再開・変更提案・停止を検証した。2026-09-27にはCodex ACP 1.13.1・Codex 0.156.1でLuna対応と公開仲介の実API応答を確認した。現在のClaude接続方針は `notes/product-idea.md` を参照する。
 - miseでNode 24.21.0とpnpm 12.4.2を導入・実行確認した。`packageManager` も同期済み。
 - Oxlint 1.83.0 + Oxfmt 0.68.0 + `@shadcn/lint` 0.1.0を導入した。TypeScriptはlintプラグインのパーサーとの互換性に合わせ6.0.3を使用。正常例の通過と `Button` の余白上書きの検出を確認した。
 - 提案は変更前と変更後の全文を表示する。差分計算ライブラリ、Tiptap、WebdriverIOはまだ導入していない。

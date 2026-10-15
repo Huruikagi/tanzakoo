@@ -1,4 +1,4 @@
 packages:
   - packages/*
 patchedDependencies:
-  "@agentclientprotocol/codex-acp@1.13.1": patches/@agentclientprotocol__codex-acp@1.13.1.patch
+  "@agentclientprotocol/codex-acp@2.2.2": patches/@agentclientprotocol__codex-acp@2.2.2.patch

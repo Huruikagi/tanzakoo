@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const adapterRequire = createRequire(require.resolve("@agentclientprotocol/codex-acp"));
 const codex = join(dirname(adapterRequire.resolve("@openai/codex/package.json")), "bin/codex.js");
 
-for (const model of ["gpt-5.4", "gpt-6-astra", "gpt-6-luna"]) {
+for (const model of ["gpt-5.4", "gpt-6-astra", "gpt-6-luna", "gpt-6.1-sol"]) {
   test(
     `reference policy removes filesystem escape tools and blocks patches (${model})`,
     { timeout: 45_000 },
@@ -38,7 +38,9 @@ for (const model of ["gpt-5.4", "gpt-6-astra", "gpt-6-luna"]) {
           const payload = JSON.parse(body);
           requests.push(payload);
           assert.ok(requests.length <= 2, "unexpected retry or extra model turn");
-          // apply_patch remains advertised by Codex, but must fail before file access.
+          // Known models advertise apply_patch, but it must fail before file access.
+          // The removed GPT-5.4 catalog entry uses fallback metadata without this tool;
+          // still send a fabricated call to verify rejection before file access.
           // Fail closed on newly introduced built-in tools; review them on runtime upgrades.
           const toolGroups =
             payload.tools ??
@@ -72,6 +74,8 @@ for (const model of ["gpt-5.4", "gpt-6-astra", "gpt-6-luna"]) {
               ...execTool.description.matchAll(/declare const tools: \{ (\w+)\(/g),
             ].map((match) => match[1]);
             assert.deepEqual(nested.sort(), ["apply_patch", "clock__curr_time"]);
+          } else if (model === "gpt-5.4") {
+            assert.ok(!tools.some((tool) => tool.name === "apply_patch"));
           } else assert.ok(tools.some((tool) => tool.name === "apply_patch"));
           const item = {
             type: "custom_tool_call",
@@ -168,7 +172,9 @@ for (const model of ["gpt-5.4", "gpt-6-astra", "gpt-6-luna"]) {
         assert.equal(code, 0, stderr);
         assert.equal(requests.length, 2, stderr);
         const output = requests[1].input.find((item) => item.type === "custom_tool_call_output");
-        assert.match(JSON.stringify(output?.output ?? ""), /read-only sandbox/);
+        if (model === "gpt-5.4")
+          assert.equal(output?.output, "unsupported custom tool call: apply_patch");
+        else assert.match(JSON.stringify(output?.output ?? ""), /read-only sandbox/);
         assert.equal(readFileSync(join(fixture, "private.txt"), "utf8"), "unchanged\n");
       } finally {
         if (child?.exitCode === null) child.kill();

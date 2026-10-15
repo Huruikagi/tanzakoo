@@ -57,6 +57,7 @@ for (const route of [
   "gateway-luna",
   "gateway-custom-model",
   "plan-board",
+  "plan-sol-board",
   "plan-custom-model",
 ]) {
   test(
@@ -68,12 +69,14 @@ for (const route of [
       const home = join(dir, "home");
       const boardPath = join(dir, "board.db");
       const planMode = route.startsWith("plan-");
-      const boardMode = route === "gateway-board" || route === "plan-board";
+      const boardMode = route.endsWith("-board");
       const model = route.endsWith("custom-model")
         ? "review-fixture-model"
-        : boardMode || route === "gateway-luna"
-          ? "gpt-6-luna"
-          : "gpt-6-astra";
+        : route === "plan-sol-board"
+          ? "gpt-6.1-sol"
+          : boardMode || route === "gateway-luna"
+            ? "gpt-6-luna"
+            : "gpt-6-astra";
       mkdirSync(home);
       writeFileSync(join(home, "config.toml"), inheritedTelemetry);
       const requests = [];
@@ -290,13 +293,13 @@ for (const route of [
         assert.deepEqual(failures, []);
         assert.equal(requests.length, boardMode ? 3 : 1);
         assert.ok(requests.every((request) => request.model === model));
-        if (route === "plan-board")
+        if (planMode && boardMode)
           assert.ok(requests.every((request) => request.reasoning?.effort === "high"));
         assert.ok(
           client.notifications.some((m) => m.params?.update?.content?.text === "REVIEW_OK"),
         );
         assert.ok(!client.diagnostics().includes(token), "token leaked to stderr");
-        if (model === "gpt-6-luna") {
+        if (!route.endsWith("custom-model")) {
           assert.doesNotMatch(
             JSON.stringify(client.notifications) + client.diagnostics(),
             /Model metadata for|fallback metadata/i,
@@ -336,7 +339,7 @@ for (const route of [
           mcpServers,
         });
         assert.equal(requests.length, boardMode ? 3 : 1);
-        if (route === "plan-board") {
+        if (planMode && boardMode) {
           await client.request("session/set_config_option", {
             sessionId: session.sessionId,
             configId: "model",
@@ -353,8 +356,8 @@ for (const route of [
           prompt: [{ type: "text", text: "Reply REVIEW_OK again." }],
         });
         assert.equal(requests.length, boardMode ? 4 : 2);
-        if (route === "plan-board") assert.equal(requests.at(-1).reasoning?.effort, "low");
-        if (model === "gpt-6-luna") {
+        if (planMode && boardMode) assert.equal(requests.at(-1).reasoning?.effort, "low");
+        if (!route.endsWith("custom-model")) {
           assert.doesNotMatch(
             JSON.stringify(client.notifications) + client.diagnostics(),
             /Model metadata for|fallback metadata/i,
