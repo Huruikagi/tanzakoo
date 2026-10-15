@@ -357,6 +357,8 @@ summary:focus-visible {
   cursor: grab;
 }
 .topic-open {
+  /* Avoid WebKit sizing the inline button's line box from unclamped text. */
+  display: block;
   width: 100%;
   border: 0;
   background: transparent;
