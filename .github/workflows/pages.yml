@@ -2,6 +2,9 @@ name: Public support and privacy pages
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/pages.yml
   push:
     branches: [main]
     paths:
@@ -40,6 +43,7 @@ jobs:
           path: .local/public-site
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write
