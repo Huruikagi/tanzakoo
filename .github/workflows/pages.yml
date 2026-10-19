@@ -35,7 +35,7 @@ jobs:
       - uses: actions/configure-pages@v6
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- node scripts/build-store-site.mjs .local/public-site
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: .local/public-site
   deploy:
