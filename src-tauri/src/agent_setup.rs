@@ -1,7 +1,7 @@
 //! App-owned runtime and credentials. Reading a board never calls this module's probe.
 use crate::{model::*, store::Store};
 use agent_client_protocol::{
-    AcpAgent, AcpAgentConfig, Agent, ConnectionTo, UntypedMessage,
+    AcpAgentConfig, Agent, ConnectionTo, UntypedMessage,
     schema::{ProtocolVersion, v1::*},
 };
 use std::{
@@ -150,6 +150,10 @@ pub fn launch_with_review(
         .env("INITIAL_AGENT_MODE", "read-only");
     if managed {
         launch = launch
+            .env(
+                "TANZAKOO_ACP_PROCESS_GATE",
+                if cfg!(windows) { "1" } else { "" },
+            )
             .env("NODE_OPTIONS", "")
             .env("TANZAKOO_PLAN_MODEL", "")
             .env("TANZAKOO_REVIEW_MODEL", review_model.unwrap_or(""));
@@ -268,7 +272,7 @@ async fn probe_launch(
             agent_client_protocol::on_receive_notification!(),
         )
         .connect_with(
-            AcpAgent::new(launch),
+            crate::acp_process::ProcessAgent(launch),
             |cx: ConnectionTo<Agent>| async move {
                 let initialized = cx
                     .send_request(InitializeRequest::new(ProtocolVersion::V1))

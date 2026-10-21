@@ -15,9 +15,12 @@ pub mod storage;
 pub mod store;
 pub mod system_message;
 
+mod acp_process;
 mod commands;
 #[cfg(all(target_os = "macos", feature = "sandbox-validation"))]
 pub mod sandbox_check;
+#[cfg(windows)]
+mod windows_job;
 
 use std::sync::{Arc, Mutex};
 use tauri::Manager;

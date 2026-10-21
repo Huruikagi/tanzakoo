@@ -13,8 +13,8 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "eventsource-parser": "4.1.1",
-    "fastify": "5.12.5"
+    "eventsource-parser": "4.1.2",
+    "fastify": "5.12.7"
   },
   "engines": {
     "node": ">=24.21.0 <25"
