@@ -3890,6 +3890,7 @@ dependencies = [
  "block2",
  "cap-fs-ext",
  "cap-std",
+ "futures",
  "libc",
  "objc2",
  "objc2-foundation",

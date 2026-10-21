@@ -1,6 +1,9 @@
 // The managed runtime uses app-owned credentials and its pinned Codex dependency.
 // Do not silently inherit another application's API key, gateway or executable.
 import referencePolicy from "./reference-policy.json" with { type: "json" };
+import { waitForProcessJob } from "./process-gate.mjs";
+
+waitForProcessJob();
 for (const key of [
   "CODEX_API_KEY",
   "OPENAI_API_KEY",

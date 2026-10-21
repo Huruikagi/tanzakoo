@@ -5,6 +5,7 @@
   "license": "MIT",
   "files": [
     "codex.mjs",
+    "process-gate.mjs",
     "plan-cli.mjs",
     "plan",
     "reference-policy.json",

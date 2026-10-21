@@ -7,7 +7,7 @@ mod session;
 use permissions::is_board_tool;
 
 use crate::{model::*, store::Store};
-use agent_client_protocol::{AcpAgent, Agent, ConnectionTo, schema::v1::*};
+use agent_client_protocol::{Agent, ConnectionTo, schema::v1::*};
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -276,7 +276,7 @@ pub async fn run(
             agent_client_protocol::on_receive_request!(),
         )
         .connect_with(
-            AcpAgent::new(launch),
+            crate::acp_process::ProcessAgent(launch),
             |cx: ConnectionTo<Agent>| async move {
                 let prepared = session::prepare(
                     &cx,
