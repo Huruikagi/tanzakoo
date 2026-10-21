@@ -6,27 +6,28 @@ import { setTimeout } from "node:timers/promises";
 import { waitForProcessJob } from "../../../packages/agent-runtime/process-gate.mjs";
 
 waitForProcessJob();
-const [directory, mode] = process.argv.slice(2);
+const [directory, mode, executable] = process.argv.slice(2);
 const locked = join(directory, "locked.txt");
 const ready = join(directory, "lock.pid");
 writeFileSync(locked, "fixture");
-// Hold a real Windows handle that forbids deletion, independently of the adapter.
-spawn(
-  "powershell.exe",
-  [
-    "-NoProfile",
-    "-NonInteractive",
-    "-Command",
-    "$held = [System.IO.File]::Open($env:TANZAKOO_LOCK_FILE, 'Open', 'Read', 'Read'); " +
-      "[System.IO.File]::WriteAllText($env:TANZAKOO_LOCK_PID, [string]$PID); " +
-      "Start-Sleep -Seconds 120; $held.Dispose()",
-  ],
+// Re-exec the compiled Rust test helper: no PowerShell startup, profiles, or
+// external runtime is needed to hold a Windows handle that forbids deletion.
+const holder = spawn(
+  executable,
+  ["--ignored", "--exact", "acp_process::tests::locked_descendant", "--nocapture"],
   {
-    env: { ...process.env, TANZAKOO_LOCK_FILE: locked, TANZAKOO_LOCK_PID: ready },
+    env: { ...process.env, TANZAKOO_LOCK_DIRECTORY: directory },
     windowsHide: true,
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
   },
 );
+holder.stderr.pipe(process.stderr);
+holder.on("error", (error) => {
+  throw error;
+});
+holder.on("exit", (code) => {
+  if (!existsSync(ready)) throw new Error(`Lock holder exited before readiness: ${code}`);
+});
 const deadline = Date.now() + 10_000;
 while (!existsSync(ready)) {
   if (Date.now() > deadline) throw new Error("Lock holder did not start");
