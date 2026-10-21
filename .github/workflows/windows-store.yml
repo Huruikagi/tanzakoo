@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
       - name: Validate identity and version before building
         env:
           VALIDATION_ONLY: ${{ inputs.validation_only }}
