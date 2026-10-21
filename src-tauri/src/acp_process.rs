@@ -55,6 +55,40 @@ mod tests {
         }
     }
 
+    #[test]
+    #[ignore = "only spawned by the managed-job regression fixture"]
+    fn locked_descendant() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let directory =
+            PathBuf::from(std::env::var_os("TANZAKOO_LOCK_DIRECTORY").expect("fixture directory"))
+                .canonicalize()
+                .unwrap();
+        let root = std::env::temp_dir().canonicalize().unwrap();
+        assert_eq!(directory.parent(), Some(root.as_path()));
+        assert!(
+            directory
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("tanzakoo-process-")
+        );
+        let held = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1)
+            .open(directory.join("locked.txt"))
+            .unwrap();
+        std::fs::write(
+            directory.join("lock.pid.tmp"),
+            std::process::id().to_string(),
+        )
+        .unwrap();
+        std::fs::rename(directory.join("lock.pid.tmp"), directory.join("lock.pid")).unwrap();
+        // The owning job must terminate this process; normal exit is only a
+        // bounded fallback if a failing regression loses ownership entirely.
+        std::thread::sleep(Duration::from_secs(120));
+        drop(held);
+    }
+
     #[tokio::test]
     async fn managed_job_releases_descendant_locks_on_success_error_exit_and_cancel() {
         for mode in ["success", "error", "exit", "cancel"] {
@@ -76,6 +110,10 @@ mod tests {
                 fixture.to_string_lossy().into_owned(),
                 directory.to_string_lossy().into_owned(),
                 mode.into(),
+                std::env::current_exe()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
             ])
             .env("TANZAKOO_ACP_PROCESS_GATE", "1");
             let task = tokio::spawn(Client.builder().connect_with(
@@ -98,6 +136,12 @@ mod tests {
                     && let Ok(tree) = serde_json::from_slice::<serde_json::Value>(&bytes)
                 {
                     break tree;
+                }
+                if task.is_finished() {
+                    panic!(
+                        "fixture connection ended before readiness: {mode}: {:?}",
+                        task.await
+                    );
                 }
                 assert!(
                     tokio::time::Instant::now() < deadline,
