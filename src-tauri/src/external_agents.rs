@@ -318,30 +318,15 @@ pub fn relay(args: &[String]) -> Result<i32, String> {
 
 #[cfg(windows)]
 fn contain_relay() -> windows::core::Result<()> {
-    use windows::Win32::System::{
-        JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
-            SetInformationJobObject,
-        },
-        Threading::GetCurrentProcess,
-    };
+    use windows::Win32::System::Threading::GetCurrentProcess;
     // Assign the launcher itself BEFORE spawning. Descendants inherit membership,
     // including npm/PowerShell wrappers. The ACP library kills only its immediate
     // child on Windows; closing this process's last job handle then kills the tree.
-    // Deliberately retain the raw handle until process exit (main calls exit).
-    unsafe {
-        let job = CreateJobObjectW(None, None)?;
-        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        SetInformationJobObject(
-            job,
-            JobObjectExtendedLimitInformation,
-            &limits as *const _ as *const _,
-            std::mem::size_of_val(&limits) as u32,
-        )?;
-        AssignProcessToJobObject(job, GetCurrentProcess())?;
-    }
+    // Retain ownership until process exit (main calls exit); a guard dropped
+    // while it contained this launcher would terminate the launcher itself.
+    let job = crate::windows_job::ProcessJob::new()?;
+    job.assign(unsafe { GetCurrentProcess() })?;
+    std::mem::forget(job);
     Ok(())
 }
 
