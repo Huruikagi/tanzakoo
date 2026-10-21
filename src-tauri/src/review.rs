@@ -345,10 +345,7 @@ mod tests {
 
     #[tokio::test]
     async fn managed_acp_accepts_memory_only_gateway_and_uses_separate_home() {
-        use agent_client_protocol::{
-            AcpAgent,
-            schema::{ProtocolVersion, v1::*},
-        };
+        use agent_client_protocol::schema::{ProtocolVersion, v1::*};
         let directory = std::env::temp_dir().join(format!(
             "tanzakoo-review-auth-{}-{}",
             std::process::id(),
@@ -373,7 +370,7 @@ mod tests {
                 .unwrap();
         let workspace = directory.clone();
         let job = agent_client_protocol::Client.builder().connect_with(
-            AcpAgent::new(launch),
+            crate::acp_process::ProcessAgent(launch),
             |cx: ConnectionTo<Agent>| async move {
                 cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
                     .block_task()
@@ -421,7 +418,27 @@ mod tests {
         drop(store);
         remove_review_test_directory(&directory, Duration::from_secs(5))
             .await
-            .unwrap();
+            .unwrap_or_else(|error| {
+                // CI otherwise reports only code 32. Record remaining paths,
+                // never file contents or credentials, if cleanup still fails.
+                let mut pending = vec![directory.clone()];
+                for _ in 0..32 {
+                    let Some(path) = pending.pop() else { break };
+                    eprintln!("Review cleanup remaining: {}", path.display());
+                    if let Ok(entries) = std::fs::read_dir(&path) {
+                        pending.extend(
+                            entries
+                                .flatten()
+                                .filter(|entry| {
+                                    entry.file_type().is_ok_and(|kind| !kind.is_symlink())
+                                })
+                                .take(32)
+                                .map(|entry| entry.path()),
+                        );
+                    }
+                }
+                panic!("Review cleanup failed at {}: {error}", directory.display());
+            });
     }
 
     async fn remove_review_test_directory(
