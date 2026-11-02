@@ -28,7 +28,9 @@ holder.on("error", (error) => {
 holder.on("exit", (code) => {
   if (!existsSync(ready)) throw new Error(`Lock holder exited before readiness: ${code}`);
 });
-const deadline = Date.now() + 10_000;
+// Leave room for a cold native helper launch under CI load, within the parent
+// test's 60s startup budget. This does not change the lock-release deadline.
+const deadline = Date.now() + 45_000;
 while (!existsSync(ready)) {
   if (Date.now() > deadline) throw new Error("Lock holder did not start");
   await setTimeout(10);

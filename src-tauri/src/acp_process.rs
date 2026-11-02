@@ -130,7 +130,9 @@ mod tests {
             ));
             // Observe the lock while the connection is active. Keep the callback
             // pending until handles have been captured, including the exit case.
-            let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+            // A cold Node/test-helper launch can exceed 15s on busy Windows
+            // runners. Keep startup separate from the strict shutdown checks.
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
             let tree = loop {
                 if let Ok(bytes) = std::fs::read(directory.join("tree.json"))
                     && let Ok(tree) = serde_json::from_slice::<serde_json::Value>(&bytes)
@@ -145,7 +147,9 @@ mod tests {
                 }
                 assert!(
                     tokio::time::Instant::now() < deadline,
-                    "fixture startup timed out: {mode}"
+                    "fixture startup timed out: {mode}, adapter_ready={}, lock_holder_ready={}",
+                    directory.join("locked.txt").exists(),
+                    directory.join("lock.pid").exists()
                 );
                 tokio::time::sleep(Duration::from_millis(10)).await;
             };
