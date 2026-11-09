@@ -1,5 +1,5 @@
 use super::{AgentEvent, AgentRuntime, Emit};
-use agent_client_protocol::schema::v1::*;
+use agent_client_protocol::v1::schema::*;
 use std::{
     collections::HashMap,
     sync::{Mutex, atomic::Ordering},

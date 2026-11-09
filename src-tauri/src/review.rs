@@ -1,5 +1,5 @@
 //! Review credentials live only in memory, never in project settings or Codex config.
-use agent_client_protocol::{Agent, ConnectionTo, schema::v1::AuthenticateRequest};
+use agent_client_protocol::{Agent, v1::ConnectionTo, v1::schema::AuthenticateRequest};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use ts_rs::TS;
@@ -345,7 +345,7 @@ mod tests {
 
     #[tokio::test]
     async fn managed_acp_accepts_memory_only_gateway_and_uses_separate_home() {
-        use agent_client_protocol::schema::{ProtocolVersion, v1::*};
+        use agent_client_protocol::{schema::ProtocolVersion, v1::schema::*};
         let directory = std::env::temp_dir().join(format!(
             "tanzakoo-review-auth-{}-{}",
             std::process::id(),
@@ -369,7 +369,7 @@ mod tests {
             crate::agent_setup::launch_with_review(config, &store, Some(&access.status.model))
                 .unwrap();
         let workspace = directory.clone();
-        let job = agent_client_protocol::Client.builder().connect_with(
+        let job = agent_client_protocol::Client.v1().connect_with(
             crate::acp_process::ProcessAgent(launch),
             |cx: ConnectionTo<Agent>| async move {
                 cx.send_request(InitializeRequest::new(ProtocolVersion::V1))

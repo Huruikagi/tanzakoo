@@ -78,7 +78,7 @@ impl Fixture {
         &self,
         cancel_on_delta: bool,
     ) -> (
-        Result<agent_client_protocol::schema::v1::StopReason, String>,
+        Result<agent_client_protocol::v1::schema::StopReason, String>,
         Vec<AgentEvent>,
     ) {
         let runtime = Arc::new(AgentRuntime::default());
@@ -141,7 +141,7 @@ async fn resumed_turns_do_not_emit_or_persist_replayed_history() {
         let (result, events) = f.run(false).await;
         assert_eq!(
             result.unwrap(),
-            agent_client_protocol::schema::v1::StopReason::EndTurn
+            agent_client_protocol::v1::schema::StopReason::EndTurn
         );
         assert_eq!(
             events
@@ -218,7 +218,7 @@ async fn cancellation_and_failure_preserve_partial_text_and_cancel_turn_question
 
 #[tokio::test]
 async fn agent_stop_reasons_are_preserved_for_completion_notifications() {
-    use agent_client_protocol::schema::v1::StopReason;
+    use agent_client_protocol::v1::schema::StopReason;
     for (mode, expected) in [
         ("cancelled", StopReason::Cancelled),
         ("max_tokens", StopReason::MaxTokens),

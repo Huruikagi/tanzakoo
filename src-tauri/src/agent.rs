@@ -7,7 +7,7 @@ mod session;
 use permissions::is_board_tool;
 
 use crate::{model::*, store::Store};
-use agent_client_protocol::{Agent, ConnectionTo, schema::v1::*};
+use agent_client_protocol::{Agent, v1::ConnectionTo, v1::schema::*};
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -252,7 +252,7 @@ pub async fn run(
     let settings_rejected = Arc::new(AtomicBool::new(false));
     let session_settings_rejected = settings_rejected.clone();
     let job = agent_client_protocol::Client
-        .builder()
+        .v1()
         .on_receive_notification(
             async move |notice: SessionNotification, _cx| {
                 notify.receive(notice.update);

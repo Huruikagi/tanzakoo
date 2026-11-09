@@ -34,8 +34,7 @@ mod tests {
         },
     };
     use agent_client_protocol::{
-        ConnectionTo,
-        schema::{ProtocolVersion, v1::InitializeRequest},
+        schema::ProtocolVersion, v1::ConnectionTo, v1::schema::InitializeRequest,
     };
     use std::{
         path::PathBuf,
@@ -116,7 +115,7 @@ mod tests {
                     .into_owned(),
             ])
             .env("TANZAKOO_ACP_PROCESS_GATE", "1");
-            let task = tokio::spawn(Client.builder().connect_with(
+            let task = tokio::spawn(Client.v1().connect_with(
                 ProcessAgent(config),
                 move |cx: ConnectionTo<Agent>| async move {
                     cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
@@ -201,9 +200,12 @@ mod tests {
 #[cfg(windows)]
 mod windows {
     use super::*;
+    use ::windows::Win32::System::Threading::CREATE_NO_WINDOW;
+    use async_process::{Command, windows::CommandExt};
     use futures::{AsyncReadExt, AsyncWriteExt};
     use std::{
         collections::VecDeque,
+        process::Stdio,
         sync::{Arc, Mutex},
         time::Duration,
     };
@@ -214,7 +216,15 @@ mod windows {
     ) -> Result<(), agent_client_protocol::Error> {
         use agent_client_protocol::{ByteStreams, Error};
         let mut job = crate::windows_job::ProcessJob::new().map_err(Error::into_internal_error)?;
-        let (mut stdin, stdout, mut stderr, mut child) = AcpAgent::new(config).spawn_process()?;
+        let mut child = Command::new(config.command())
+            .args(config.arguments())
+            .envs(config.environment())
+            .creation_flags(CREATE_NO_WINDOW.0)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(Error::into_internal_error)?;
         // The Node bootstrap cannot spawn Codex until this assignment succeeds.
         // Assigning a running, ungated launcher would leave a startup race.
         if let Err(error) = job.assign_child(&child) {
@@ -222,6 +232,9 @@ mod windows {
             let _ = child.status().await;
             return Err(Error::into_internal_error(error));
         }
+        let mut stdin = child.stdin.take().expect("piped ACP stdin");
+        let stdout = child.stdout.take().expect("piped ACP stdout");
+        let mut stderr = child.stderr.take().expect("piped ACP stderr");
         stdin
             .write_all(b"tanzakoo-process-ready\n")
             .await

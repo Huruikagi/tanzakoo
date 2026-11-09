@@ -1,9 +1,6 @@
 //! Initialize ACP and restore only sessions owned by this app's credentials.
 use crate::{model::Conversation, store::Store};
-use agent_client_protocol::{
-    Agent, ConnectionTo,
-    schema::{ProtocolVersion, v1::*},
-};
+use agent_client_protocol::{Agent, schema::ProtocolVersion, v1::ConnectionTo, v1::schema::*};
 use std::{
     path::PathBuf,
     sync::atomic::{AtomicBool, Ordering},

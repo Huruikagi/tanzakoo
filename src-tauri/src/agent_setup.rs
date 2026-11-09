@@ -1,8 +1,7 @@
 //! App-owned runtime and credentials. Reading a board never calls this module's probe.
 use crate::{model::*, store::Store};
 use agent_client_protocol::{
-    AcpAgentConfig, Agent, ConnectionTo, UntypedMessage,
-    schema::{ProtocolVersion, v1::*},
+    AcpAgentConfig, Agent, UntypedMessage, schema::ProtocolVersion, v1::ConnectionTo, v1::schema::*,
 };
 use std::{
     path::PathBuf,
@@ -258,7 +257,7 @@ async fn probe_launch(
     let auth_seen = Arc::new(Notify::new());
     let (notify_auth, notify_seen) = (auth.clone(), auth_seen.clone());
     let job = agent_client_protocol::Client
-        .builder()
+        .v1()
         .on_receive_notification(
             async move |notice: UntypedMessage, _cx| {
                 if notice.method == AUTH_STATUS_UPDATE

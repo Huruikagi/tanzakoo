@@ -1,6 +1,6 @@
 //! Turn-local notification state shared with permission checks and session replay.
 use super::{AgentEvent, Emit};
-use agent_client_protocol::schema::v1::{ContentBlock, SessionUpdate};
+use agent_client_protocol::v1::schema::{ContentBlock, SessionUpdate};
 use std::{
     collections::HashMap,
     sync::{
