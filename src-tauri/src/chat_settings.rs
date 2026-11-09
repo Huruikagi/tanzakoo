@@ -1,8 +1,7 @@
 //! Discover session settings without sending project content, and apply them before a turn.
 use crate::{agent_setup, chatgpt_plan, model::*, store::Store};
 use agent_client_protocol::{
-    AcpAgentConfig, Agent, ConnectionTo,
-    schema::{ProtocolVersion, v1::*},
+    AcpAgentConfig, Agent, schema::ProtocolVersion, v1::ConnectionTo, v1::schema::*,
 };
 use std::{
     sync::{Arc, Mutex},
@@ -212,7 +211,7 @@ async fn discover_with_launch(
     let output = result.clone();
     let is_plan = plan.is_some();
     let is_external = crate::external_agents::is_external(agent);
-    let job = agent_client_protocol::Client.builder().connect_with(
+    let job = agent_client_protocol::Client.v1().connect_with(
         crate::acp_process::ProcessAgent(launch),
         |cx: ConnectionTo<Agent>| async move {
             let mut initialize = InitializeRequest::new(ProtocolVersion::V1);

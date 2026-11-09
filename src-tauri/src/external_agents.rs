@@ -1,6 +1,6 @@
 //! Optional, user-installed ACP executables. Credentials and installation stay with the CLI.
 use crate::model::AgentConfig;
-use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
+use agent_client_protocol::v1::schema::{McpServer, McpServerStdio};
 use std::path::{Path, PathBuf};
 
 pub const IDS: &[&str] = &[
@@ -142,7 +142,7 @@ pub fn validate(config: &AgentConfig) -> Result<(), String> {
 /// The adapter answers both a signed-out CLI and a subscription-only account with
 /// `authRequired`; only the latter carries a reason.
 pub fn claude_api_auth_error(error: &agent_client_protocol::Error) -> Option<&'static str> {
-    use agent_client_protocol::schema::v1::ErrorCode;
+    use agent_client_protocol::v1::schema::ErrorCode;
     (error.code == ErrorCode::AuthRequired).then(|| {
         match error.data.as_ref().and_then(|d| d["reason"].as_str()) {
             Some("claude_subscription_not_supported") => CLAUDE_SUBSCRIPTION_REFUSED,

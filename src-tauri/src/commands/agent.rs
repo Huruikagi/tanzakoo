@@ -84,7 +84,7 @@ pub(crate) async fn send_prompt(
     });
     let succeeded = matches!(
         result,
-        Ok(agent_client_protocol::schema::v1::StopReason::EndTurn)
+        Ok(agent_client_protocol::v1::schema::StopReason::EndTurn)
     );
     // OS notification callbacks must never hold the completed chat request open.
     tauri::async_runtime::spawn(async move {

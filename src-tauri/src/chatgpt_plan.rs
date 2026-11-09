@@ -1,6 +1,6 @@
 //! Standard ChatGPT plan connection. Credentials stay in the native helper and Rust memory.
 use crate::{agent_setup, model::ChatOptionValue, store::Store};
-use agent_client_protocol::{Agent, ConnectionTo, schema::v1::AuthenticateRequest};
+use agent_client_protocol::{Agent, v1::ConnectionTo, v1::schema::AuthenticateRequest};
 use serde::{Deserialize, Serialize};
 use std::{process::Stdio, time::Duration};
 use tokio::io::AsyncReadExt;
