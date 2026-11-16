@@ -34,8 +34,8 @@ tokio = { version = "1", features = [
   "time",
   "macros",
 ] }
-agent-client-protocol = { version = "=5.0.0", features = ["process"] }
-rmcp = { version = "=3.9.0", features = ["transport-io"] }
+agent-client-protocol = { version = "=5.2.0", features = ["process"] }
+rmcp = { version = "=3.10.0", features = ["transport-io"] }
 thiserror = "2"
 tracing = "0.1"
 ts-rs = { version = "12", features = ["serde-compat"] }
@@ -43,7 +43,7 @@ tauri-plugin-dialog = "2"
 cap-std = "4.0.3"
 cap-fs-ext = "4.0.3"
 reqwest = { version = "=0.13.5", default-features = false, features = ["native-tls"] }
-tauri-plugin-opener = "=2.7.2"
+tauri-plugin-opener = "=2.7.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6.2"
