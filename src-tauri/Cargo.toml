@@ -24,7 +24,7 @@ tauri = { version = "2.12.1", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 pulldown-cmark = { version = "0.13.4", default-features = false }
-rusqlite = { version = "0.42", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 tokio = { version = "1", features = [
   "rt-multi-thread",
   "process",
@@ -34,8 +34,8 @@ tokio = { version = "1", features = [
   "time",
   "macros",
 ] }
-agent-client-protocol = { version = "=5.2.0", features = ["process"] }
-rmcp = { version = "=3.10.0", features = ["transport-io"] }
+agent-client-protocol = { version = "=5.4.0", features = ["process"] }
+rmcp = { version = "=3.11.0", features = ["transport-io"] }
 thiserror = "2"
 tracing = "0.1"
 ts-rs = { version = "12", features = ["serde-compat"] }
